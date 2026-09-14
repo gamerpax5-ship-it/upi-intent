@@ -13,7 +13,7 @@ android {
         targetSdk = 35
         versionCode = 16
         versionName = "0.10.5"
-        buildConfigField("String", "API_BASE_URL", "\"https://pay.wtron.org\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://upi-intent-production.up.railway.app\"")
     }
 
     buildFeatures {
