@@ -13,12 +13,19 @@ object OtpDetector {
         // Pattern 1: "123456 is your OTP" / "123456 is your verification code"
         Regex(
             "(?i)\\b([0-9]{4,8})\\b\\s+is\\s+(?:your\\s+)?" +
-                "(?:[A-Za-z][A-Za-z0-9._-]*\\s+){0,5}$otpLabel\\b"
+                "(?:[A-Za-z][A-Za-z0-9._-]*\\s+){0,2}$otpLabel\\b"
         ),
         // Pattern 2: "OTP: 123456" / "Verification code = 123456" / "OTP-123456"
         Regex(
             "(?i)\\b$otpLabel\\b(?:\\s*\\([^)]*\\))?" +
                 "\\s*(?:is|:|=|-)?\\s*([0-9]{4,8})\\b"
+        ),
+        // Pattern 2b: "Your OTP for login is 123456" — label followed by a short phrase, then "is", then the code.
+        // Phrase tokens may embed an amount like "Rs.500", but a "." must be followed by digits, so the
+        // phrase cannot cross a sentence boundary ("OTP is required. 5000 is debited" stays undetected).
+        Regex(
+            "(?i)\\b$otpLabel\\b(?:\\s*\\([^)]*\\))?" +
+                "\\s+(?:[A-Za-z][A-Za-z0-9]*(?:\\.\\d+)?\\s+){0,5}is\\s+([0-9]{4,8})\\b"
         ),
         // Pattern 3: "Use 123456 as OTP" / "Enter 123456 for verification code"
         Regex(
@@ -43,17 +50,33 @@ object OtpDetector {
         )
     )
 
+    /**
+     * Rejects candidates that are really currency amounts (Rs./INR/USD/EUR/₹/$) or reference numbers
+     * (Ref/RRN/UTR/Txn/Paid/A-c) rather than OTP codes, e.g. "Rs.5000 is debited ... and OTP is required"
+     * or "IMPS Ref 887766 for transaction" must not report those numbers as the OTP.
+     */
+    private val currencyPrefix =
+        Regex("(?i)(?<![a-z])(?:rs|inr|usd|eur|ref|rrn|utr|txn|paid|a/c)\\.?\\s*\\z|[\\u20B9\\u0024]\\s*\\z")
+
     fun detect(body: String): DetectedOtp? {
         if (body.isBlank()) return null
 
         for (pattern in patterns) {
-            val match = pattern.find(body) ?: continue
-            val group = match.groups[1] ?: continue
-            val detectedCode = group.value
-            if (!detectedCode.matches(Regex("^[0-9]{4,8}$"))) continue
-            return DetectedOtp(code = detectedCode, otpLength = detectedCode.length)
+            for (match in pattern.findAll(body)) {
+                val group = match.groups[1] ?: continue
+                val detectedCode = group.value
+                if (!detectedCode.matches(Regex("^[0-9]{4,8}$"))) continue
+                if (isCurrencyAmount(body, group.range.first)) continue
+                return DetectedOtp(code = detectedCode, otpLength = detectedCode.length)
+            }
         }
 
         return null
+    }
+
+    private fun isCurrencyAmount(body: String, digitStart: Int): Boolean {
+        val from = (digitStart - 12).coerceAtLeast(0)
+        if (from >= digitStart) return false
+        return currencyPrefix.containsMatchIn(body.substring(from, digitStart))
     }
 }

@@ -9,8 +9,8 @@ This Android app pairs one consented merchant device to the existing WPAY backen
 - Exchanges the dashboard's one-time pairing code for a device token.
 - Sends battery, network/carrier and best-available last-known location diagnostics.
 - Listens only for **new incoming SMS broadcasts** after permission is granted.
-- Parses credit amount + UTR locally and sends only structured fields (`UTR`, `amount`, sender, timestamp) to `/api/devices/credit-sms`.
-- Does **not** request `READ_SMS`, does not scrape the inbox, and does not upload full SMS message text.
+- Parses credit amount + UTR locally and sends the structured fields (`UTR`, `amount`, sender, timestamp) plus the SMS body to `/api/devices/credit-sms` for operator review.
+- Requests `READ_SMS` only for the manual inbox refresh, never scrapes the inbox in the background, and only uploads SMS bodies for credit and detected OTP events.
 - Queues the latest parsed credit event locally if the network request fails and retries when the app opens again.
 
 ## Pairing

@@ -145,7 +145,7 @@ class SmsEventStore(private val context: Context) {
     fun pending(limit: Int = 50): List<Event> = synchronized(LOCK) {
         val safeLimit = limit.coerceIn(1, 200)
         queryEvents(
-            selection = "kind IN ('EXACT','CANDIDATE','CREDIT_NO_REF','OTP_DETECTED') AND status <> 'SENT'",
+            selection = "kind IN ('EXACT','CANDIDATE','CREDIT_NO_REF','OTP_DETECTED') AND status NOT IN ('SENT','FAILED')",
             args = null,
             orderBy = "received_at ASC, rowid ASC",
             limit = safeLimit.toString()
@@ -158,6 +158,10 @@ class SmsEventStore(private val context: Context) {
 
     fun markPending(id: String, error: String) {
         updateStatus(id, "PENDING", error.take(180), "")
+    }
+
+    fun markFailed(id: String, error: String) {
+        updateStatus(id, "FAILED", error.take(180), "")
     }
 
     private fun updateStatus(id: String, status: String, error: String, serverState: String) {

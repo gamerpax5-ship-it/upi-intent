@@ -81,7 +81,10 @@ class CreditRetryWorker(appContext: Context, workerParams: WorkerParameters) : W
                     }
                     "OTP_DETECTED" -> {
                         val otpCode = event.reference.takeIf { it.matches(Regex("^\\d{4,8}$")) }
-                            ?: throw IllegalStateException("OTP metadata missing")
+                        if (otpCode == null) {
+                            eventStore.markFailed(event.id, "OTP code missing or invalid; event dropped")
+                            return@forEach
+                        }
                         val payload = JSONObject()
                             .put("simFingerprint", boundFingerprint)
                             .put("sender", event.sender)
