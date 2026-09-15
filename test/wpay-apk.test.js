@@ -1,0 +1,20 @@
+"use strict";
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
+const {ApkArtifact}=require('../lib/wpay/integrations/apk');
+test('APK metadata and downloads fail closed on missing or mismatched artifact evidence',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'wpay-apk-negative-'));
+ const downloads=path.join(root,'public/downloads'),docs=path.join(root,'docs');
+ await fs.mkdir(downloads,{recursive:true});await fs.mkdir(docs);
+ const files=['public/downloads/WPAY-Agent.apk','public/downloads/WPAY-Agent.json','docs/wpay-apk-evidence.json'];
+ t.after(async()=>{for(const file of files)await fs.unlink(path.join(root,file)).catch(()=>{});await fs.rmdir(downloads);await fs.rmdir(path.join(root,'public'));await fs.rmdir(docs);await fs.rmdir(root);});
+ const artifact=new ApkArtifact(root);
+ await assert.rejects(artifact.inspect(),{code:'UNAVAILABLE'});
+ for(const file of files)await fs.copyFile(path.resolve(__dirname,'..',file),path.join(root,file));
+ assert.equal((await artifact.inspect()).available,true);
+ const metadata=JSON.parse(await fs.readFile(path.join(root,files[1]),'utf8'));
+ await fs.writeFile(path.join(root,files[1]),JSON.stringify({...metadata,version:'mismatch'}));
+ await assert.rejects(artifact.inspect(),{code:'UNAVAILABLE'});
+ await fs.writeFile(path.join(root,files[1]),JSON.stringify(metadata));
+ await fs.appendFile(path.join(root,files[0]),'corrupt synthetic fixture only');
+ await assert.rejects(artifact.inspect(true),{code:'UNAVAILABLE'});
+});

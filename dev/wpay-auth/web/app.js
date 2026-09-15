@@ -90,6 +90,50 @@ async function security() {
   root.append(form,el("h3",tr("sessions"))); for (const session of value.sessions) root.append(el("p",`${session.current ? tr("current") + " · " : ""}${tr("created")}: ${session.createdAt} · ${tr("expires")}: ${session.expiresAt}`));
   root.append(button("logoutAll",() => action(logoutAll))); $("page-content").replaceChildren(root);
 }
+async function apk() {
+  const data=await request("apk"),root=el("section",undefined,"card");$("page-title").textContent=tr("apkTitle");
+  const facts=el("dl",undefined,"facts");
+  for(const [key,value] of [["version",data.version+" / "+data.build],["package",data.package],["minimumAndroid",data.minimumAndroidApi],
+    ["fileSize",data.bytes],["sha256",data.sha256],["apkSigner",data.signing.identity],["refreshedAt",data.refreshedAt]]){
+    const group=el("div");group.append(el("dt",tr(key)),el("dd",String(value)));facts.append(group);
+  }
+  const download=el("a",tr("downloadApk"),"primary");download.href="/wpay-auth/apk/download";download.download="WPAY-Agent.apk";
+  root.append(facts,el("p",tr("apkEvidence"),"notice"),download);$("page-content").replaceChildren(root);
+}
+async function sources() {
+  const data=await request("resources"),root=el("section",undefined,"card");$("page-title").textContent=tr(account.accountType==="user"?"linkedSources":"mappedOrders");
+  root.append(el("p",tr(data.sourceConnected?"sourceScopeRequired":"sourceDisconnected"),"notice"),el("p",tr("observationOnly")));
+  const kinds=account.accountType==="user"?["device","receiving_account","statement_import"]:["order","payment_link","merchant_assignment"];
+  const form=el("form"),kind=field(form,"resourceKind","text",kinds.map(value=>[value,tr("kind."+value)])),reference=field(form,"resourceReference");
+  reference.maxLength=100;reference.pattern="[A-Za-z0-9_-]{1,100}";
+  const label=el("label"),consent=el("input");consent.type="checkbox";consent.required=true;label.append(consent,document.createTextNode(tr("sourceConsent")));form.append(label);
+  const submit=el("button",tr("requestLink"));submit.type="submit";form.append(submit);
+  form.onsubmit=event=>{event.preventDefault();action(async()=>{await post("resources/request",{requestId:crypto.randomUUID(),kind:kind.value,reference:reference.value,consent:consent.checked});await sources();message("linkPending");});};
+  root.append(form);
+  for(const link of data.links){const item=el("article",undefined,"application-row");item.append(el("h3",tr("kind."+link.kind)),el("p",link.reference),el("p",tr("link."+link.status)));
+    item.append(button("revokeLink",()=>action(async()=>{await post("resources/revoke",{linkId:link.id});await sources();})));
+    if(link.status==="verified"&&data.sourceConnected){const views={device:["device","otp","transactions"],statement_import:["statement"],order:["order"],payment_link:["order"]};
+      for(const view of views[link.kind]||[])item.append(button("view."+view,()=>action(()=>sourceView(link,view))));
+    }
+    root.append(item);
+  }
+  $("page-content").replaceChildren(root);
+}
+async function sourceView(link,view,before=null){
+  const data=await post("resources/read",{linkId:link.id,view,before}),root=el("section",undefined,"card");
+  $("page-title").textContent=tr("view."+view);root.append(el("p",tr("observationOnly"),"notice"));
+  if(data.device){root.append(el("p",tr("lastSeen")+": "+data.device.last_seen_at),el("p",tr("deviceStatus")+": "+data.device.status));}
+  for(const row of data.rows||[]){const item=el("article",undefined,"application-row");
+    // Server returns an explicit projection; render text only, never HTML.
+    for(const key of ["id","code","sms_received_at","created_at","amount","utr","submitted_utr","legacy_status","matched_at","verified_at"]){
+      if(row[key]!==undefined&&row[key]!==null)item.append(el("p",tr("event."+key)+": "+row[key]));
+    }
+    root.append(item);
+  }
+  if(!data.device&&!data.rows?.length)root.append(el("p",tr("noSourceRows")));
+  if(data.nextCursor)root.append(button("next",()=>action(()=>sourceView(link,view,data.nextCursor))));
+  root.append(button("backSources",()=>action(sources)));$("page-content").replaceChildren(root);
+}
 async function pending(page,offset = 0) {
   const users = page.permissionId === "users.view", route = users ? "pending-users" : "pending-merchants", result = await request(route + "?offset=" + offset), root = el("section",undefined,"card");
   $("page-title").textContent = tr(users ? "pendingUsers" : "pendingMerchants"); root.append(el("p",tr("pendingList"),"notice")); if (!result.accounts.length) root.append(el("p",tr("noAccounts")));
@@ -120,6 +164,8 @@ async function load(selected = destination) {
   for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) node.append(button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item")); $("navigation").append(node); }
   destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
+  if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
+  if(page?.permissionId.endsWith(".source_events.view"))return sources();
   if (!page || ["profile.view","user.overview.view","merchant.overview.view","overview.view"].includes(page.permissionId)) return profile();
   $("page-title").textContent = tr("nav." + page.permissionId); const root = el("section",undefined,"card"); root.append(el("h2",tr("planned")),el("p",tr("plannedBody")),el("p",tr("noKeys"))); $("page-content").replaceChildren(root);
 }

@@ -1,0 +1,16 @@
+{
+  "artifact": "public/downloads/WPAY-Agent.apk",
+  "sha256": "0cf08af217b8fdc84e74f0512b93ffbd2d6cac60974fd63f2034c723d152a502",
+  "bytes": 2360736,
+  "package": "org.wtron.wpayagent",
+  "versionName": "0.10.5",
+  "versionCode": "16",
+  "minimumAndroidApi": 26,
+  "targetAndroidApi": 35,
+  "signatureVerified": true,
+  "signatureScheme": "v2",
+  "signer": "C=US, O=Android, CN=Android Debug",
+  "signerSha256": "27c45dadad724483262f05e623f38000d0c635841a467cf30bd83b5b7a56836a",
+  "inspectedOn": "2026-09-15",
+  "tools": "Android SDK build-tools 35.0.0 aapt dump badging and apksigner verify --verbose --print-certs"
+}

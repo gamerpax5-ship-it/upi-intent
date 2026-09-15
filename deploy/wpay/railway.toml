@@ -1,0 +1,13 @@
+# Assign this configuration ONLY to the new, explicitly authorized WPay service.
+# Do not attach this branch to the legacy upi-intent service.
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci --omit=dev --registry=https://registry.npmjs.org && npm ci --prefix lib/wpay/auth/runtime/dependencies --omit=dev --registry=https://registry.npmjs.org"
+
+[deploy]
+startCommand = "node scripts/serve-wpay-hosted.js"
+healthcheckPath = "/readyz"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+numReplicas = 1

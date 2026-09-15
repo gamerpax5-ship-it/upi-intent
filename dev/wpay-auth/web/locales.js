@@ -64,6 +64,48 @@
     "nav.merchant.security.view": ["Merchant security","Безопасность мерчанта","商户安全"]
   };
   for (const [key,values] of Object.entries(merchantLabels)) ["en","ru","zh-CN"].forEach((locale,index) => { dictionaries[locale][key] = values[index]; });
+  const integrationLabels={
+    "group.apk_events":["APK & Events","APK и события","APK 与事件"],
+    "nav.user.apk.view":["Download APK","Скачать APK","下载 APK"],"nav.apk.view":["APK artifact","Файл APK","APK 文件"],
+    "nav.user.source_events.view":["Linked Devices & Observations","Связанные устройства и события","已关联设备与记录"],
+    "nav.merchant.source_events.view":["Mapped Orders","Связанные заказы","已关联订单"],
+    apkTitle:["WPAY Agent APK","APK агента WPAY","WPAY Agent APK"],version:["Version / build","Версия / сборка","版本 / 构建"],
+    package:["Android package","Пакет Android","Android 软件包"],minimumAndroid:["Minimum Android API","Минимальный API Android","最低 Android API"],
+    fileSize:["File size (bytes)","Размер файла (байт)","文件大小（字节）"],sha256:["SHA-256","SHA-256","SHA-256"],
+    apkSigner:["Signing certificate","Сертификат подписи","签名证书"],refreshedAt:["Metadata refreshed","Метаданные обновлены","元数据刷新时间"],
+    downloadApk:["Download verified APK bytes","Скачать проверенный APK","下载已验证的 APK"],
+    apkEvidence:["Existing APK; manifest and signature checked for this SHA-256. The existing Android debug signature is preserved.","Существующий APK: манифест и подпись проверены для этого SHA-256. Сохранена исходная отладочная подпись Android.","现有 APK 的清单和签名已按此 SHA-256 验证；保留原有 Android 调试签名。"],
+    linkedSources:["Linked devices and observations","Связанные устройства и события","关联设备与记录"],mappedOrders:["Mapped orders","Связанные заказы","已关联订单"],
+    sourceDisconnected:["Device/source not connected","Устройство / источник не подключён","设备 / 数据源未连接"],
+    sourceScopeRequired:["Only independently verified owner mappings allow source access.","Доступ возможен только после независимой проверки владельца.","仅经独立验证的归属关联可访问数据源。"],
+    observationOnly:["Captured events, submitted UTRs and legacy match results are observations. They do not confirm WPay accounting or settlement. Matching, collections and financial posting remain unavailable.","События, переданные UTR и результаты старого сопоставления — только наблюдения. Они не подтверждают учёт или расчёт WPay. Сопоставление, сбор платежей и проводки недоступны.","采集事件、提交的 UTR 和旧系统匹配结果仅为记录，不代表 WPay 已记账或结算。匹配、收款和财务入账暂不可用。"],
+    resourceKind:["Resource type","Тип ресурса","资源类型"],resourceReference:["Resource reference (no credentials)","Идентификатор ресурса (без секретов)","资源编号（不含凭据）"],
+    sourceConsent:["I consent to ownership verification for this resource. This request grants no data access.","Я согласен на проверку владения этим ресурсом. Заявка не даёт доступа к данным.","我同意验证此资源的归属。提交申请不会授予数据访问权限。"],
+    requestLink:["Request ownership verification","Запросить проверку владения","申请归属验证"],linkPending:["Request recorded; independent ownership verification is still required.","Заявка сохранена; требуется независимая проверка владельца.","申请已记录；仍需独立验证归属。"],
+    revokeLink:["Revoke access","Отозвать доступ","撤销访问"],"link.pending":["Unverified request","Непроверенная заявка","未验证申请"],"link.verified":["Verified owner mapping","Владелец проверен","已验证归属"],
+    "kind.device":["Device","Устройство","设备"],"kind.receiving_account":["Receiving account","Счёт получателя","收款账户"],"kind.statement_import":["Statement import","Импорт выписки","账单导入"],
+    "kind.order":["Order","Заказ","订单"],"kind.payment_link":["Payment link","Платёжная ссылка","付款链接"],"kind.merchant_assignment":["Merchant assignment","Назначение мерчанта","商户分配"],
+    "view.device":["Device last seen","Последняя связь устройства","设备最后在线记录"],"view.otp":["Masked OTP event metadata","Метаданные OTP без кодов","已遮蔽的 OTP 事件元数据"],
+    "view.transactions":["Captured transaction observations","Наблюдения транзакций","已采集的交易记录"],"view.statement":["Statement results","Результаты выписки","账单结果"],"view.order":["Order observations","Наблюдения заказа","订单记录"],
+    lastSeen:["Last seen","Последняя связь","最后在线时间"],deviceStatus:["Reported device status","Статус устройства в источнике","数据源报告的设备状态"],
+    noSourceRows:["No observations in the authorized scope.","Нет событий в разрешённой области.","授权范围内没有记录。"],backSources:["Back to linked sources","К связанным источникам","返回关联数据源"]
+  };
+  Object.assign(integrationLabels,{
+    "event.id":["Event reference","Номер события","事件编号"],"event.code":["Masked code","Скрытый код","已遮蔽验证码"],
+    "event.sms_received_at":["Received at","Время получения","接收时间"],"event.created_at":["Recorded at","Время записи","记录时间"],
+    "event.amount":["Reported amount","Сумма в источнике","报告金额"],"event.utr":["Observed UTR","UTR в источнике","数据源中的 UTR"],
+    "event.submitted_utr":["Customer-submitted UTR","UTR от клиента","客户提交的 UTR"],"event.legacy_status":["Legacy reported status","Статус старой системы","旧系统报告状态"],
+    "event.matched_at":["Legacy match reported at","Время сопоставления в старой системе","旧系统报告匹配时间"],
+    "event.verified_at":["Legacy verification reported at","Время проверки в старой системе","旧系统报告验证时间"]
+  });
+  Object.assign(integrationLabels, {
+    hosted:["WPay — payments not connected","WPay — платежи не подключены","WPay — 尚未连接支付"],
+    emailNote:["Email ownership is not verified by this application flow.","Владение почтовым ящиком в этом процессе не подтверждается.","此申请流程不验证电子邮箱所有权。"],
+    switchRegister:["Create an account","Создать аккаунт","创建账户"],
+    pendingList:["Approval saves commercial settings atomically; it does not activate payments.","Одобрение сохраняет коммерческие настройки одной операцией, но не активирует платежи.","批准会以原子操作保存商业设置，但不会启用支付。"],
+    "error.UNAVAILABLE":["Authentication or the requested source is unavailable.","Аутентификация или запрошенный источник недоступны.","身份验证或请求的数据源不可用。"]
+  });
+  for(const [key,values] of Object.entries(integrationLabels))["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language][key]=values[index];});
   const supported = Object.freeze(["en","ru","zh-CN"]);
   function browserLocale(value) { const lower = String(value || "").toLowerCase(); return lower.startsWith("ru") ? "ru" : ["zh-cn","zh-hans","zh-hans-cn"].includes(lower) ? "zh-CN" : "en"; }
   function choose(explicit, saved, browser) { return supported.includes(explicit) ? explicit : supported.includes(saved) ? saved : browserLocale(browser); }
