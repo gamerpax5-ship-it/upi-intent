@@ -5,6 +5,7 @@ const {AuthService,DEFAULT_GRANTS}=require('../lib/wpay/auth/runtime/service'),{
 const {MfaCrypto}=require('../lib/wpay/auth/runtime/mfa'),{hashPassword}=require('../lib/wpay/auth/runtime/passwords');
 const {BusinessCore}=require('../lib/wpay/business/core'),ledger=require('../lib/wpay/business/ledger'),money=require('../lib/wpay/business/money');
 const {startAuthServer,SESSION_COOKIE}=require('../lib/wpay/auth/runtime/http');
+const onboarding=require('./helpers/wpay-onboarding-setup');
 test('Task 8 actual isolated PostgreSQL business core and HTTP authorization',{timeout:240000},async t=>{
  assert.equal(process.env.WPAY_BUSINESS_TEST_CONFIRM,'fresh-local-synthetic-only');const config=JSON.parse(fs.readFileSync(process.env.WPAY_BUSINESS_TEST_CONFIG,'utf8'));
  for(const k of ['migration','runtime']){assert.equal(config[k].host,'127.0.0.1');assert.match(config[k].database,/^wpay_(8_business_[0-9]+|business_ci)$/);}
@@ -56,7 +57,7 @@ test('Task 8 actual isolated PostgreSQL business core and HTTP authorization',{t
    await call(name,'business/banks/transition',{...base,action:'request_verification'});
    await assert.rejects(tx(c=>new BusinessCore().verifyBank(c,base.bankId,1,'not-connected')),{code:'UNAVAILABLE'});
    const ref='bank-'+name;proofs.set(ref,{verified:true,kind:'bank_verification',bankId:base.bankId,version:1,evidenceId:ref});
-   await tx(c=>core.verifyBank(c,base.bankId,1,ref));await call(name,'business/banks/transition',{...base,action:'enable'});await call(name,'business/banks/transition',{...base,action:'run'});
+   await tx(c=>core.verifyBank(c,base.bankId,1,ref));await onboarding.statement(tx,ids[name],banks[name]);await call(name,'business/banks/transition',{...base,action:'enable'});await assert.rejects(call(name,'business/banks/transition',{...base,action:'run'}),{code:'FUNDING_REQUIRED'});
   }
  });
  await t.test('Employee default denies; explicit view/review grants produce bounded navigation and mutation rights',async()=>{
@@ -71,6 +72,7 @@ test('Task 8 actual isolated PostgreSQL business core and HTTP authorization',{t
    await assert.rejects(tx(c=>new BusinessCore().allocateConfirmed(c,input)),{code:'UNAVAILABLE'});
    proofs.set(input.reference,{verified:true,kind:'capacity_credit',evidenceId:input.reference,ownerId:input.ownerId,amountMinor:amount,reference:input.reference,creditKind:'collateral',status:'confirmed'});
    const first=await tx(c=>core.allocateConfirmed(c,input)),second=await tx(c=>core.allocateConfirmed(c,input));assert.equal(first.journalId,second.journalId);assert.equal((await call(name,'business/summary')).allocated,amount);
+   await onboarding.startEnabled(tx,core,ids[name]);
   }
  });
  await t.test('assignment is Admin-controlled; Merchant cannot choose another User or bank',async()=>{

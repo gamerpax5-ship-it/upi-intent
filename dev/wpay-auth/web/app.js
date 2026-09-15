@@ -162,11 +162,12 @@ async function load(selected = destination) {
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
   applyLocale(); const navigation = await request("navigation");
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(account.approvalStatus); $("navigation").replaceChildren();
-  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) node.append(button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item")); $("navigation").append(node); }
+  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);node.append(item);} $("navigation").append(node); }
   destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
+  if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayBusinessPage.pages[page.permissionId]) return globalThis.WPayBusinessPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if (!page || ["profile.view","user.overview.view","merchant.overview.view","overview.view"].includes(page.permissionId)) return profile();

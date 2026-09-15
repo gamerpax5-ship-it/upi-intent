@@ -33,6 +33,7 @@ async function rolesAndResources(){
     await client.query("CREATE DATABASE wpay_9a_funding_ci OWNER wpay_migrator");
     await client.query("CREATE DATABASE wpay_adapters_ci OWNER wpay_migrator");
     await client.query("CREATE DATABASE wpay_adapter_legacy_ci");
+    await client.query("CREATE DATABASE wpay_9a_onboarding_0 OWNER wpay_migrator");
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),"wpay-ci-"));
     const role=(user,database)=>({...connection,user,password:passwords[user],database});
     const hosted={migration:role("wpay_migrator","wpay_hosted_ci"),runtime:role("wpay_runtime","wpay_hosted_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
@@ -41,9 +42,10 @@ async function rolesAndResources(){
     const business={migration:role("wpay_migrator","wpay_business_ci"),runtime:role("wpay_runtime","wpay_business_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
     const correctness={migration:role("wpay_migrator","wpay_9a_correctness_ci"),runtime:role("wpay_runtime","wpay_9a_correctness_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
     const funding={migration:role("wpay_migrator","wpay_9a_funding_ci"),runtime:role("wpay_runtime","wpay_9a_funding_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
+    const onboarding={migration:role("wpay_migrator","wpay_9a_onboarding_0"),runtime:role("wpay_runtime","wpay_9a_onboarding_0"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
     const adapters={migration:role("wpay_migrator","wpay_adapters_ci"),runtime:role("wpay_runtime","wpay_adapters_ci"),
       legacyOwner:{...connection,database:"wpay_adapter_legacy_ci"},legacyReader:role("wpay_legacy_reader","wpay_adapter_legacy_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
-    for(const [name,config,file,prefix] of [["hosted",hosted,"test/wpay-hosted-db.integration.js","WPAY_HOSTED_TEST"],["resources",resources,"test/wpay-resources.integration.js","WPAY_RESOURCE_TEST"],["business",business,"test/wpay-business.integration.js","WPAY_BUSINESS_TEST"],["correctness",correctness,"test/wpay-9a-correctness.integration.js","WPAY_9A_TEST"],["funding",funding,"test/wpay-9a-funding.integration.js","WPAY_9A_TEST"],["adapters",adapters,"test/wpay-adapter-boundaries.integration.js","WPAY_ADAPTER_TEST"]]){
+    for(const [name,config,file,prefix] of [["hosted",hosted,"test/wpay-hosted-db.integration.js","WPAY_HOSTED_TEST"],["resources",resources,"test/wpay-resources.integration.js","WPAY_RESOURCE_TEST"],["business",business,"test/wpay-business.integration.js","WPAY_BUSINESS_TEST"],["correctness",correctness,"test/wpay-9a-correctness.integration.js","WPAY_9A_TEST"],["funding",funding,"test/wpay-9a-funding.integration.js","WPAY_9A_TEST"],["adapters",adapters,"test/wpay-adapter-boundaries.integration.js","WPAY_ADAPTER_TEST"],["onboarding",onboarding,"test/wpay-onboarding.integration.js","WPAY_9A_TEST"]]){
       const configPath=path.join(dir,name+".json");fs.writeFileSync(configPath,JSON.stringify(config),{mode:0o600,flag:"wx"});
       const run=spawnSync(process.execPath,["--test",file],{env:{...env,[prefix+"_CONFIRM"]:"fresh-local-synthetic-only",[prefix+"_CONFIG"]:configPath},stdio:"inherit",windowsHide:true});
       if(run.status!==0){process.exitCode=1;return;}

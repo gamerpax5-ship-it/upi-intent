@@ -130,6 +130,8 @@
   };
   for(const [key,values] of Object.entries(fundingErrors))["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language]["error."+key]=values[index];});
   const supported = Object.freeze(["en","ru","zh-CN"]);
+  const onboardingErrors={FUNDING_REQUIRED:['Confirmed funding is required before Start.','Перед запуском требуется подтверждённое пополнение.','开始前须确认入金。'],STATEMENT_REQUIRED:['An accepted statement for this bank version is required before Start.','Перед запуском требуется принятая выписка для этой версии счёта.','开始前须接受此账户版本的流水。'],DEVICE_REQUIRED:['An eligible linked device is required before Start.','Перед запуском требуется подходящее привязанное устройство.','开始前须关联符合条件的设备。']};
+  for(const [code,values]of Object.entries(onboardingErrors))['en','ru','zh-CN'].forEach((language,index)=>{dictionaries[language]['error.'+code]=values[index];});
   function browserLocale(value) { const lower = String(value || "").toLowerCase(); return lower.startsWith("ru") ? "ru" : ["zh-cn","zh-hans","zh-hans-cn"].includes(lower) ? "zh-CN" : "en"; }
   function choose(explicit, saved, browser) { return supported.includes(explicit) ? explicit : supported.includes(saved) ? saved : browserLocale(browser); }
   function translate(locale,key) { return dictionaries[supported.includes(locale) ? locale : "en"][key] ?? dictionaries.en[key] ?? dictionaries.en.planned; }

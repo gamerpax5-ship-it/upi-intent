@@ -23,7 +23,7 @@
    card.append(el('p',t('noOrders')));return true;
   }
   if(page==='bank'){
-   const data=await request('business/banks');card.append(el('p',t('noVerify'),'notice'));
+   const data=await request('business/banks');
    async function editor(bank){
     const form=el('form'),d=bank?.details||{};card.replaceChildren(el('h2',t(bank?'edit':'add')),el('p',t('safeNotes'),'notice'));
     for(const key of ['upiId','bankName','holderName','accountNumber','ifsc','mobile'])field(form,key,{value:d[key]||''});
@@ -38,9 +38,10 @@
     if(!selected.length)list.append(el('p',t('empty')));
     for(const bank of selected){const item=el('article',undefined,'business-row');facts(item,{bankName:bank.details.bankName,upiId:bank.details.upiId,accountNumber:'•••• '+bank.details.accountNumber.slice(-4),status:t(bank.deactivated?'deactivated':bank.frozen?'frozen':bank.status==='review'?'reviewState':bank.status),version:String(bank.version)});if(bank.reason)item.append(el('p',bank.reason));
      const detail=el('details'),summary=el('summary',t('details'));detail.append(summary);facts(detail,{holderName:bank.details.holderName,ifsc:bank.details.ifsc,bankLimit:format(bank.details.bankLimitMinor),accountType:t(bank.details.accountType)});item.append(detail);
+     if(admin){const status=el('section');status.append(el('h3','Onboarding status'));const dl=el('dl',undefined,'facts');for(const [key,value]of Object.entries({'Approval':bank.approved_version===bank.version?'Approved':'Required','Verification':bank.verified_version===bank.version?'Verified':'Required','Statement':bank.statement_accepted?'Accepted':'Required','Latest import':bank.statement?bank.statement.status+' · '+new Date(bank.statement.createdAt).toLocaleString(locale):'None','Evidence source':bank.verification?.source||'None','Evidence digest':bank.verification?.digest||'None'}))dl.append(el('dt',key),el('dd',value));status.append(dl,el('p','Statement acceptance is onboarding only. It never posts a financial credit.','notice'));if(bank.verification?.synthetic)status.append(el('p','SYNTHETIC TEST evidence','notice'));item.append(status);}
      if(!bank.deactivated){if(!admin&&data.actions.includes('update'))item.append(btn('edit',()=>editor(bank)));
-      const allowed=admin?data.actions.filter(a=>a==='review'&&bank.status==='submitted'||['approve','reject'].includes(a)&&['submitted','review'].includes(bank.status)||a==='freeze'&&!bank.frozen||a==='release'&&bank.frozen).map(a=>a==='release'?'release_freeze':a):[
-       ...(['draft','rejected'].includes(bank.status)?['submit']:[]),...(bank.status==='approved'?['request_verification']:[]),...(['verified','stopped'].includes(bank.status)&&bank.verified_version===bank.version&&!bank.frozen?['enable']:[]),...(bank.status==='enabled'?['run']:[]),...(['enabled','running'].includes(bank.status)?['stop']:[]),...(!bank.frozen?['freeze']:[]),'deactivate'];
+      const allowed=admin?data.actions.filter(a=>a==='review'&&bank.status==='submitted'||['approve','reject'].includes(a)&&['submitted','review'].includes(bank.status)||a==='freeze'&&!bank.frozen||a==='release'&&bank.frozen||a==='stop'&&['enabled','running'].includes(bank.status)).map(a=>a==='release'?'release_freeze':a):[
+       ...(['draft','rejected'].includes(bank.status)?['submit']:[]),...(['verified','stopped'].includes(bank.status)&&bank.verified_version===bank.version&&!bank.frozen?['enable']:[]),...(['enabled','stopped'].includes(bank.status)?['run']:[]),...(['enabled','running'].includes(bank.status)?['stop']:[]),...(!bank.frozen?['freeze']:[]),'deactivate'];
       if(allowed.length&&(admin||data.actions.includes('update'))){const form=el('form');const reason=field(form,'reason');for(const command of allowed)form.append(btn(command,async()=>{if(!reason.reportValidity())return;await post(admin?'business/banks/review':'business/banks/transition',{bankId:bank.id,version:bank.version,action:command,reason:reason.value});await reload();}));item.append(form);}
      }
      list.append(item);
