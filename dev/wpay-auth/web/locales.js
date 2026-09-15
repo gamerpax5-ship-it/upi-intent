@@ -99,6 +99,17 @@
     "event.verified_at":["Legacy verification reported at","Время проверки в старой системе","旧系统报告验证时间"]
   });
   Object.assign(integrationLabels, {
+    "group.bank_upi":["Bank & UPI","Банк и UPI","银行与 UPI"],
+    "nav.user.bank_upi.submit":["Bank & UPI","Банк и UPI","银行与 UPI"],
+    "nav.user.payin_commission.view":["Commission ledger","Журнал комиссии","佣金账本"],
+    "nav.user.holds.view":["Holds / Frozen","Удержания / заморозка","冻结金额"],
+    "nav.bank_upi.view":["Bank / UPI Reviews","Проверка банка / UPI","银行 / UPI 审核"],
+    "nav.routing.view":["Routing & reservations","Маршрутизация и резервирования","路由与预留"],
+    "nav.ledger.view":["Ledger explorer","Журнал операций","账本浏览"],
+    "nav.holds.view":["Holds / Frozen","Удержания / заморозка","冻结金额"],
+    "nav.assignments.view":["User Assignment","Назначение пользователей","用户分配"],
+    "error.NO_ROUTE":["No eligible route is available.","Нет подходящего маршрута.","暂无符合条件的路由。"],
+    "error.INSUFFICIENT_CAPACITY":["Available capacity is insufficient.","Недостаточно доступного лимита.","可用容量不足。"],
     hosted:["WPay — payments not connected","WPay — платежи не подключены","WPay — 尚未连接支付"],
     emailNote:["Email ownership is not verified by this application flow.","Владение почтовым ящиком в этом процессе не подтверждается.","此申请流程不验证电子邮箱所有权。"],
     switchRegister:["Create an account","Создать аккаунт","创建账户"],

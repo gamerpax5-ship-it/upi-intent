@@ -28,12 +28,14 @@ async function rolesAndResources(){
     await client.query("CREATE DATABASE wpay_hosted_ci OWNER wpay_migrator");
     await client.query("CREATE DATABASE wpay_resources_ci OWNER wpay_migrator");
     await client.query("CREATE DATABASE wpay_legacy_ci");
+    await client.query("CREATE DATABASE wpay_business_ci OWNER wpay_migrator");
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),"wpay-ci-"));
     const role=(user,database)=>({...connection,user,password:passwords[user],database});
     const hosted={migration:role("wpay_migrator","wpay_hosted_ci"),runtime:role("wpay_runtime","wpay_hosted_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
     const resources={migration:role("wpay_migrator","wpay_resources_ci"),runtime:role("wpay_runtime","wpay_resources_ci"),
       legacyOwner:{...connection,database:"wpay_legacy_ci"},legacyReader:role("wpay_legacy_reader","wpay_legacy_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
-    for(const [name,config,file,prefix] of [["hosted",hosted,"test/wpay-hosted-db.integration.js","WPAY_HOSTED_TEST"],["resources",resources,"test/wpay-resources.integration.js","WPAY_RESOURCE_TEST"]]){
+    const business={migration:role("wpay_migrator","wpay_business_ci"),runtime:role("wpay_runtime","wpay_business_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
+    for(const [name,config,file,prefix] of [["hosted",hosted,"test/wpay-hosted-db.integration.js","WPAY_HOSTED_TEST"],["resources",resources,"test/wpay-resources.integration.js","WPAY_RESOURCE_TEST"],["business",business,"test/wpay-business.integration.js","WPAY_BUSINESS_TEST"]]){
       const configPath=path.join(dir,name+".json");fs.writeFileSync(configPath,JSON.stringify(config),{mode:0o600,flag:"wx"});
       const run=spawnSync(process.execPath,["--test",file],{env:{...env,[prefix+"_CONFIRM"]:"fresh-local-synthetic-only",[prefix+"_CONFIG"]:configPath},stdio:"inherit",windowsHide:true});
       if(run.status!==0){process.exitCode=1;return;}
