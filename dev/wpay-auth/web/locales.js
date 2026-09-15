@@ -117,6 +117,15 @@
     "error.UNAVAILABLE":["Authentication or the requested source is unavailable.","Аутентификация или запрошенный источник недоступны.","身份验证或请求的数据源不可用。"]
   });
   for(const [key,values] of Object.entries(integrationLabels))["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language][key]=values[index];});
+  ["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language]["nav.user.deposits.view"]=["USDT Deposit","Депозит USDT","USDT 入金"][index];dictionaries[language]["nav.deposits.view"]=["USDT Deposit Review","Проверка депозитов USDT","USDT 入金审核"][index];});
+  const fundingErrors={
+    BELOW_MINIMUM:["Below 2,000 USDT; the transfer remains in review.","Меньше 2 000 USDT; перевод сохранён для проверки.","低于 2,000 USDT；转账保留供审核。"],
+    UNREPRESENTABLE_AMOUNT:["The exact INR amount cannot be represented; review is required.","Точную сумму INR нельзя представить; требуется проверка.","无法精确表示 INR 金额；须审核。"],
+    EVIDENCE_REVIEW:["Transfer evidence needs independent review.","Доказательства перевода требуют независимой проверки.","转账证据须独立审核。"],
+    DUPLICATE_TRANSFER:["Transfer already belongs to another request.","Перевод уже относится к другому запросу.","该转账已归属于另一申请。"],
+    AMBIGUOUS_TRANSFER:["Transfer ownership is ambiguous; review is required.","Принадлежность перевода неоднозначна; требуется проверка.","转账归属不明确；须审核。"]
+  };
+  for(const [key,values] of Object.entries(fundingErrors))["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language]["error."+key]=values[index];});
   const supported = Object.freeze(["en","ru","zh-CN"]);
   function browserLocale(value) { const lower = String(value || "").toLowerCase(); return lower.startsWith("ru") ? "ru" : ["zh-cn","zh-hans","zh-hans-cn"].includes(lower) ? "zh-CN" : "en"; }
   function choose(explicit, saved, browser) { return supported.includes(explicit) ? explicit : supported.includes(saved) ? saved : browserLocale(browser); }

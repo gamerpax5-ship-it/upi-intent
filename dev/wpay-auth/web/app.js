@@ -166,6 +166,7 @@ async function load(selected = destination) {
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
+  if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayBusinessPage.pages[page.permissionId]) return globalThis.WPayBusinessPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if (!page || ["profile.view","user.overview.view","merchant.overview.view","overview.view"].includes(page.permissionId)) return profile();
   $("page-title").textContent = tr("nav." + page.permissionId); const root = el("section",undefined,"card"); root.append(el("h2",tr("planned")),el("p",tr("plannedBody")),el("p",tr("noKeys"))); $("page-content").replaceChildren(root);

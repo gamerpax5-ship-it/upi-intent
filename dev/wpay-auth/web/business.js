@@ -16,9 +16,10 @@
   const reload=()=>render({permission,account,locale,request,post,action,el,container,title});
   if(page==='dashboard'){
    const data=await request('business/summary');card.append(el('p',t('foundation'),'notice'));
-   const keys=account.accountType==='user'?['allocated','reserved','consumed','available','held','commission']:['gross','fees','payoutFees','held','available'];
+   const keys=account.accountType==='user'?['allocated','reserved','consumed','available','signedAvailable','deficit','held','commission']:['gross','fees','payoutFees','held','available'];
    facts(card,Object.fromEntries(keys.map(key=>[key,format(data[key]||'0')])));
    if(account.accountType==='merchant'){facts(card,{routingCapacity:format(data.routingCapacity),status:t(data.routingAvailable?'routingAvailable':'noRoute')});}
+   for(const r of data.reconciliation||[])card.append(el('p',r.reason+' · '+format(r.signed_remaining),'notice'));
    card.append(el('p',t('noOrders')));return true;
   }
   if(page==='bank'){
@@ -57,7 +58,8 @@
   }
   if(page==='routing'){
    const data=await request('business/routing');card.append(el('p',t('foundation'),'notice'));showEmpty(data.candidates);
-   for(const c of data.candidates){const item=el('article',undefined,'business-row');facts(item,{internalRoute:c.routeId,merchant:c.merchantId,user:c.userId,available:format(c.capacity.available),status:t(c.eligible?'eligible':'unavailable')});if(c.reasons.length)item.append(el('p',c.reasons.map(t).join(' · ')));card.append(item);}
+   for(const c of data.candidates){const item=el('article',undefined,'business-row');facts(item,{internalRoute:c.routeId,merchant:c.merchantId,user:c.userId,available:format(c.capacity.available),signedAvailable:format(c.capacity.signedAvailable),deficit:format(c.capacity.deficit),status:t(c.eligible?'eligible':'unavailable')});if(c.reasons.length)item.append(el('p',c.reasons.map(t).join(' · ')));card.append(item);}
+   for(const r of data.reconciliation||[])card.append(el('p',r.reason+' · '+r.owner_id+' · '+format(r.signed_remaining),'notice'));
    card.append(el('h2',t('reservations')));if(!data.reservations.length)card.append(el('p',t('empty')));for(const r of data.reservations){const item=el('article',undefined,'business-row');facts(item,{reference:r.order_reference,amount:format(r.amount_minor),status:t(r.state==='active'&&+new Date(r.expires_at)<=Date.now()?'expired':r.state),expires:new Date(r.expires_at).toLocaleString(locale)});card.append(item);}return true;
   }
   if(page==='ledger'){

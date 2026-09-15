@@ -186,7 +186,8 @@ test("Task 6 actual PostgreSQL, HTTP and mandatory MFA acceptance",{timeout:3600
   await t.test("13 approved/unfunded onboarding grants no financial or API capability",async()=>{
     const me=await user.request("me"); assert.equal(me.status,200); assert.equal(me.body.operationsEnabled,false);
     const nav=await user.request("navigation"); const ids=nav.body.groups.flatMap(g=>g.children).map(p=>p.permissionId); assert.ok(ids.includes("profile.view")); assert.ok(ids.includes("account_security.view"));
-    assert.equal(ids.some(id=>/withdraw|payout|deposit|api_credentials/.test(id)),false);
+    assert.ok(ids.includes("user.deposits.view"));
+    assert.equal(ids.some(id=>/withdraw|payout|api_credentials/.test(id)),false);
     assert.equal((await user.request("financial")).status,404);
   });
   await t.test("14 logout revokes copied cookies; logout-all revokes sessions and outstanding challenges",async()=>{

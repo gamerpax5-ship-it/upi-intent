@@ -3,6 +3,7 @@ const { createHostedPool,verifyRuntimeRole } = require("../lib/wpay/db/hosted-co
 const { validateMigrations } = require("../lib/wpay/db/migrations");
 const { SecurityRepository } = require("../lib/wpay/db/security-repository");
 const { MfaCrypto,readKey } = require("../lib/wpay/auth/runtime/mfa");
+const { fromEnvironment } = require("../lib/wpay/funding/provider");
 const { AuthService } = require("../lib/wpay/auth/runtime/service");
 const { startAuthServer } = require("../lib/wpay/auth/runtime/http");
 const { transport } = require("../lib/wpay/auth/runtime/transport");
@@ -15,7 +16,7 @@ async function main(){
     await verifyRuntimeRole(pool);await validateMigrations(pool);
     const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
-    const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool),{mfaCrypto,fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
+    const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool),{mfaCrypto,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
       port:Number(process.env.PORT),hostedOrigin:policy.origin,readiness:async()=>{
         if(stopping)return false;
         try {await pool.query("SELECT 1");return true;}catch{return false;}
