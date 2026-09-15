@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WPay · Isolated preview</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="preview-toolbar" aria-label="Preview controls">
+    <span class="preview-label"><span class="preview-dot"></span> WORKSPACE PREVIEW</span>
+    <div class="persona-control"><label for="persona-select">Demo persona</label><select id="persona-select" aria-describedby="demo-note"><option>Loading personas…</option></select></div>
+  </div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Panel navigation">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">W</span><span>WPay<span class="brand-caption">PAYMENTS WORKSPACE</span></span><button class="icon-button mobile-only" id="close-drawer" aria-label="Close navigation">×</button></div>
+      <div class="panel-switch"><span class="panel-dot"></span><span id="panel-label">User panel</span><span class="small-tag">DEMO</span></div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav id="navigation" aria-label="Workspace sections"></nav>
+      <div class="sidebar-bottom"><div class="sandbox-note"><span aria-hidden="true">◇</span><div>Preview environment<small>Explore with synthetic data</small></div></div><div class="account-chip"><span class="avatar" id="avatar">WP</span><div><strong id="persona-name">Demo workspace</strong><small id="persona-role">Preview only</small></div></div></div>
+    </aside>
+    <button id="drawer-backdrop" class="drawer-backdrop" aria-label="Close navigation" tabindex="-1" hidden></button>
+    <div class="workspace">
+      <header class="workspace-header"><div class="header-left"><button class="icon-button mobile-only" id="open-drawer" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button><span class="breadcrumb" id="breadcrumb">Workspace / Overview</span></div><span class="demo-indicator" id="demo-note"><span aria-hidden="true">●</span> DEMO — No live transactions</span></header>
+      <main id="content" tabindex="-1"><div class="loading-state" role="status">Loading the WPay preview…</div></main>
+      <footer class="workspace-footer"><span>WPay workspace <span aria-hidden="true">/</span> Isolated visual preview</span><span>All amounts and records are synthetic.</span></footer>
+    </div>
+  </div>
+  <dialog id="approval-dialog" aria-labelledby="modal-title" aria-describedby="modal-description">
+    <form id="approval-form">
+      <div class="modal-heading"><div><div class="eyebrow">APPROVAL PREVIEW</div><h2 id="modal-title">Review application</h2></div><button type="button" class="icon-button" id="close-modal" aria-label="Close approval preview">×</button></div>
+      <p id="modal-description">Synthetic application. Values are not saved or sent.</p>
+      <div id="modal-fields"></div>
+      <p id="modal-result" role="status"></p>
+      <div class="modal-actions"><button type="button" class="button secondary" id="cancel-modal">Cancel</button><button type="submit" class="button primary">Preview approval — not saved</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

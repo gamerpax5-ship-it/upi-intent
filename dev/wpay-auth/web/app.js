@@ -1,0 +1,135 @@
+"use strict";
+const $ = id => document.getElementById(id), L = globalThis.WPayLocales;
+let explicitLocale;
+try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
+let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now();
+const tr = key => L.translate(locale,key);
+function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
+function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
+function field(form,key,type = "text",options) {
+  const label = el("label",tr(key)), input = el(options ? "select" : "input"); input.name = key; input.required = true;
+  if (options) for (const [value,title] of options) { const option = el("option",title); option.value = value; input.append(option); } else input.type = type;
+  if (type === "password") input.autocomplete = "current-password";
+  if (key === "code") { input.inputMode = "numeric"; input.pattern = "[0-9]{6}"; input.maxLength = 6; input.autocomplete = "one-time-code"; }
+  label.append(input); form.append(label); return input;
+}
+function message(key = "") {
+  $("message").textContent = key ? tr(key) : "";
+  const dialog = $("approval-dialog");
+  if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
+}
+function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
+function showLogin() { account = null; stage = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
+async function request(route,method = "GET",body,csrf) {
+  let response;
+  try { response = await fetch("/wpay-auth/" + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
+  catch { throw new Error("error.UNAVAILABLE"); }
+  let value; try { value = await response.json(); } catch { throw new Error("error.UNAVAILABLE"); }
+  if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) ? value.error : "UNAVAILABLE")); }
+  return value;
+}
+async function post(route,body = {}) { const csrf = await request("csrf","POST",{}); return request(route,"POST",body,csrf.csrfToken); }
+async function action(callback) {
+  if (busy) return; busy = true; message("loading"); document.querySelectorAll("button").forEach(node => { node.disabled = true; }); $("language").disabled = true;
+  try { await callback(); } catch(error) { message(error.message.startsWith("error.") ? error.message : "error.UNAVAILABLE"); }
+  finally { busy = false; document.querySelectorAll("button").forEach(node => { node.disabled = false; }); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); }
+}
+function renderAccess() {
+  const root = $("access-card"); root.replaceChildren(); if (stage) return renderMfa(root);
+  root.append(el("h2",tr(mode === "register" ? "registerTitle" : "loginTitle"))); const form = el("form");
+  if (mode === "register") { const input = field(form,"name"); input.maxLength = 100; input.autocomplete = "name"; }
+  const email = field(form,"email","email"); email.autocomplete = "username"; email.maxLength = 254;
+  const password = field(form,"password","password"); password.autocomplete = mode === "register" ? "new-password" : "current-password";
+  form.append(el("p",tr("passwordHelp"),"hint"));
+  if (mode === "register") { field(form,"accountType","text",[["user",tr("user")],["merchant",tr("merchant")]]); form.append(el("p",tr("emailNote"),"hint")); }
+  const submit = el("button",tr(mode === "register" ? "createAccount" : "login"),"primary"); submit.type = "submit"; form.append(submit);
+  form.onsubmit = event => { event.preventDefault(); action(async () => {
+    const data = Object.fromEntries(new FormData(form));
+    try { const result = await post(mode,data); if (mode === "register") { mode = "login"; renderAccess(); message("registered"); } else await handleStage(result); }
+    finally { password.value = ""; data.password = ""; }
+  }); };
+  root.append(form,button(mode === "register" ? "switchLogin" : "switchRegister",() => { mode = mode === "register" ? "login" : "register"; renderAccess(); message(); },"text-button"));
+}
+async function handleStage(result) {
+  if (result.stage === "authenticated") { stage = null; $("access-card").replaceChildren(); return load(); }
+  stage = {kind:result.stage,codes:result.recoveryCodes}; if (result.stage === "enroll") stage.setup = await post("mfa/setup");
+  $("workspace").hidden = true; $("auth").hidden = false; renderAccess();
+}
+function renderMfa(root) {
+  root.append(el("h2",tr(stage.kind === "enroll" ? "enrollTitle" : ["save-recovery","recovery-codes"].includes(stage.kind) ? "recoveryTitle" : "mfaTitle")));
+  if (["save-recovery","recovery-codes"].includes(stage.kind)) {
+    root.append(el("p",tr("recoverySave"),"notice")); const codes = el("pre",stage.codes.join("\n"),"recovery-codes"); codes.setAttribute("data-secret","true"); root.append(codes);
+    root.append(button("saved",() => action(async () => { const kind = stage.kind; stage.codes.fill(""); codes.textContent = "";
+      if (kind === "save-recovery") await handleStage(await post("mfa/complete",{saved:true})); else { stage = null; await load("security"); }
+    }),"primary")); return;
+  }
+  if (stage.kind === "enroll") {
+    root.append(el("p",tr("enrollHelp"))); const image = el("img"); image.src = stage.setup.qrDataUrl; image.alt = tr("qrAlt"); image.setAttribute("data-secret","true");
+    const key = el("code",stage.setup.setupKey,"setup-key"); key.setAttribute("data-secret","true"); root.append(image,el("p",tr("setupKey")),key);
+  }
+  const recover = stage.kind === "recover", form = el("form"); if (recover) root.append(el("p",tr("recoveryHelp")));
+  const code = field(form,recover ? "recoveryCode" : "code",recover ? "password" : "text"); const submit = el("button",tr(recover ? "recover" : "verify"),"primary"); submit.type = "submit"; form.append(submit);
+  form.onsubmit = event => { event.preventDefault(); action(async () => { const value = code.value; code.value = ""; await handleStage(await post(recover ? "mfa/recover" : "mfa/verify",{[recover ? "recoveryCode" : "code"]:value})); }); }; root.append(form);
+  if (stage.kind === "challenge") root.append(button("recovery",() => { stage = {kind:"recover"}; renderAccess(); },"text-button"));
+  root.append(button("backLogin",showLogin,"text-button"));
+}
+function profile() {
+  $("page-title").textContent = tr("account"); const card = el("section",undefined,"card"), facts = el("dl",undefined,"facts");
+  for (const [key,value] of [["name",account.name],["email",account.email],["accountType",tr(account.accountType)],["loginStatus",tr(account.status)],["approval",tr(account.approvalStatus)]]) { const group = el("div"); group.append(el("dt",tr(key)),el("dd",value)); facts.append(group); }
+  card.append(el("h2",tr("welcome")),facts,el("p",tr("emailNote"),"hint"),el("p",tr("onboarding"),"notice"));
+  if (account.accountType === "merchant") { const form = el("form"), select = field(form,"language","text",[["en","English"],["ru","Русский"],["zh-CN","简体中文"]]); select.value = locale; select.onchange = () => action(() => changeLocale(select.value)); card.append(el("h3",tr("settings")),form); }
+  $("page-content").replaceChildren(card);
+}
+async function security() {
+  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",tr(value.enabled ? "securityEnabled" : "enrollTitle")),el("p",tr("freshHelp"),"notice"));
+  const form = el("form"), password = field(form,"password","password"), code = field(form,"code");
+  for (const route of ["replace","regenerate","stepup"]) form.append(button(route,() => action(async () => {
+    if (!form.reportValidity()) return; const body = {password:password.value,code:code.value}; password.value = code.value = "";
+    try { const result = await post("security/" + route,body); if (result.stage) await handleStage(result); else { await load("security"); message("decisionSaved"); } } finally { body.password = body.code = ""; }
+  })));
+  root.append(form,el("h3",tr("sessions"))); for (const session of value.sessions) root.append(el("p",`${session.current ? tr("current") + " · " : ""}${tr("created")}: ${session.createdAt} · ${tr("expires")}: ${session.expiresAt}`));
+  root.append(button("logoutAll",() => action(logoutAll))); $("page-content").replaceChildren(root);
+}
+async function pending(page,offset = 0) {
+  const users = page.permissionId === "users.view", route = users ? "pending-users" : "pending-merchants", result = await request(route + "?offset=" + offset), root = el("section",undefined,"card");
+  $("page-title").textContent = tr(users ? "pendingUsers" : "pendingMerchants"); root.append(el("p",tr("pendingList"),"notice")); if (!result.accounts.length) root.append(el("p",tr("noAccounts")));
+  for (const item of result.accounts) { const row = el("article",undefined,"application-row"); row.append(el("h3",item.name),el("p",item.email),el("span",tr(item.approvalStatus),"badge"),button("review",() => action(() => review(item,page,offset)))); root.append(row); }
+  if (offset) root.append(button("previous",() => action(() => pending(page,Math.max(0,offset-100))))); if (result.nextOffset !== null) root.append(button("next",() => action(() => pending(page,result.nextOffset)))); $("page-content").replaceChildren(root);
+}
+async function review(item,page,offset) {
+  const options = await request("approval-options"), dialog = $("approval-dialog"); dialog.replaceChildren(el("h2",tr("review")),el("p",item.name));
+  const form = el("form"), fields = item.accountType === "user" ? ["payinCommission","payoutCommission","inrPerUsdt","depositNetwork","depositAddress"] : ["payinFee","payoutFee","fixedPayoutFee","fixedFeeCurrency"];
+  for (const key of fields) { const choices = key === "depositNetwork" ? options.depositNetworks.map(network => [network,network]) : key === "fixedFeeCurrency" ? [[options.fixedFeeCurrency || "",options.fixedFeeCurrency || tr("unavailable")]] : undefined;
+    const input = field(form,key,"text",choices); if (!choices && key !== "depositAddress") input.inputMode = "decimal";
+  }
+  if (item.accountType === "merchant" && !options.fixedFeeCurrency) dialog.append(el("p",tr("currencyMissing"),"notice"));
+  let requestId = crypto.randomUUID(), previousPayload;
+  async function decide(decision) {
+    const data = Object.fromEntries(new FormData(form)), body = {requestId,accountId:item.id,decision,settings:decision === "approve" ? Object.fromEntries(fields.map(key => [key,data[key]])) : null,reason:decision === "reject" ? data.reason : ""};
+    const payload = JSON.stringify({...body,requestId:null}); if (previousPayload && previousPayload !== payload) requestId = crypto.randomUUID(); body.requestId = requestId; previousPayload = payload;
+    await post("approval",body); dialog.close(); await pending(page,offset); message("decisionSaved");
+  }
+  form.append(button("saveApproval",() => action(async () => { for (const key of fields) if (!form.elements[key].reportValidity()) return; await decide("approve"); }),"primary"));
+  const reason = field(form,"reason"); reason.required = false; reason.maxLength = 500; form.append(button("reject",() => action(() => decide("reject"))),button("cancel",() => dialog.close())); dialog.append(form); dialog.showModal();
+}
+async function load(selected = destination) {
+  account = await request("me"); locale = L.choose(explicitLocale,account.accountType === "merchant" ? account.locale : null,navigator.language);
+  if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
+  applyLocale(); const navigation = await request("navigation");
+  stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(account.approvalStatus); $("navigation").replaceChildren();
+  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) node.append(button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item")); $("navigation").append(node); }
+  destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
+  if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
+  if (!page || ["profile.view","user.overview.view","merchant.overview.view","overview.view"].includes(page.permissionId)) return profile();
+  $("page-title").textContent = tr("nav." + page.permissionId); const root = el("section",undefined,"card"); root.append(el("h2",tr("planned")),el("p",tr("plannedBody")),el("p",tr("noKeys"))); $("page-content").replaceChildren(root);
+}
+async function changeLocale(value) {
+  if (!L.supported.includes(value)) return; explicitLocale = locale = value; try { localStorage.setItem("wpay-locale",value); } catch { /* Preference only. */ } applyLocale();
+  if (account?.accountType === "merchant" && !stage) { await post("locale",{locale:value}); await load(); message("languageSaved"); } else if (account && !stage) await load(); else renderAccess();
+}
+async function logoutAll() { await post("logout-all"); showLogin(); message("loggedOut"); }
+$("language").onchange = () => action(() => changeLocale($("language").value)); $("account-home").onclick = () => action(() => load(null));
+$("logout").onclick = () => action(async () => { await post("logout"); showLogin(); message("loggedOut"); }); $("logout-all").onclick = () => action(logoutAll);
+for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
+setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
+applyLocale(); renderAccess(); load().catch(error => { showLogin(); if (error.message !== "error.AUTH_FAILED") message(error.message); });

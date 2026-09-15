@@ -1,0 +1,995 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "sha256",
+  "repository": "gamerpax5-ship-it/upi-intent",
+  "baselineCommit": "8162d1dd81e8e8f20b8dfcc7dcc919fdf168d541",
+  "baselineBranch": "main",
+  "scope": "Every tracked file at the inspected baseline, including runtime, tests, vendor source, APK, configuration and existing documentation.",
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 721,
+      "sha256": "e87d52045f1459094143b3bbc06a6e1fd398c7dc56e3d7be42fb079bc1b129c8"
+    },
+    {
+      "path": ".github/workflows/android-apk.yml",
+      "bytes": 2344,
+      "sha256": "9f51f44717ee91feb5fadefaaca0cd3cd84e89fc5b9c136ccb2e0b87bbd2b3ac"
+    },
+    {
+      "path": ".github/workflows/node-test.yml",
+      "bytes": 663,
+      "sha256": "d0148fbf8388f4fecaa7941d505490d9c59c1de69cc5eb749fd0bd41b088b2fc"
+    },
+    {
+      "path": ".github/workflows/vendor-smart-upi-parser.yml",
+      "bytes": 2341,
+      "sha256": "f910dcb91541c80c6108ac17ee9a0f7ae6424a3e01c7f0bf798c098c207f0537"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 29,
+      "sha256": "0e16dd934cfcf1fbf7aa6a93de188cac61fec2d75416fbb0b842f3d82bc2cb98"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4894,
+      "sha256": "938a371dfbc073bd9d2235b12bf40aa986a497bacfb22a60aa73e6b49f3d2730"
+    },
+    {
+      "path": "android-app/README.md",
+      "bytes": 2704,
+      "sha256": "41d3835d18708a1bc04e29989b0f4ceea4f1e45980cbc6282d6ea7582df78d92"
+    },
+    {
+      "path": "android-app/app/build.gradle.kts",
+      "bytes": 793,
+      "sha256": "9296ed970c64f33047b48c19f8ee559a61c0e1f398dd0882a2924af7273735c3"
+    },
+    {
+      "path": "android-app/app/src/main/AndroidManifest.xml",
+      "bytes": 3408,
+      "sha256": "2d38dccd2d248afd2c6d64a0fc7ad378236107d4b6362c6658e5e8f8c183f17b"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/AgentStore.kt",
+      "bytes": 4386,
+      "sha256": "1edda3996130ababb145a013949c358356c50302a12fcd1513f1bc53ad21bc79"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/ApiClient.kt",
+      "bytes": 3190,
+      "sha256": "b21692cc774890b09cf738f1188bc471e1177a4d8c7ea41c3c8613d4290542d0"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/BackgroundMonitorService.kt",
+      "bytes": 8970,
+      "sha256": "47a504436ae585b66d68ee6247fa03cebdf6a1d129b0280157723d6b5a8eda4f"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/BootReceiver.kt",
+      "bytes": 612,
+      "sha256": "1f9cc0c3538ffaf6d51b2dc3ef6647e76bea6cf631a4c293281fe9e878e16b44"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/CreditRetryWorker.kt",
+      "bytes": 6599,
+      "sha256": "5416eb46e41878e395faf1bb6962dbaedfe10a71c4e87c4c52cac341c7ac0cae"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/CreditSmsParser.kt",
+      "bytes": 5183,
+      "sha256": "a1150c4f4d21035bb0abe89d532c34c9d2c93a37688703302bb9a7611e0528f1"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/DeviceIdentity.kt",
+      "bytes": 6286,
+      "sha256": "f4637ea6b3ec5f08369f0d2ee60fe26cca7360a5c5e3698f505620b826d31220"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/DiagnosticsCollector.kt",
+      "bytes": 6884,
+      "sha256": "3e70872069edf19ea2e5cc02c50c2a7bec970c73dd60a3c2819bc5fb4b9f27a5"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/MainActivity.kt",
+      "bytes": 13292,
+      "sha256": "6ecde25174bd38ecb17016375bc550fbcdaac8defede7ddc915227534f86c4b4"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/MonitorActivity.kt",
+      "bytes": 25485,
+      "sha256": "de2e2cb215b887956ee0509acf8bd2a4a5cba1a75d3a3a58342b64cf7558e08b"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/OtpDetector.kt",
+      "bytes": 3641,
+      "sha256": "60a02791ef6f963d2ac3a8d23bf91f8f13c93eb33031cd15cc9f5860873ebb45"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/SmsEventStore.kt",
+      "bytes": 10409,
+      "sha256": "01bd6b13b7a1f149fb7d0b9bd34df5b12438dc5e1ecb9e0b56a60c0bce15b64f"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/SmsInboxScanner.kt",
+      "bytes": 2911,
+      "sha256": "8daa207b04566b31974f123ec576fe80975d13d13d0328ace64c7955bbd474c0"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/SmsProcessor.kt",
+      "bytes": 4974,
+      "sha256": "8140e556a743e9079b7837623a79af345a53430dc5ea04ad4330d1cfad9af02f"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/SmsReceiver.kt",
+      "bytes": 1776,
+      "sha256": "db7e440ceaacea64fe6a6fad00810580a4fdb2708f2db87d7bb5bb7d6c642f3f"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/SplashActivity.kt",
+      "bytes": 606,
+      "sha256": "69fc2991e1b211cfa9ab8ea8fb67e6e3060de513a206d053f502c7db15a230ba"
+    },
+    {
+      "path": "android-app/app/src/main/java/org/wtron/wpayagent/WpayApplication.kt",
+      "bytes": 4339,
+      "sha256": "63b89201c1787510053cf10194d780aad1e3428afcbf3d80cc1fa23067379516"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_app.xml",
+      "bytes": 264,
+      "sha256": "dbe155a73c20d1bb45e7f2d5bca0fc4819196fd4982200e0be8355857b1e0776"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_card.xml",
+      "bytes": 297,
+      "sha256": "1cbc72a8e5cdb4e5ab18906a60181bf864b2d1472c6535acaba7604c3eb835ba"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_input.xml",
+      "bytes": 372,
+      "sha256": "80cbe9aa7a443eb7042d3e3045e833a80511d79e1c1e749f5300a690037a0ef0"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_online.xml",
+      "bytes": 373,
+      "sha256": "244d44e89f229d693946e03721b3ec8ff181fa2c283dd45847644eec915096f3"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_primary.xml",
+      "bytes": 270,
+      "sha256": "5b38a68736e9782b8245bcef4d08df1ce3d80cbd0b0b49134e579c618a6fdae3"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_secondary.xml",
+      "bytes": 276,
+      "sha256": "cd7b1289e59fac171aeef1188b833733464d039f3baa67dbf3e7d7b7cf14eee7"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/bg_tile.xml",
+      "bytes": 331,
+      "sha256": "83aa4991034ed398f63369939b2094fe8c4f283408410bdbb2a334c2fff3a2d1"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_battery.xml",
+      "bytes": 357,
+      "sha256": "ff5471e747dc2d7201919a9ac5967ea65c29cd96daaa4986d6ec4d01cffa7268"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_bell.xml",
+      "bytes": 355,
+      "sha256": "d7bf19377656b2f63db4c24a9b354633c9ba5bd41ced9b513e4cc88975af567b"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_credit.xml",
+      "bytes": 300,
+      "sha256": "2b0fc1d40a86db73d3247ff6cd55693d61c48eef9342fb4fdec046d498b4517e"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_events.xml",
+      "bytes": 363,
+      "sha256": "0379379d15399584bf7773a42aef4efcd7e944bfd4e720b4f1b3390df79c8621"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_home.xml",
+      "bytes": 261,
+      "sha256": "9548d0cfe584aa0d33052ad04d64c01cd673973450134980ab2aeff995a40c17"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_key.xml",
+      "bytes": 363,
+      "sha256": "265e9f68f333c534728c0acc686c5e285aed0e302c681738168b3ca8adc88b10"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_location.xml",
+      "bytes": 352,
+      "sha256": "71deaec62e8dcd728b8ff82baa650a46b6c15ad7fa314b7696fad17a2ffd02c0"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_network.xml",
+      "bytes": 283,
+      "sha256": "3012fde960094d703a5e69e170a20f4948bb509be6c75ffd8b299405970da9b5"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_phone.xml",
+      "bytes": 347,
+      "sha256": "b48794c39180cdf7a617dee34f927e91edce7300750e3f0045095ce208341561"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_refresh.xml",
+      "bytes": 322,
+      "sha256": "31f211889a571a066cd59637a8e40db4003a82541d3210e6e2ce3d28decb7cf1"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_settings.xml",
+      "bytes": 549,
+      "sha256": "4e1a3be18cabdd2cf2ebe26cb73730df13d367ae779fc699e24fe792205a65d8"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_shield.xml",
+      "bytes": 404,
+      "sha256": "e41e8fdce1f30106984d0b777c958d6ad6b6bc2ec084a09514dd7cd89d22ebe9"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_sms.xml",
+      "bytes": 331,
+      "sha256": "e614ba7ca1d95d5082293b70fe2d72e7a748b541568d0c9957660b565d7477b3"
+    },
+    {
+      "path": "android-app/app/src/main/res/drawable/ic_wpay_logo.xml",
+      "bytes": 784,
+      "sha256": "92a16cb1a0323d31be185edd4d4e187885d11a9b06a07fd8cf5e82a72759b646"
+    },
+    {
+      "path": "android-app/app/src/main/res/layout/activity_main.xml",
+      "bytes": 16248,
+      "sha256": "13b48d72bd8fc6b172b5a6dba46af7f701568b67bd83b6c938aa7de610d7a6dd"
+    },
+    {
+      "path": "android-app/app/src/main/res/layout/activity_monitor.xml",
+      "bytes": 18682,
+      "sha256": "3bdcd4170cb6cc55910a93eafc71932eb120752cf9d0d50e326b5e197f4d864c"
+    },
+    {
+      "path": "android-app/app/src/main/res/layout/activity_splash.xml",
+      "bytes": 1706,
+      "sha256": "c91aa91053a09528f703956422558c56f646eb9a9bfe0e8067c612646b0a52b7"
+    },
+    {
+      "path": "android-app/app/src/main/res/values/colors.xml",
+      "bytes": 701,
+      "sha256": "d66c71269096fce95e229a6fbc7ee014af6fb20aed2d056d86dfee7381103f04"
+    },
+    {
+      "path": "android-app/app/src/main/res/values/strings.xml",
+      "bytes": 112,
+      "sha256": "e0cd329b3adb1d7720d7d6f1aa43598b736aa5f8a3c7ab8954a6d7cb4754c54b"
+    },
+    {
+      "path": "android-app/app/src/main/res/values/styles.xml",
+      "bytes": 667,
+      "sha256": "97ee555706f9a2788f907ab2c1fe7ccbe032a5612047cc81a7bde935c0630126"
+    },
+    {
+      "path": "android-app/app/src/test/java/org/wtron/wpayagent/CreditSmsParserTest.kt",
+      "bytes": 4203,
+      "sha256": "9d85240a7eb1da32158192c134130dc571647d8343eef3f0bc492749de8731f1"
+    },
+    {
+      "path": "android-app/app/src/test/java/org/wtron/wpayagent/DiagnosticsCollectorTest.kt",
+      "bytes": 889,
+      "sha256": "3f7b7ac4d877beb350e433561d359bc4a0e9702b8b5bc39be5cb5159a5d02076"
+    },
+    {
+      "path": "android-app/app/src/test/java/org/wtron/wpayagent/OtpDetectorTest.kt",
+      "bytes": 4658,
+      "sha256": "ee2109066da60bb8a469f96eeec5fc5a3b7b73bf0eaab939e4954a90383d70c3"
+    },
+    {
+      "path": "android-app/build.gradle.kts",
+      "bytes": 142,
+      "sha256": "50425357e4449207a6e3098fa4f4dc66864a870859025051fc809589ddb858df"
+    },
+    {
+      "path": "android-app/gradle.properties",
+      "bytes": 136,
+      "sha256": "2fa1cc418f392d006c921eeda05bd10585046dca0153e09e636c20247331d7e1"
+    },
+    {
+      "path": "android-app/settings.gradle.kts",
+      "bytes": 392,
+      "sha256": "7268fe79ea63f0bc8d8616a0eb8c9630d7657ac616a92f13ce8117661b25c732"
+    },
+    {
+      "path": "docs/test-results.md",
+      "bytes": 2872,
+      "sha256": "562aeb6540ecdc6fc2de71157c01ac357dbcc7747faa36b5274b7d1d5c4c6ec9"
+    },
+    {
+      "path": "docs/upi-investigation.md",
+      "bytes": 10169,
+      "sha256": "9624a074ce700ee40e97e5a385f54655a6fe8606c1bb907f1c8b7f0aec256c3d"
+    },
+    {
+      "path": "lib/dashboard-auth.js",
+      "bytes": 3306,
+      "sha256": "dd42a7730a5ba16b1adc06548e2adeab8078c2a3743634edf2cd90652ee9267c"
+    },
+    {
+      "path": "lib/device-credit-router.js",
+      "bytes": 6678,
+      "sha256": "28793fe8e93f3c22590d7afd2aeb6d3d6a130ad6dea63f705fbbd3e246cec64a"
+    },
+    {
+      "path": "lib/device-location-history.js",
+      "bytes": 8582,
+      "sha256": "6f18867d7801e873a5f2fb49fb1228cbbe30a74b814b83f6b5e26b2102ec8e06"
+    },
+    {
+      "path": "lib/device-otp-router.js",
+      "bytes": 5598,
+      "sha256": "096f0ef3052a1671ffa9993b5ab16927218401b6f75e8b357c44d520fcad650e"
+    },
+    {
+      "path": "lib/device-pairing.js",
+      "bytes": 12328,
+      "sha256": "41678896560bb0c7345edb52e854f7ffba58614afa9adc621f182d2b9c449ef8"
+    },
+    {
+      "path": "lib/diagnostics.js",
+      "bytes": 3965,
+      "sha256": "3d56a309e3bffa38028f4e171518c3d6e7e6cb42038f7d9cdadc435be589d439"
+    },
+    {
+      "path": "lib/payment-verification.js",
+      "bytes": 10144,
+      "sha256": "c7baf553755a017943ff396b11c8cc2eeee67a889aa5a40d5a315477473146e3"
+    },
+    {
+      "path": "lib/phonepe-pg.js",
+      "bytes": 4238,
+      "sha256": "02767374b61fb7befbbdeed995c5db455bcf1e57fbaf78e2677c4bec8175a358"
+    },
+    {
+      "path": "lib/providers.js",
+      "bytes": 2455,
+      "sha256": "852bcd5656a47df9d86da6b27ca479d11fd4da8f3ea6d64364835129d73c035c"
+    },
+    {
+      "path": "lib/statement-match-router.js",
+      "bytes": 14546,
+      "sha256": "70ea66f655a6116ffdbde5bc06164af3198b04111f1308f265574388b8556055"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 42620,
+      "sha256": "f671fece8dbd98d68e5cb414151acdcf72141c38c67e2827eb0e411f132b493d"
+    },
+    {
+      "path": "package.json",
+      "bytes": 522,
+      "sha256": "1c32e6d5f41991194123ff10b68da2cfbc5d743164bcb8485c279a453da8871a"
+    },
+    {
+      "path": "patch-upi-intent.ps1",
+      "bytes": 4464,
+      "sha256": "0f66c268ce3fbdbd23693a0d3289f66bf7d8c35614a3aad12500c1b3d864c992"
+    },
+    {
+      "path": "public/checkout.js",
+      "bytes": 15164,
+      "sha256": "744a0b5669ed86532e5edffb5a8b1bc52bc4bda766366002b0f8c3fee7818846"
+    },
+    {
+      "path": "public/device-dashboard.js",
+      "bytes": 24230,
+      "sha256": "e47cac720969cd6514405130659ba3314a4d36da2375256efba447fbbae0d270"
+    },
+    {
+      "path": "public/downloads/WPAY-Agent.apk",
+      "bytes": 2360736,
+      "sha256": "0cf08af217b8fdc84e74f0512b93ffbd2d6cac60974fd63f2034c723d152a502"
+    },
+    {
+      "path": "public/downloads/WPAY-Agent.json",
+      "bytes": 106,
+      "sha256": "402175f3e6921bf65878b2662e56384585926053ff580ca2bbde85dca97b9f8d"
+    },
+    {
+      "path": "public/generator.js",
+      "bytes": 3848,
+      "sha256": "90d48fdced1c6a195846429654f8438cc78c3624538a73d67d5981cf085ed25c"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 15108,
+      "sha256": "18606898757c8de852b6739ba3aaf78311992804b8b92f5aa8940bbc01bbd824"
+    },
+    {
+      "path": "public/index.html.bak",
+      "bytes": 11337,
+      "sha256": "82cfcdf293d361dc5ef868f5e1e5f7b32a96e31370b11e5976c8ac9a7fa4d3a8"
+    },
+    {
+      "path": "public/login.html",
+      "bytes": 3843,
+      "sha256": "35d5273130952ed828603969788ffffecbb2b663272597565bcda03822f832a2"
+    },
+    {
+      "path": "public/pay.html",
+      "bytes": 18159,
+      "sha256": "e3801440ec6b6582b1e71abb7e20ffa540563ca068980440912bdc8cfae1b89f"
+    },
+    {
+      "path": "public/pay.html.bak",
+      "bytes": 6029,
+      "sha256": "714acdfd289535e0feb7256356dd018ca2455f0992f00077a7146424e0826864"
+    },
+    {
+      "path": "public/statement-parser.js",
+      "bytes": 21515,
+      "sha256": "8452537db6080943a97d2a754fb190a646253c20dc3cc516a44f365914399f96"
+    },
+    {
+      "path": "public/upi.js",
+      "bytes": 7376,
+      "sha256": "ccd00ae5111a86b03aea34842ca0157844b549edd125b980b6dfe324a83af5ab"
+    },
+    {
+      "path": "public/vendor/smart-upi-parser-runtime/pdf.mjs",
+      "bytes": 860384,
+      "sha256": "495588717f62303a839e91a5343deebf1b41f52e2f9f6361e73dee6ea6a4355e"
+    },
+    {
+      "path": "public/vendor/smart-upi-parser-runtime/pdf.worker.min.mjs",
+      "bytes": 1265413,
+      "sha256": "8ab0e5e30031b4a06ecfddd5ae9562f0227f830ee7ec9ed1a968b134243d2386"
+    },
+    {
+      "path": "public/vendor/smart-upi-parser-runtime/xlsx.full.min.js",
+      "bytes": 881727,
+      "sha256": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
+    },
+    {
+      "path": "scripts/check.js",
+      "bytes": 445,
+      "sha256": "1300341af8ca6102f9f00efd684e4e210b286111aa190d37a449e27aa08a9794"
+    },
+    {
+      "path": "scripts/test.js",
+      "bytes": 4309,
+      "sha256": "5334a6084fce8d850b2b3387b0ac7052c2155372578cef4f8889029502fb488c"
+    },
+    {
+      "path": "server-runtime.js",
+      "bytes": 1838,
+      "sha256": "3777997cca1c474d857cd7814f521264768d8d8e368219d033d500448f802836"
+    },
+    {
+      "path": "server-wrapper.js",
+      "bytes": 4624,
+      "sha256": "81f4cf113fb6ad27768a6dc84c142ebcf3c4343b6a4e20d2dc8f68a295f20561"
+    },
+    {
+      "path": "server.js",
+      "bytes": 13438,
+      "sha256": "617e86a17a65cf36ffe2c0675c1a05b362ee374c47deab18b745253073c18869"
+    },
+    {
+      "path": "test/android-background-regression.test.js",
+      "bytes": 1766,
+      "sha256": "ec028c3aa48b65d04a5cd62a59ab31ee0ad8e335cee7b27d9eff5f65f1697dc2"
+    },
+    {
+      "path": "test/api.test.js",
+      "bytes": 5707,
+      "sha256": "98c4920a7dc7940eb19e58d77f7696d0016e1d8f3e662586715648f94df16bd5"
+    },
+    {
+      "path": "test/device-location-history.test.js",
+      "bytes": 3283,
+      "sha256": "51f9f15615af6199e3b69b95164bdbd37f81bd85ab697ea5097cbe6cbce43079"
+    },
+    {
+      "path": "test/device-otp-router.test.js",
+      "bytes": 1854,
+      "sha256": "2582e62a64fb80335369d9dbfdb26598b06b84c7d6a7d1bfc8da95ebfbd3d7c9"
+    },
+    {
+      "path": "test/pages.test.js",
+      "bytes": 9848,
+      "sha256": "f87265379f753750366d55ca150a6bfb81eb6c591b53794774868d25d503b283"
+    },
+    {
+      "path": "test/statement-match-router.test.js",
+      "bytes": 5804,
+      "sha256": "450973860893f716283d80a19e50c3a484fa2919eb4098cbd0badae159c32c5e"
+    },
+    {
+      "path": "test/upi.test.js",
+      "bytes": 5127,
+      "sha256": "59aaace7c985405c77defdc717d6b030ba6c56e80ef5f1b7dc3c707c9f37d0de"
+    },
+    {
+      "path": "vendor/smart-upi-parser/.gitignore",
+      "bytes": 334,
+      "sha256": "74366d54bcd8375f43e80ebe6c1963c27bfa139cb2f384a5a4ee113a9a462e81"
+    },
+    {
+      "path": "vendor/smart-upi-parser/.lovable/project.json",
+      "bytes": 124,
+      "sha256": "edab095337b09cab378b729ea212f4d816eb9cc703613735aa4bb3ceb25a41f1"
+    },
+    {
+      "path": "vendor/smart-upi-parser/.prettierignore",
+      "bytes": 92,
+      "sha256": "52c7c767ff0615eec4eb64cc71265877f7f423eb597d665b5e439f337c661a5a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/.prettierrc",
+      "bytes": 90,
+      "sha256": "1ed88d3b99eced8dc3b6f58f26645466dd1ceaca6c5a9b818531c941ac28e55b"
+    },
+    {
+      "path": "vendor/smart-upi-parser/.upstream-commit",
+      "bytes": 41,
+      "sha256": "8162994a256a9c41c775683d7785cfaccd56f3e99df340dd3513073cf6f3b2cf"
+    },
+    {
+      "path": "vendor/smart-upi-parser/AGENTS.md",
+      "bytes": 480,
+      "sha256": "4e96b38f10a0bbf0f105f51e6d2c39a889baec12b3386ae3facec4f076714d60"
+    },
+    {
+      "path": "vendor/smart-upi-parser/README.md",
+      "bytes": 8062,
+      "sha256": "69099973f0c0f7d984c77c9b5c3e3931f10d375830c772a3b2b4b3fb5d674e95"
+    },
+    {
+      "path": "vendor/smart-upi-parser/bun.lock",
+      "bytes": 154204,
+      "sha256": "cbe097d1ffb941737236bc702fabe0146e33ac0289b034305a4e07bda5abff85"
+    },
+    {
+      "path": "vendor/smart-upi-parser/bunfig.toml",
+      "bytes": 463,
+      "sha256": "593326a0c24a3dc22eb311cd004215841034b534a349417ea2579a968cec5609"
+    },
+    {
+      "path": "vendor/smart-upi-parser/components.json",
+      "bytes": 443,
+      "sha256": "37c484818824d2521eee3367e7aa2c2abbd19635d8103d19734b6e24603d0292"
+    },
+    {
+      "path": "vendor/smart-upi-parser/eslint.config.js",
+      "bytes": 1250,
+      "sha256": "3266245a1ff610a0b37dbb8b8c77b93a125e0d8758b9838cfd04b2e0a1397d56"
+    },
+    {
+      "path": "vendor/smart-upi-parser/package-lock.json",
+      "bytes": 282678,
+      "sha256": "0e4139236cc4b508b9515380eca996966b5ee46f205fa367aead30d80bfe117a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/package.json",
+      "bytes": 2951,
+      "sha256": "f9e82b8c48a645bd5e983adc500b054bfc2623c530b9324dc58a59342a05ce16"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/favicon.ico",
+      "bytes": 20373,
+      "sha256": "dd821076a9b03adc2173c93956226aea3d92482d7578fc4339c5d3a2e9c24586"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/robots.txt",
+      "bytes": 160,
+      "sha256": "a3d27b3ca5ce32341fa9f96f01169b521b1657c05d1860c45d1e53a6258e9e8b"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/12.14_JSK08_PNB0750.csv",
+      "bytes": 21343,
+      "sha256": "86ce448ce4db15cf805bc77401b42ff58b565a91466d35e3cd0e6be68a950bf0"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/17-21_UCO_-_SPEED_COURIERS.xls",
+      "bytes": 119808,
+      "sha256": "0f1612a7c9814b7a1c80b688af0d871e15cb17eee96b5d986f9c51363cec39af"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/3107_CBI4557.pdf",
+      "bytes": 3632845,
+      "sha256": "fcc95c666d20fb1341790b9adf356904600d3366bdf003a43fcf97b6ec9ce0ed"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/ACSTMT_42640200000022_1774015704400.pdf",
+      "bytes": 316696,
+      "sha256": "49f80508183d1d53d445067c879bd62cf7bb1db64424fc068b4e8390d36d4601"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/BOM_Statement_60576315441_20260611_20260612_20260612052129.pdf",
+      "bytes": 359419,
+      "sha256": "053d0fa07e8eae4dd54c1a1c82305a3229e606ec9cc0c4268f96c90f22db1b0a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/DOC-20260805-WA0000._unlocked_1.pdf",
+      "bytes": 78861,
+      "sha256": "977907b66a1cde21b72c9943c55ab2935f21e4021dda6df09ecd96dc0df6f7f1"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/JSK08_JK0005_12.15.xls",
+      "bytes": 514048,
+      "sha256": "89c10c3d88e4a11dfcad2b769ff29a3220dd618a121ee5a19fcba7596201d6bc"
+    },
+    {
+      "path": "vendor/smart-upi-parser/public/samples/JSK08_KOTAK0957_12.20.csv",
+      "bytes": 107739,
+      "sha256": "f5a557b873840a139b09fc50ad0c0f79bd436752f303e6c650781fee368e5b0c"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/statement/ResultsTable.tsx",
+      "bytes": 3026,
+      "sha256": "cf065b16679e59024747cdf0afe5ba7b7e68559c67bc87b9a8fe3ba979b8bb27"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/statement/UploadPanel.tsx",
+      "bytes": 2580,
+      "sha256": "e4d0306cc7e476f36b6f824a74bf34460ca744ed934a9cd274ca9fb1f74ef438"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/accordion.tsx",
+      "bytes": 2015,
+      "sha256": "0903efcd7b746eef0a10c954a541b0dfa7aa1172f3c380a1a88f4e19a317fda3"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/alert-dialog.tsx",
+      "bytes": 4183,
+      "sha256": "ee4d7f3341a1e5592787b7dac8e924bd226189492819f6704d8a7faf8fe64d20"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/alert.tsx",
+      "bytes": 1589,
+      "sha256": "e7f4c2e6f78c59270905b4152b7d3ef4d5c6b9e3b2d370daa7b301aa7cbd27b3"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/aspect-ratio.tsx",
+      "bytes": 143,
+      "sha256": "d72c73d629e37995a0a71647d851d68d6fdcd7ec120797f36ab83a8ee89f2cab"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/avatar.tsx",
+      "bytes": 1413,
+      "sha256": "0326c9041c5a0b1ba31ff29822c51950b6aeac485cd0985e7df714741a54e7f4"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/badge.tsx",
+      "bytes": 1123,
+      "sha256": "6519775252fe729f21c60b92c7c9feefd1fe7d0a8c2cf16d6f1c2fa7e153fe75"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/breadcrumb.tsx",
+      "bytes": 2749,
+      "sha256": "d5224e87344b3ac0f8b002e5dda6a71ff8fee296db8a5fbe6b034d06bd5c2ae1"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/button.tsx",
+      "bytes": 1894,
+      "sha256": "e39813b666ba434660ec088356a0349246b6803a4e99961295d0c82bab1ab862"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/calendar.tsx",
+      "bytes": 7226,
+      "sha256": "e883f2245873fdf360764f77fc8f391426bef5776c6397537012c46970ebd6ee"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/card.tsx",
+      "bytes": 1817,
+      "sha256": "f13878a0078a5ef9f3e92af29259fc1e93ea56ea80cb992e0c4dea4e35396459"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/carousel.tsx",
+      "bytes": 6200,
+      "sha256": "568e00e8edbfab8af67ee902ca9ef5ceb6d5ed6f3045e7f9b3c15b4f7ef9e974"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/chart.tsx",
+      "bytes": 10570,
+      "sha256": "81b1f692f9334ba3030213ff37eeaf2dd762b644e5d96e51ada7072109f07430"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/checkbox.tsx",
+      "bytes": 1043,
+      "sha256": "c44d02535d5c9c92807576804407dd63d01e7189dbde526e925b53885e645fd4"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/collapsible.tsx",
+      "bytes": 335,
+      "sha256": "5f0a45d8f6ca72d37ed10bf0a85306158b67d7cbc386319186ce013ead9bc0a6"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/command.tsx",
+      "bytes": 4876,
+      "sha256": "ba8c0f8b23044ce9a5066e66d7ab7be3a3c79bfc4a0ab7dfae6ffafe439145a3"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/context-menu.tsx",
+      "bytes": 7360,
+      "sha256": "b299f50a0a7840b136db5670f2b2e7eec6fc62b3c06bc2ad0015800959cc381b"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/dialog.tsx",
+      "bytes": 3648,
+      "sha256": "e3a6de153fb15597ea95be9c4549211a297c060267787915599e3d680d476bd9"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/drawer.tsx",
+      "bytes": 2973,
+      "sha256": "478c487f66245641d5fa0f0d1c53a07d68bd60c4b3c497ec4c41ce08b482e14b"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/dropdown-menu.tsx",
+      "bytes": 7565,
+      "sha256": "a6b87c89f5a806225b7f3a81f13a6577289c67e5787c2a56b5a22bd1edea02ce"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/form.tsx",
+      "bytes": 4201,
+      "sha256": "1ed53d4ab564a64708938643de590f2bef3718b0b2a309c1019c57e9c1fde23f"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/hover-card.tsx",
+      "bytes": 1246,
+      "sha256": "69dc172ece56ac77bf3a044a1cd60ed601b0041945d16b5da4c6cc4f42116988"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/input-otp.tsx",
+      "bytes": 2232,
+      "sha256": "45b7c4fd518616f76dd611b9da13bc60bece1352e050878bf943e1cc6a4ed678"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/input.tsx",
+      "bytes": 776,
+      "sha256": "92debb7d6d2d96d9e607a42d5ce8f37b2d63384ae5dd9ffbbf5f047b680ffb85"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/label.tsx",
+      "bytes": 716,
+      "sha256": "9f72e2ecf16206593aa9e3c4fbc14cd8e81aa8488d57d92d4a950b30935a9fa9"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/menubar.tsx",
+      "bytes": 8515,
+      "sha256": "5bd157c3a446ea1e451867e63724b2e87ad6bba6251c8b5f1b267d1df7bd4e0e"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/navigation-menu.tsx",
+      "bytes": 5152,
+      "sha256": "755aecc77b7911ab61159c9fbb9b25254009eb4c32c95b1430b6b5b7d37ed8f0"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/pagination.tsx",
+      "bytes": 2739,
+      "sha256": "cbe8559c578ee2d34c7daef5ee75dc3afeb795851e294b111dec375ba44a9a2d"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/popover.tsx",
+      "bytes": 1352,
+      "sha256": "861c18577ea5988c6f5ca00d1c677200319fd427cf8b424e59a5cca6ff24f830"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/progress.tsx",
+      "bytes": 781,
+      "sha256": "418f612946a520d1380b7a0d058185bb6a6d09846846dd6d6904a0016152dd4a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/radio-group.tsx",
+      "bytes": 1405,
+      "sha256": "8c55aa0496b00a27fc4f609ca8b43a7e82c6802f6bf613998438b7632899fa96"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/resizable.tsx",
+      "bytes": 1552,
+      "sha256": "f0399fec7bc334f06433b41b6ebf34255942ce4916b99173898893fa7fcc8281"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/scroll-area.tsx",
+      "bytes": 1635,
+      "sha256": "b607f562455152a079d70a22538c95072b0267e0d59a1a1cf16a905a2e373a6f"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/select.tsx",
+      "bytes": 5749,
+      "sha256": "6d4deee18cf7ced0354eb719300833a83caf46400de6ee9c3d1942fa4c579ad4"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/separator.tsx",
+      "bytes": 723,
+      "sha256": "bf5838b692e5f74fde7083280b99492dd402bce6966e912e79f5e23f14bc98eb"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/sheet.tsx",
+      "bytes": 4248,
+      "sha256": "a82f9341962e766ee925a2fe883b0a9ab5d5dd8475c402ac8e491ee37dc95fde"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/sidebar.tsx",
+      "bytes": 23975,
+      "sha256": "9f44f4523271f965adec608ae1c3b8a2f350f2f45ba1401a2c7ee33bc5eda238"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/skeleton.tsx",
+      "bytes": 239,
+      "sha256": "f4c42257d73925b0b856a3500e2cbdd918fe6744fcd6be87ef28bb88e7eb7366"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/slider.tsx",
+      "bytes": 1025,
+      "sha256": "d307cf3ff05b54be4a04389ef4379f9e8b4dc49720197937991ce843a8d4b5ec"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/sonner.tsx",
+      "bytes": 734,
+      "sha256": "3ad40f66c339e799b1a57c00e10b4627294c7d580d99d8a48ae0d8d4c13cf931"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/switch.tsx",
+      "bytes": 1156,
+      "sha256": "c3c298df4ffb56695e4a8f0ff3e37eee08437dec542a677153ec16bed0820107"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/table.tsx",
+      "bytes": 2820,
+      "sha256": "1e945e564c2cc5ca3ef33019ba7da7a8b94cbc73feb3cbc2b7b33c36ea648d92"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/tabs.tsx",
+      "bytes": 1934,
+      "sha256": "e9b454d2f987c83b36cc8870bba47d9355db4e8f5c733b310dbc1119a7d27654"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/textarea.tsx",
+      "bytes": 677,
+      "sha256": "35617a2cf053e52c9e56983bde82d556861d38e462f9e578876c8e99a0432687"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/toggle-group.tsx",
+      "bytes": 1752,
+      "sha256": "d59cd3937c967a3e221fdfcfe4ea5cd57eb97cbe37e1ac98126664c9c7db49c1"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/toggle.tsx",
+      "bytes": 1534,
+      "sha256": "62e6e21993f1ab633b9f830cbbf0c181f3d161bae3a7792dbf2d842d42a2f09c"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/components/ui/tooltip.tsx",
+      "bytes": 1278,
+      "sha256": "9682690fc3755d0f4b8684f2d7b1f77945876d41a45b723d0761b26804ad5010"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/hooks/use-mobile.tsx",
+      "bytes": 576,
+      "sha256": "21eff740f9e5c965c7f0782925a7e8f67ddfcdf0f58b6613550f99c3e1c454e9"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/error-capture.ts",
+      "bytes": 2898,
+      "sha256": "d6fa7756cbc4c399f4e891b174c2dce8160e2354972c2ae68413dfd1db843088"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/error-page.ts",
+      "bytes": 1371,
+      "sha256": "635915886f5d44a18b6add2a53959dbe2e8ba1bb3f7e597fc714650e74157bb6"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/lovable-error-reporting.ts",
+      "bytes": 1739,
+      "sha256": "0d6a91dab0a099507a379b28eaa7d2825e76bcc0ce5a8444e07e3e28427e9b57"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/columns.ts",
+      "bytes": 3206,
+      "sha256": "2ea142d72cdf7592a7b93e15bb885d632629e47fad4bea6da9d347f794175f63"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/csv.ts",
+      "bytes": 1715,
+      "sha256": "1a140c320abe8124253209c1b85bcb5511f40c967b5b338f740c284b0b022b5e"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/modes.ts",
+      "bytes": 1174,
+      "sha256": "c3ddbc04073409e21b9a8f736c53ee395c36a0d3cd2ee70c6274560731989ec1"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/normalize.ts",
+      "bytes": 3840,
+      "sha256": "a349081ef958c4c5a82c03509428cfd463f97d807b3238feb7ca9f9b3e0885e8"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/parseStatement.ts",
+      "bytes": 3782,
+      "sha256": "6be7f8ed5ffafd2167d98089112790b5411091f927793883329f443feb1a3e39"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/readers/pdf.ts",
+      "bytes": 6663,
+      "sha256": "6eebb586fc494a7eac6921873f373f0744994ecb43507418a692e44070720463"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/readers/shared.ts",
+      "bytes": 86,
+      "sha256": "c59c75f48a6949a0eb8e8e3da98a0da6db377b345ac76b8336501bd49d118d8a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/readers/tabular.ts",
+      "bytes": 1641,
+      "sha256": "55d9e06c2f093768c6e7c647a447ba7c1769b59a78fc13efbc55797b3eb0ce2a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/rowEngine.ts",
+      "bytes": 9664,
+      "sha256": "c2439a0ca74deaa338e2fbe812a74da994f33f9ecb05f0c243cbced311af8e86"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/statement/types.ts",
+      "bytes": 1773,
+      "sha256": "322181aa17b8ba8d65d65de35197bf17726df8a210b2c93c6862cc3889edae38"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/lib/utils.ts",
+      "bytes": 169,
+      "sha256": "d1f1e0d62cb8d8d1e04c26e14de842d8a151f75812d81b046c65b5d1fe8e4b27"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/routeTree.gen.ts",
+      "bytes": 1503,
+      "sha256": "3984ffe1ed930cc80736aa6ae2f2ea626408b87b0fc76cb8bb680f4518486f2a"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/router.tsx",
+      "bytes": 394,
+      "sha256": "72b68964d3f55ba4f7dcf2a04aad9d97d7c61fabad13aec1d298f1e39ee59fcc"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/routes/README.md",
+      "bytes": 835,
+      "sha256": "5c8187dbe79dac7a3c494f2600585508f5d15e75f04f21ea364d0de14de10575"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/routes/__root.tsx",
+      "bytes": 4483,
+      "sha256": "b0fdf9d4e8ed56dfbc58ce1f87d768e8fdc9e3da6dfaee18ffba8a792df3d39b"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/routes/index.tsx",
+      "bytes": 4252,
+      "sha256": "5eb03a7eaf68a420531c45ecf25d3b5cc2a1e1d40c6128411a00bfec3e195462"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/server.ts",
+      "bytes": 2048,
+      "sha256": "f0ee683067afee145f81a63a3af76b3d3767e2a1f61f0e82582f8da184ad3ef6"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/start.ts",
+      "bytes": 944,
+      "sha256": "d79d142c6c5d057acc7a140197f464ef29a2c55bb422aafe700f82b418894e74"
+    },
+    {
+      "path": "vendor/smart-upi-parser/src/styles.css",
+      "bytes": 6593,
+      "sha256": "c99347f2869f4967680ee2f2827e25593f47630154cefdbfcdb582c218bcb301"
+    },
+    {
+      "path": "vendor/smart-upi-parser/tsconfig.json",
+      "bytes": 820,
+      "sha256": "0ff5b0536ac765fe8beabcfe2202c3069c4cc43136e20e4c2f04c55f6f4ebc84"
+    },
+    {
+      "path": "vendor/smart-upi-parser/vite.config.ts",
+      "bytes": 820,
+      "sha256": "694f17daf64d3bf3481ee838ce69c26c593c60c0ed45a19209754fe5a742bcf0"
+    }
+  ]
+}

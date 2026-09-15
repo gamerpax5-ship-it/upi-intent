@@ -1,0 +1,7 @@
+{
+  "name": "wpay-auth-security-dependencies",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated WPay account authenticator and local QR boundary",
+  "dependencies": { "otplib": "13.5.0", "qrcode": "1.5.4" }
+}
