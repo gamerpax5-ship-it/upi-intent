@@ -102,7 +102,8 @@ async function apk() {
 }
 async function sources() {
   const data=await request("resources"),root=el("section",undefined,"card");$("page-title").textContent=tr(account.accountType==="user"?"linkedSources":"mappedOrders");
-  root.append(el("p",tr(data.sourceConnected?"sourceScopeRequired":"sourceDisconnected"),"notice"),el("p",tr("observationOnly")));
+  const sourceState=data.otpState==='no_linked_device'?'noLinkedDevice':data.otpState==='source_unavailable'?'otpSourceUnavailable':data.sourceConnected?'sourceScopeRequired':'sourceDisconnected';
+  root.append(el("p",tr(sourceState),"notice"),el("p",tr("observationOnly")));
   const kinds=account.accountType==="user"?["device","receiving_account","statement_import"]:["order","payment_link","merchant_assignment"];
   const form=el("form"),kind=field(form,"resourceKind","text",kinds.map(value=>[value,tr("kind."+value)])),reference=field(form,"resourceReference");
   reference.maxLength=100;reference.pattern="[A-Za-z0-9_-]{1,100}";
@@ -112,7 +113,7 @@ async function sources() {
   root.append(form);
   for(const link of data.links){const item=el("article",undefined,"application-row");item.append(el("h3",tr("kind."+link.kind)),el("p",link.reference),el("p",tr("link."+link.status)));
     item.append(button("revokeLink",()=>action(async()=>{await post("resources/revoke",{linkId:link.id});await sources();})));
-    if(link.status==="verified"&&data.sourceConnected){const views={device:["device","otp","transactions"],statement_import:["statement"],order:["order"],payment_link:["order"]};
+    if(link.readable&&data.sourceConnected){const views={device:["device","otp","transactions"],statement_import:["statement"],order:["order"],payment_link:["order"]};
       for(const view of views[link.kind]||[])item.append(button("view."+view,()=>action(()=>sourceView(link,view))));
     }
     root.append(item);

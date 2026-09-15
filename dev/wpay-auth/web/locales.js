@@ -65,6 +65,9 @@
   };
   for (const [key,values] of Object.entries(merchantLabels)) ["en","ru","zh-CN"].forEach((locale,index) => { dictionaries[locale][key] = values[index]; });
   const integrationLabels={
+    noLinkedDevice:["No linked device","Нет связанного устройства","未关联设备"],
+    otpSourceUnavailable:["OTP source unavailable","Источник OTP недоступен","OTP 数据源不可用"],
+    "error.OTP_SOURCE_UNAVAILABLE":["OTP source unavailable","Источник OTP недоступен","OTP 数据源不可用"],
     "group.apk_events":["APK & Events","APK и события","APK 与事件"],
     "nav.user.apk.view":["Download APK","Скачать APK","下载 APK"],"nav.apk.view":["APK artifact","Файл APK","APK 文件"],
     "nav.user.source_events.view":["Linked Devices & Observations","Связанные устройства и события","已关联设备与记录"],
