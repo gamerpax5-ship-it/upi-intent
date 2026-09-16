@@ -5,6 +5,8 @@ const { SecurityRepository } = require("../lib/wpay/db/security-repository");
 const { MfaCrypto, readKey } = require("../lib/wpay/auth/runtime/mfa");
 const { fromEnvironment } = require("../lib/wpay/funding/provider");
 const { openLegacySource } = require("../lib/wpay/integrations/source-config");
+const {openOperationalSource}=require('../lib/wpay/integrations/operational-source');
+const {configuredPairingBridge}=require('../lib/wpay/integrations/pairing-bridge');
 const { AuthService } = require("../lib/wpay/auth/runtime/service");
 const { startAuthServer } = require("../lib/wpay/auth/runtime/http");
 async function main() {
@@ -13,19 +15,19 @@ async function main() {
   const mfaCrypto = new MfaCrypto(readKey());
   mfaCrypto.libraries();
   const pool = createPool();
-  let source;
+  let source,operational;
   try {
     await validateMigrations(pool);
     const factors = await pool.query("SELECT account_id, factor_version, encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for (const factor of factors.rows) mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
-    source=openLegacySource();
-    const server = await startAuthServer({ service: new AuthService(new SecurityRepository(pool), { mfaCrypto, legacyReader:source.reader, fundingProvider:fromEnvironment(), fixedCurrency: process.env.WPAY_AUTH_DEV_FIXED_FEE_CURRENCY }), port: args.length ? Number(args[1]) : 4174 });
+    source=openLegacySource();operational=openOperationalSource();const pairingBridge=configuredPairingBridge();
+    const server = await startAuthServer({ service: new AuthService(new SecurityRepository(pool), { mfaCrypto, legacyReader:source.reader,operationalSource:operational.source,pairingBridge, fundingProvider:fromEnvironment(), fixedCurrency: process.env.WPAY_AUTH_DEV_FIXED_FEE_CURRENCY }), port: args.length ? Number(args[1]) : 4174 });
     console.log(`WPay development: http://127.0.0.1:${server.address().port}/wpay-auth/ — payments not connected`);
     let stopping = false;
-    const stop = () => { if (stopping) return; stopping = true; server.close(() => {pool.end().catch(() => {});source.close().catch(()=>{});}); server.closeIdleConnections(); };
+    const stop = () => { if (stopping) return; stopping = true; server.close(() => {pool.end().catch(() => {});source.close().catch(()=>{});operational.close().catch(()=>{});}); server.closeIdleConnections(); };
     process.once("SIGINT", stop); process.once("SIGTERM", stop);
     return server;
-  } catch (error) { await pool.end();if(source)await source.close(); throw error; }
+  } catch (error) { await pool.end();if(source)await source.close();if(operational)await operational.close(); throw error; }
 }
 if (require.main === module) main().catch(error => {
   const reason = ["WPAY_SCHEMA_MISSING", "WPAY_SCHEMA_INCOMPATIBLE"].includes(error.message) ? error.message : "WPAY_AUTH_UNAVAILABLE";

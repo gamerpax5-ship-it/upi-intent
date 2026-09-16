@@ -1,5 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id), L = globalThis.WPayLocales;
+const entryRole=document.querySelector('meta[name="wpay-entry-role"]')?.content;
+const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
 let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now();
@@ -22,7 +24,7 @@ function applyLocale() { document.documentElement.lang = locale; $("language").v
 function showLogin() { account = null; stage = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
 async function request(route,method = "GET",body,csrf) {
   let response;
-  try { response = await fetch("/wpay-auth/" + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
+  try { response = await fetch(apiRoot + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
   catch { throw new Error("error.UNAVAILABLE"); }
   let value; try { value = await response.json(); } catch { throw new Error("error.UNAVAILABLE"); }
   if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) || globalThis.WPayPayoutLocales?.hasError(value.error) ? value.error : "UNAVAILABLE")); }
@@ -36,19 +38,20 @@ async function action(callback) {
 }
 function renderAccess() {
   const root = $("access-card"); root.replaceChildren(); if (stage) return renderMfa(root);
+  if(entryRole)root.append(el('p',tr(entryRole),'eyebrow'));
   root.append(el("h2",tr(mode === "register" ? "registerTitle" : "loginTitle"))); const form = el("form");
   if (mode === "register") { const input = field(form,"name"); input.maxLength = 100; input.autocomplete = "name"; }
   const email = field(form,"email","email"); email.autocomplete = "username"; email.maxLength = 254;
   const password = field(form,"password","password"); password.autocomplete = mode === "register" ? "new-password" : "current-password";
   form.append(el("p",tr("passwordHelp"),"hint"));
-  if (mode === "register") { field(form,"accountType","text",[["user",tr("user")],["merchant",tr("merchant")]]); form.append(el("p",tr("emailNote"),"hint")); }
+  if (mode === "register") { field(form,"accountType","text",entryRole?[[entryRole,tr(entryRole)]]:[["user",tr("user")],["merchant",tr("merchant")]]); form.append(el("p",tr("emailNote"),"hint")); }
   const submit = el("button",tr(mode === "register" ? "createAccount" : "login"),"primary"); submit.type = "submit"; form.append(submit);
   form.onsubmit = event => { event.preventDefault(); action(async () => {
     const data = Object.fromEntries(new FormData(form));
     try { const result = await post(mode,data); if (mode === "register") { mode = "login"; renderAccess(); message("registered"); } else await handleStage(result); }
     finally { password.value = ""; data.password = ""; }
   }); };
-  root.append(form,button(mode === "register" ? "switchLogin" : "switchRegister",() => { mode = mode === "register" ? "login" : "register"; renderAccess(); message(); },"text-button"));
+  root.append(form);if(!['admin','employee'].includes(entryRole))root.append(button(mode === "register" ? "switchLogin" : "switchRegister",() => { mode = mode === "register" ? "login" : "register"; renderAccess(); message(); },"text-button"));
 }
 async function handleStage(result) {
   if (result.stage === "authenticated") { stage = null; $("access-card").replaceChildren(); return load(); }
@@ -97,7 +100,7 @@ async function apk() {
     ["fileSize",data.bytes],["sha256",data.sha256],["apkSigner",data.signing.identity],["refreshedAt",data.refreshedAt]]){
     const group=el("div");group.append(el("dt",tr(key)),el("dd",String(value)));facts.append(group);
   }
-  const download=el("a",tr("downloadApk"),"primary");download.href="/wpay-auth/apk/download";download.download="WPAY-Agent.apk";
+  const download=el("a",tr("downloadApk"),"primary");download.href=apiRoot+"apk/download";download.download="WPAY-Agent.apk";
   root.append(facts,el("p",tr("apkEvidence"),"notice"),download);$("page-content").replaceChildren(root);
 }
 async function sources() {
@@ -162,11 +165,12 @@ async function load(selected = destination) {
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
   applyLocale(); const navigation = await request("navigation");
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(account.approvalStatus); $("navigation").replaceChildren();
-  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));node.append(item);} $("navigation").append(node); }
+  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",(group.id.startsWith("operations.group.") || group.id.endsWith(".transactions")) ? group.label : group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));if(page.destinationId.startsWith('operations.'))item.textContent=page.label;node.append(item);} $("navigation").append(node); }
   destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
+  if(page?.destinationId.startsWith('operations.'))return globalThis.WPayOperationsPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
   if(page?.destinationId==='gateway.orders')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.permissionId==='merchant.api_docs.view')return globalThis.WPayGatewayPage.docs({locale,el,container:$("page-content"),title:$("page-title")});

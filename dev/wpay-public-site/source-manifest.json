@@ -1,0 +1,76 @@
+{
+  "source": "User-supplied wpay-public-site-deploy.zip",
+  "files": [
+    {
+      "bytes": 38140,
+      "sha256": "23aae6ce6e8ab0866b8856e64bf0af97ac9dff702c6bf046ff4e458ee1f6bdd5",
+      "path": "assets/23aae6ce6e8ab086.png"
+    },
+    {
+      "bytes": 6080,
+      "sha256": "6ef5ab898ce39c3f94a4ed5a078f190498394c98f0cb853da00476942c51ef4e",
+      "path": "assets/6ef5ab898ce39c3f.png"
+    },
+    {
+      "bytes": 41941,
+      "sha256": "2f232578c9b60c781e6dc4df2860413c5e8474270367660fb6b81e294cba446a",
+      "path": "assets/2f232578c9b60c78.png"
+    },
+    {
+      "bytes": 31507,
+      "sha256": "4b01e22089defe553717d49624e673cb5492ecdd9c6a8eddb7e6ba12d400c0da",
+      "path": "assets/4b01e22089defe55.png"
+    },
+    {
+      "bytes": 42172,
+      "sha256": "2425b438be805a2e54bfc1a40f93418c484c6ec392a17090f18ab3fbf62868ac",
+      "path": "assets/2425b438be805a2e.png"
+    },
+    {
+      "bytes": 9326,
+      "sha256": "f8d530639672ed385272b161d67a70a0d1c0323e083f3c9d8f6d2b30b52cb83c",
+      "path": "assets/f8d530639672ed38.svg"
+    },
+    {
+      "bytes": 9190,
+      "sha256": "f4e87e4a9607470995d30844783343e1d3ae749a5977abaf0c1e681a87702610",
+      "path": "assets/f4e87e4a96074709.svg"
+    },
+    {
+      "bytes": 734,
+      "sha256": "09f57e18a70e63e686fdc95aa589c04f5de7e9e82d173a12877c26861aa58537",
+      "path": "assets/09f57e18a70e63e6.svg"
+    },
+    {
+      "bytes": 42157,
+      "sha256": "dd5e6b29aa4067c5a4d9e152119497832d70e094b380998e5f5b0c51abbb3a64",
+      "path": "assets/dd5e6b29aa4067c5.png"
+    },
+    {
+      "bytes": 28922,
+      "sha256": "af7b4d07c067b9cdb4fa7b717c1c2bcb716a893e6b134c0f33ddeefd86f0be55",
+      "path": "assets/af7b4d07c067b9cd.png"
+    },
+    {
+      "bytes": 29839,
+      "sha256": "d91cf9705bc1dd6de0bb975d20ca48322082c982f9473cf206cf99675bd416e1",
+      "path": "assets/d91cf9705bc1dd6d.png"
+    },
+    {
+      "bytes": 37301,
+      "sha256": "cdc2ef03afe122787dda924fc1a2fbaeb114afe4372bb28aef68a61d915d61c5",
+      "path": "assets/cdc2ef03afe12278.png"
+    },
+    {
+      "bytes": 1953170,
+      "sha256": "3e8a28ff74586965df7ee84f0cdcb08fde7a9484c66716c2af0fe7b3f452f810",
+      "path": "assets/3e8a28ff74586965.png"
+    },
+    {
+      "bytes": 44596,
+      "sha256": "16db7143fbe75db544e8c32121939855ea02106a62e02ed6b5c956bb6c4cfdf1",
+      "path": "index.html"
+    }
+  ],
+  "archiveSha256": "78c1ce41b3c25381ad12f29108d3c8ac77d794f53e49d758687435fe7e7fe550"
+}

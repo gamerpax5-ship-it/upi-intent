@@ -43,7 +43,7 @@ test("hosted HTTP boundary: readiness exception, CSRF, proxy spoofing and safe f
   assert.equal((await request("/readyz","POST",{Host:"healthcheck.railway.app"})).status,403);
   assert.equal((await request("/readyz","GET",{Host:"foreign.invalid"})).status,403);
   ready=false;const down=await request("/readyz");assert.equal(down.status,503);assert.deepEqual(JSON.parse(down.body),{ready:false});
-  const root=await request("/");assert.equal(root.status,303);assert.equal(root.headers.location,"/wpay-auth/");
+  const root=await request("/");assert.equal(root.status,200);assert.match(root.body,/<title>WPay — Payments that move your business forward<\/title>/);
   const page=await request("/wpay-auth/");assert.match(page.body,/<title>WPay<\/title>/);assert.match(page.body,/data-i18n="hosted"/);
   assert.equal((await request("/api/device/otp")).status,404);
   assert.equal((await request("/wpay-auth/bootstrap")).status,404);
