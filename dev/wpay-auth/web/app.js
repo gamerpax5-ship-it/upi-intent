@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id), L = globalThis.WPayLocales;
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
 let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now();
-const tr = key => L.translate(locale,key);
+const tr = key => globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
 function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
 function field(form,key,type = "text",options) {
@@ -25,7 +25,7 @@ async function request(route,method = "GET",body,csrf) {
   try { response = await fetch("/wpay-auth/" + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
   catch { throw new Error("error.UNAVAILABLE"); }
   let value; try { value = await response.json(); } catch { throw new Error("error.UNAVAILABLE"); }
-  if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) ? value.error : "UNAVAILABLE")); }
+  if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) || globalThis.WPayPayoutLocales?.hasError(value.error) ? value.error : "UNAVAILABLE")); }
   return value;
 }
 async function post(route,body = {}) { const csrf = await request("csrf","POST",{}); return request(route,"POST",body,csrf.csrfToken); }
@@ -162,12 +162,13 @@ async function load(selected = destination) {
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
   applyLocale(); const navigation = await request("navigation");
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(account.approvalStatus); $("navigation").replaceChildren();
-  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,'title');node.append(item);} $("navigation").append(node); }
+  for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));node.append(item);} $("navigation").append(node); }
   destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
   if(page?.destinationId==='gateway.orders')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.permissionId==='merchant.api_docs.view')return globalThis.WPayGatewayPage.docs({locale,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});

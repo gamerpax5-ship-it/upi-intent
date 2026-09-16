@@ -1,0 +1,78 @@
+"use strict";
+(function(root){
+ const format=(n,currency='INR')=>{const scale=currency==='USDT'?6:2,b=BigInt(n),s=(b<0n?-b:b).toString().padStart(scale+1,'0');return (b<0n?'-':'')+s.slice(0,-scale)+'.'+s.slice(-scale);};
+ const minor=(value,currency='INR')=>{const scale=currency==='USDT'?6:2;if(!new RegExp('^(0|[1-9][0-9]*)(\\.[0-9]{1,'+scale+'})?$').test(value))throw new Error('error.INVALID_INPUT');const [whole,fraction='']=value.split('.');return (BigInt(whole)*10n**BigInt(scale)+BigInt(fraction.padEnd(scale,'0'))).toString();};
+ async function file(input){const f=input.files[0];if(!f||f.size>1048576)throw new Error('error.INVALID_INPUT');const bytes=new Uint8Array(await f.arrayBuffer());let raw='';for(let i=0;i<bytes.length;i+=8192)raw+=String.fromCharCode(...bytes.subarray(i,i+8192));return {name:f.name,data:btoa(raw)};}
+ function download(name,bytes){const url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ async function render(args){
+  const {account,locale,request,post,action,el,container,title,destination}=args,t=k=>root.WPayPayoutLocales.text(locale,k),page=destination.split('.').at(-1),merchant=account.accountType==='merchant',user=account.accountType==='user',admin=!user&&!merchant;
+  title.textContent=t(page);container.replaceChildren();const card=el('section',undefined,'card business-card');container.append(card);card.append(el('p',t('notice'),'notice'));
+  const button=(key,fn)=>{const b=el('button',t(key));b.type='button';b.onclick=()=>action(fn);return b;};
+  const field=(form,key,type='text',required=true)=>{const label=el('label',t(key)),node=el('input');node.type=type;node.required=required;node.maxLength=key==='note'||key==='reason'?300:120;node.setAttribute('aria-label',t(key));label.append(node);form.append(label);return node;};
+  const select=(form,key,options)=>{const label=el('label',t(key)),node=el('select');node.setAttribute('aria-label',t(key));for(const [id,label]of options){const o=el('option',label);o.value=id;node.append(o);}label.append(node);form.append(label);return node;};
+  const submit=(form,key,fn)=>{const b=el('button',t(key));b.type='submit';form.append(b);form.onsubmit=e=>{e.preventDefault();action(fn);};};
+  const facts=(root,values)=>{const d=el('dl',undefined,'facts');for(const [key,value]of Object.entries(values))d.append(el('dt',t(key)),el('dd',String(value)));root.append(d);};
+  async function history(route,key,states,show){let offset=0;const filter=el('form'),status=select(filter,'all',[['',t('all')],...states.map(s=>[s,t(s)])]),reference=key==='orders'?field(filter,'reference','text',false):null,currency=key==='withdrawals'?select(filter,'currency',[['',t('all')],['INR','INR'],['USDT','USDT']]):null,records=el('div');submit(filter,'filter',async()=>{offset=0;await refresh();});card.append(el('h2',t('history')),filter,records);async function refresh(){const data=await post(route,{offset,limit:10,...(status.value?{state:status.value}:{}),...(reference?.value?{reference:reference.value}:{}),...(currency?.value?{currency:currency.value}:{})});records.replaceChildren();for(const row of data[key])await show(records,row);if(!data[key].length)records.append(el('p',t('empty')));if(offset)records.append(button('previous',async()=>{offset=Math.max(0,offset-10);await refresh();}));if(data.hasMore)records.append(button('next',async()=>{offset+=10;await refresh();}));}await refresh();}
+  async function orderDetails(id){const p=await post('payout/get',{id}),box=el('article',undefined,'card');detailBox.replaceChildren(box);box.append(el('h2',p.reference),el('p',t(p.status)));facts(box,{amount:format(p.amountMinor),...(p.beneficiary||{})});
+   if(p.proof){box.append(el('p',p.proof.name+' · '+t(p.proof.scanState)));if(p.proof.downloadAllowed)box.append(button('download',async()=>{const f=await post('payout/proof',{id,proofId:p.proof.id});download(f.name,Uint8Array.from(atob(f.data),c=>c.charCodeAt(0)));}));}if(p.evidence)facts(box,{utr:p.evidence.utr});
+   if(p.status==='merchant_rejected_review')box.append(el('p',t('dispute'),'notice'));
+   const form=el('form');if(merchant&&['open','submitted'].includes(p.status)||admin&&p.status==='merchant_rejected_review'){
+    const reason=field(form,'reason');const decide=async chosen=>{if(!form.reportValidity())return;await post(admin?'payout/resolve':'payout/review',{id,action:chosen,reason:reason.value});await render({...args,selectedId:id});};
+    if(merchant){if(p.status==='open')form.append(button('cancel',()=>decide('cancel')));else form.append(button('approve',()=>decide('approve')),button('reject',()=>decide('reject')));}else form.append(button('paid',()=>decide('paid')),button('notPaid',()=>decide('not_paid')));box.append(form);
+   }
+   if(user&&p.status==='claimed'){
+    const amount=field(form,'amount'),utr=field(form,'utr'),proof=field(form,'proof','file'),note=field(form,'note','text',false);amount.value=format(p.amountMinor);proof.accept='.pdf,.png,.jpg,.jpeg';box.append(el('p',t('claimOnly'),'notice'));
+    submit(form,'submit',async()=>{await post('payout/submit',{id,amountMinor:minor(amount.value),utr:utr.value,proof:await file(proof),note:note.value});await render({...args,selectedId:id});});box.append(form,button('release',async()=>{await post('payout/release',{id});await render(args);}));
+   }
+   if(admin){facts(box,{merchantId:p.merchantId});for(const claim of p.claims||[])facts(box,{userId:claim.user_id,claimedAt:claim.created_at,claimExpiresAt:claim.expires_at});for(const event of p.audit||[])box.append(el('p',t(event.state)+' · '+event.reason+' · '+event.created_at));}
+   box.append(button('hide',async()=>detailBox.replaceChildren()));
+  }
+  const detailBox=el('div');
+  if(page==='merchant-usdt'){const s=await request('payout/merchant-usdt');card.append(el('h2',t('unconfigured')),el('p',s.message));return;}
+  if(page==='orders'&&merchant){const summary=await request('payout/summary');facts(card,Object.fromEntries(['available','reserved','principal','fees','held'].map(k=>[k,format(summary[k])])));
+   const form=el('form'),reference=field(form,'reference'),name=field(form,'beneficiaryName'),number=field(form,'accountNumber'),ifsc=field(form,'ifsc'),amount=field(form,'amount'),note=field(form,'note','text',false),requestId=crypto.randomUUID();
+   reference.maxLength=100;number.inputMode='numeric';number.pattern='[0-9]{6,24}';ifsc.pattern='[A-Z]{4}0[A-Z0-9]{6}';amount.inputMode='decimal';
+   submit(form,'create',async()=>{const result=await post('payout/create',{idempotencyKey:requestId,reference:reference.value,beneficiaryName:name.value,accountNumber:number.value,ifsc:ifsc.value,amountMinor:minor(amount.value),note:note.value});await render({...args,selectedId:result.id});});card.append(el('h2',t('single')),form);
+   const bulk=el('form'),fileInput=field(bulk,'file','file'),errors=el('p'),batchId=crypto.randomUUID();fileInput.accept='.csv,.xls,.xlsx';
+   submit(bulk,'upload',async()=>{const result=await post('payout/bulk',{idempotencyKey:batchId,file:await file(fileInput)});if(result.errors.length){errors.textContent=t('bulkErrors')+' '+result.errors.map(e=>e.row).join(', ');return;}await render(args);});card.append(el('h2',t('bulk')),el('p',t('bulkHelp'),'hint'),button('template',async()=>download('wpay-payout-template.csv','reference,beneficiaryName,accountNumber,ifsc,amountINR,note\n')),bulk,errors);
+  }
+  if(page==='jobs'){
+   const queue=await request('payout/queue'),form=el('form'),bank=select(form,'bankId',queue.banks.map(b=>[b.id,b.id]));card.append(el('h2',t('queue')),form);
+   if(!queue.orders.length)card.append(el('p',t('empty')));
+   for(const p of queue.orders){const item=el('article',undefined,'business-row');item.append(el('p','INR '+format(p.amountMinor)),el('p',p.id),button('claim',async()=>{await post('payout/claim',{id:p.id,bankId:bank.value});await render({...args,selectedId:p.id});}));card.append(item);}
+  }
+  if(['orders','jobs'].includes(page)){
+   await history('payout/search','orders',['open','claimed','submitted','merchant_rejected_review','successful','cancelled','not_paid'],async(root,p)=>{const row=el('article',undefined,'business-row');row.append(el('h3',p.reference),el('p','INR '+format(p.amountMinor)+' · '+t(p.status)),el('p',p.createdAt));if(merchant)row.append(el('p',t('fees')+': '+format((BigInt(p.percentageFeeMinor)+BigInt(p.fixedFeeMinor)).toString())));for(const key of ['claimedAt','submittedAt','completedAt'])if(p[key])row.append(el('p',t(key==='completedAt'?'completedAtLabel':key)+': '+p[key]));row.append(button('details',()=>orderDetails(p.id)));root.append(row);});card.append(detailBox);if(args.selectedId)await orderDetails(args.selectedId);
+  }
+  if(page==='commission'){
+   const data=await request('payout/commission'),b=data.balance;card.append(el('p',t('shared'),'notice'));facts(card,{...Object.fromEntries(['payin','payout','adjustments','gross','held','reserved','withdrawn','available'].map(k=>[k,format(b[k])])),usdtEquivalentMinor:format(b.usdtEquivalentMinor,'USDT'),inrPerUsdt:b.inrPerUsdt});
+   let offset=0;const rows=el('div'),filter=el('form'),reference=field(filter,'transactionReference','text',false);submit(filter,'filter',async()=>{offset=0;await history();});async function history(){const d=await post('payout/commission/search',{offset,limit:20,...(reference.value?{reference:reference.value}:{})});rows.replaceChildren();for(const e of d.entries)rows.append(el('p',t(({user_commission:'payin',user_payout_commission:'payout',user_commission_adjustment:'adjustments',user_commission_hold:'held',user_commission_reserved:'reserved',user_commission_withdrawn:'withdrawn'})[e.ledger_type])+' · '+t(e.direction)+' · INR '+format(e.amount_minor)+' · '+e.created_at));if(offset)rows.append(button('previous',async()=>{offset=Math.max(0,offset-20);await history();}));if(d.hasMore)rows.append(button('next',async()=>{offset+=20;await history();}));}card.append(filter,rows);await history();
+  }
+  if(page==='withdrawals'){
+   if(user){const summary=await request('payout/commission'),banks=await request('business/banks'),b=summary.balance;card.append(el('p',t('shared'),'notice'));facts(card,{available:format(b.available),usdtEquivalentMinor:format(b.usdtEquivalentMinor,'USDT'),inrPerUsdt:b.inrPerUsdt});
+    const inr=el('form'),amount=field(inr,'amount'),bank=select(inr,'bankId',banks.banks.filter(b=>!b.frozen&&!b.deactivated&&b.verified_version===b.version&&b.approved_version===b.version).map(b=>[b.id,b.details.bankName+' · '+b.details.accountNumber.slice(-4)])),inrKey=crypto.randomUUID();submit(inr,'requestInr',async()=>{await post('payout/withdrawal/create',{idempotencyKey:inrKey,currency:'INR',amountMinor:minor(amount.value),bankId:bank.value});await render(args);});
+    const usdt=el('form'),ua=field(usdt,'amountUsdt'),network=select(usdt,'network',[[b.network,b.network]]),address=field(usdt,'address'),usdtKey=crypto.randomUUID();submit(usdt,'requestUsdt',async()=>{await post('payout/withdrawal/create',{idempotencyKey:usdtKey,currency:'USDT',amountMinor:minor(ua.value,'USDT'),network:network.value,address:address.value});await render(args);});card.append(el('h2',t('requestInr')),inr,el('h2',t('requestUsdt')),el('p',t('manual'),'hint'),usdt);
+   }
+   await history('payout/withdrawal/search','withdrawals',['requested','review','approved','processing','completed','rejected','cancelled'],async(root,w)=>{
+    const row=el('article',undefined,'business-row');row.append(el('h3',w.currency+' '+format(w.amountMinor,w.currency)),el('p',t(w.state)+' · '+w.id),el('p',t('reserved')+': '+format(w.entitlementMinor)));if(admin)row.append(el('p',t('userId')+': '+w.userId));if(w.rate)row.append(el('p',t('inrPerUsdt')+': '+w.rate));
+    row.append(button('details',async()=>{const d=await post('payout/withdrawal/get',{id:w.id}),box=el('div');row.append(box);facts(box,d.destination);if(d.completion)facts(box,d.completion);box.append(button('hide',async()=>box.remove()));}));
+    const form=el('form'),reason=field(form,'reason');const transition=async(action,extras={})=>{if(!form.reportValidity())return;await post('payout/withdrawal/transition',{id:w.id,action,reason:reason.value,...extras});await render(args);};
+    if(user&&['requested','review'].includes(w.state))form.append(button('cancel',()=>transition('cancel')));
+    if(admin){if(w.state==='requested')form.append(button('reviewWithdrawal',()=>transition('review')));if(['requested','review'].includes(w.state))form.append(button('approveWithdrawal',()=>transition('approve')));if(w.state==='approved')form.append(button('process',()=>transition('process')));if(['requested','review','approved'].includes(w.state))form.append(button('rejectWithdrawal',()=>transition('reject')));
+     if(w.state==='processing'){const reference=field(form,'completionReference'),time=field(form,'completedAt'),network=w.currency==='USDT'?field(form,'network'):null;time.placeholder='2026-09-16T12:00:00Z';form.append(button('complete',()=>transition('complete',{reference:reference.value,completedAt:time.value,...(network?{network:network.value}:{})})));row.append(el('p',t('manual'),'notice'));}
+    }
+    if(!['completed','rejected','cancelled'].includes(w.state))row.append(form);root.append(row);
+   });
+  }
+  if(page==='holds'){
+   if(admin){const form=el('form'),owner=field(form,'userId'),amount=field(form,'amount'),ref=field(form,'holdReference'),reason=field(form,'reason'),id=crypto.randomUUID();submit(form,'hold',async()=>{await post('payout/hold/manage',{id,userId:owner.value,amountMinor:minor(amount.value),reference:ref.value,reason:reason.value,release:false});await render(args);});card.append(form);}
+   let offset=0;const rows=el('div'),filter=el('form'),reference=field(filter,'holdReference','text',false);submit(filter,'filter',async()=>{offset=0;await refreshHolds();});card.append(el('h2',t('history')),filter,rows);
+   async function refreshHolds(){const h=await post('payout/hold/search',{offset,limit:10,...(reference.value?{reference:reference.value}:{})});rows.replaceChildren();for(const row of h.holds){const item=el('article',undefined,'business-row');item.append(el('p',row.reference+' · INR '+format(row.amount_minor)),el('p',row.reason),el('p',t(row.released_at?'released':'active')),el('p',row.created_at));if(admin)item.append(el('p',t('userId')+': '+row.user_id));if(admin&&!row.released_at)item.append(button('releaseHold',async()=>{await post('payout/hold/manage',{id:row.id,userId:row.user_id,amountMinor:row.amount_minor,reference:row.reference,reason:'Commission review completed',release:true});await render(args);}));rows.append(item);}if(!h.holds.length)rows.append(el('p',t('empty')));if(offset)rows.append(button('previous',async()=>{offset=Math.max(0,offset-10);await refreshHolds();}));if(h.hasMore)rows.append(button('next',async()=>{offset+=10;await refreshHolds();}));}await refreshHolds();
+  }
+  if(page==='capabilities'){
+   card.append(el('p',t('capacityHint')));for(const b of (await request('payout/capabilities')).banks){const row=el('article',undefined,'business-row'),form=el('form'),reason=field(form,'reason');row.append(el('h3',b.id),el('p',b.owner_id+' · v'+b.version+' · '+b.status),el('p',t(b.payout_capable?'payoutCapable':'notCapable')));submit(form,b.payout_capable?'disable':'enable',async()=>{await post('payout/capability',{bankId:b.id,version:b.version,enabled:!b.payout_capable,reason:reason.value});await render(args);});row.append(form);card.append(row);}
+  }
+  card.append(button('refresh',()=>render(args)));
+ }
+ root.WPayPayoutPage={render};
+})(globalThis);
