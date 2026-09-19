@@ -9,7 +9,7 @@ test('Task 11 isolated PostgreSQL payout and shared entitlement contracts',async
  const payin=await f.reserve('payout-fixture-funding','6000000');await f.payin(payin,'normal');
  const order=(reference,amountMinor='200000')=>({reference,idempotencyKey:reference,beneficiaryName:'Synthetic Beneficiary',accountNumber:'999988887777',ifsc:'TEST0000001',amountMinor,note:'Synthetic payout acceptance'});
  await t.test('migration 13 and runtime boundaries',async()=>{
-  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,15);
+  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,16);
   await denied(f.runtime.query('CREATE TABLE wpay_auth.unapproved_payout_test(id integer)'),'42501');
   for(const table of ['payout_orders','commission_withdrawals','payout_proofs'])await denied(f.runtime.query('DELETE FROM wpay_auth.'+table),'42501');
  });

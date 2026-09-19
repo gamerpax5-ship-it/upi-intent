@@ -5,17 +5,20 @@
   const {permission,account,locale,request,post,action,el,container,title}=options,kind=pages[permission],t=k=>{const own=root.WPayCompletionLocales.text(locale,k);return own===k&&root.WPayBusinessLocales?root.WPayBusinessLocales.translate(locale,k):own;};
   title.textContent=root.WPayLocales.translate(locale,'nav.'+permission);container.replaceChildren();const card=el('section',undefined,'card');container.append(card);
   const button=(label,fn)=>{const b=el('button',t(label));b.type='button';b.onclick=()=>action(fn);return b;};
-  const field=(form,key,value='',choices)=>{const label=el('label',t(key)),i=el(choices?'select':['message','reply'].includes(key)?'textarea':'input');i.name=key;i.required=true;if(choices)for(const value of choices){const o=el('option',t(value));o.value=value;i.append(o);}else{i.type='text';i.maxLength=['message','reply'].includes(key)?2000:300;}i.value=value;label.append(i);form.append(label);return i;};
+  const field=(form,key,value='',choices)=>{const label=el('label',t(key)),i=el(choices?'select':['message','reply'].includes(key)?'textarea':'input');i.name=key;i.required=true;if(choices)for(const value of choices){const o=el('option',t(value));o.value=value;i.append(o);}else{if(!['message','reply'].includes(key))i.type='text';i.maxLength=['message','reply'].includes(key)?2000:300;}i.value=value;label.append(i);form.append(label);return i;};
   const facts=(node,record)=>{const dl=el('dl',undefined,'facts');for(const [k,v]of Object.entries(record)){if(v===undefined||v===null)continue;dl.append(el('dt',t(k)),el('dd',typeof v==='object'?JSON.stringify(v):t(String(v))));}node.append(dl);};
   const reload=(next=state)=>render(options,next),paging=data=>{if(state.offset)card.append(button('previous',()=>reload({...state,offset:Math.max(0,state.offset-25)})));if(data.nextOffset!==null&&data.nextOffset!==undefined)card.append(button('next',()=>reload({...state,offset:data.nextOffset})));};
   const records=data=>{if(!data.rows.length)card.append(el('p',t('empty'),'notice'));for(const r of data.rows){const article=el('article',undefined,'business-row');facts(article,r);card.append(article);}paging(data);};
   if(kind==='trade'||kind==='guide'){card.append(el('h2',t(kind)),el('p',t(kind==='guide'?'guideBody':'trade')));return;}
   if(kind==='profile'){
    const data=await request('panel/profile');facts(card,{name:account.name,email:account.email,status:account.status});card.append(el('p',t('readOnlyEmail'),'notice'));
+   if(data.emailVerification){const e=data.emailVerification;card.append(el('p',t(e.emailOwnershipVerified?'emailVerified':'emailUnverified')),el('p',t(e.providerConfigured?'emailProviderReady':'emailProviderUnavailable')));
+    if(e.providerConfigured&&!e.emailOwnershipVerified){const requestId=crypto.randomUUID();card.append(button('requestVerification',async()=>{await post('email/request',{requestId});await reload();}));const verification=el('form'),code=field(verification,'emailVerificationToken');code.type='password';code.autocomplete='off';code.dataset.secret='true';verification.append(button('verifyEmail',async()=>{if(!verification.reportValidity())return;await post('email/verify',{token:code.value});code.value='';await reload();}));card.append(verification);}
+   }
    if(data.canEdit){const form=el('form'),name=field(form,'name',account.name);name.maxLength=100;form.append(button('save',async()=>{if(!form.reportValidity())return;const r=await post('panel/profile/update',{name:name.value});account.name=r.name;await reload();}));card.append(form);}return;
   }
   if(kind==='notifications'){
-   const data=await post('panel/notifications',{offset:state.offset||0});card.append(el('p',t('delivery'),'notice'));const label=el('label',t('inApp')),input=el('input');input.type='checkbox';input.checked=data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input);card.append(label);
+   const data=await post('panel/notifications',{offset:state.offset||0});card.append(el('p',t(data.emailDeliveryConfigured?'emailProviderReady':'delivery'),'notice'));const label=el('label',t('inApp')),input=el('input');input.type='checkbox';input.checked=data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input);card.append(label);
    if(data.canUpdate)card.append(button('save',async()=>{await post('panel/preferences',{inAppNotifications:input.checked});await reload();}));records(data);return;
   }
   if(kind==='support'){

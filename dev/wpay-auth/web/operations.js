@@ -65,6 +65,29 @@
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({...filters(),afterDevice:data.nextDeviceCursor})));
    card.append(button('Refresh masked events',()=>reload(filters())));void hidden;return;
   }
+  if(page==='admins'){
+   title.textContent='Admin authority';const data=await post('operations/admins',{offset:state.offset||0,limit:25});
+   card.append(el('p','Only explicitly authorized Super Admins may change Admin authority. Tenant grants never imply platform scope. Saving changes invalidates existing sessions. Platform security policy is read-only.','notice'));
+   const edit=admin=>{
+    card.replaceChildren(el('h2',admin?'Edit Admin authority':'Create tenant-scoped Admin'));
+    const form=el('form'),name=field(form,'Name',admin?.name||''),email=field(form,'Email',admin?.email||'','email');name.disabled=email.disabled=!!admin;name.required=email.required=true;
+    const statusLabel=el('label','Status'),status=el('select');for(const value of ['active','suspended','disabled']){const o=el('option',value);o.value=value;status.append(o);}status.value=admin?.status||'active';statusLabel.append(status);if(admin)form.append(statusLabel);
+    const checks=(label,values,selected,required=[])=>{const box=el('fieldset');box.append(el('legend',label));const list=values.map(([id,label])=>{const l=el('label',label),i=el('input');i.type='checkbox';i.checked=selected.includes(id);i.disabled=required.includes(id);l.prepend(i);box.append(l);return [id,i];});form.append(box);return ()=>list.filter(([,i])=>i.checked).map(([id])=>id);};
+    const permissions=checks('Explicit permissions',data.permissions.map(p=>[p.id,p.label]),admin?.permissions||data.requiredPermissions,data.requiredPermissions),tenants=checks('Operational tenants',data.tenantIds.map(id=>[id,id]),admin?.admin_scope?.tenantIds||[]);
+    form.append(el('p','Select each tenant explicitly. No platform authority or additional permissions are inferred. New Admins must reset their temporary password and enroll in MFA.','notice'));
+    const requestId=crypto.randomUUID(),save=el('button','Save Admin authority');save.type='submit';form.append(save,button('Cancel',()=>reload()));
+    form.onsubmit=e=>{e.preventDefault();action(async()=>{
+     const result=await post(admin?'operations/admin/update':'operations/admin/create',{requestId,...(admin?{id:admin.id,status:status.value,expectedVersion:admin.permission_version}:{name:name.value,email:email.value}),permissions:permissions(),tenantIds:tenants()});
+     if(admin)return reload();card.replaceChildren(el('h2','Admin created'),el('p','The temporary password is shown once. Save it privately. Password reset and authenticator MFA are mandatory.'));
+     facts(card,{Email:result.email,'Login URL':result.loginPath});
+     if(result.oneTimePassword){const secret=el('code',result.oneTimePassword);secret.dataset.secret='true';result.oneTimePassword=null;const hide=()=>{secret.textContent='Hidden';};setTimeout(hide,60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')hide();},{once:true});card.append(secret,button('Saved · hide password',()=>{hide();return reload();}));}
+     else card.append(el('p','This creation request was already completed; its one-time credential is not returned again.'),button('Return to Admins',()=>reload()));
+    });};card.append(form);
+   };
+   card.append(button('Create tenant-scoped Admin',()=>edit()));if(!data.admins.length)card.append(el('p','No Admins in your operational scope.'));
+   for(const admin of data.admins){const box=el('article',undefined,'business-row');facts(box,{Name:admin.name,Email:admin.email,Status:admin.status,'Permission version':admin.permission_version,'Platform scope':'Not granted'});box.append(button('Edit '+admin.name,()=>edit(admin)));card.append(box);}
+   if(data.hasMore)card.append(button('Next Admins',()=>reload({offset:data.offset+25})));if(state.offset)card.append(button('First Admins',()=>reload()));return;
+  }
   if(page==='employees'){
    const data=await post('operations/employees',{offset:state.offset||0,limit:25});
    const edit=employee=>{

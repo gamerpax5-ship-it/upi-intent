@@ -11,7 +11,7 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
  const proof=(order,source='normal',utr='123456789012')=>observations.set(order.id,{verified:true,final:true,synthetic:true,status:'confirmed',source,utr,evidenceId:'proof-'+order.id,economicId:'economic-'+order.id,receivedAt:new Date().toISOString()});
  let order,key,endpoint;
  await t.test('real scoped migration, one-time key and callback secrets, exact QR, claim never credits',async()=>{
-  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,15);
+  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,16);
   endpoint=await call('merchant','gateway/webhooks/configure',{url:gateway.testCallback});signing=endpoint.secret;
   key=await call('merchant','gateway/keys/create',{label:'Synthetic SDK',scopes:['orders:read','orders:write']});assert.match(key.secret,/^wpay_mk_/);
   const stored=(await owner.query('SELECT * FROM wpay_auth.gateway_keys WHERE id=$1',[key.id])).rows[0];assert.equal(JSON.stringify(stored).includes(key.secret),false);

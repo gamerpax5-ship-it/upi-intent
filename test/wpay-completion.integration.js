@@ -10,7 +10,7 @@ test('Completion: real PostgreSQL lifecycle, scope, reports and upgrade',async t
  const login=e=>service.login({email:e.email,password:e.oneTimePassword},'127.0.0.1','employee');
  let e,restricted;
  await t.test('fresh 001-015 migration and restricted runtime',async()=>{
-  assert.equal((await owner.query('SELECT max(version) v FROM wpay_auth.schema_migrations')).rows[0].v,15);await validateMigrations(runtime);
+  assert.equal((await owner.query('SELECT max(version) v FROM wpay_auth.schema_migrations')).rows[0].v,16);await validateMigrations(runtime);
   await require('../lib/wpay/db/hosted-config').verifyRuntimeRole(runtime);
   await denied(runtime.query('CREATE TABLE wpay_auth.not_allowed(id int)'),'42501');
  });
