@@ -3,7 +3,7 @@
  const ledgerTypes=['capacity_allocated','capacity_consumed','capacity_reserved','capacity_hold','user_commission','merchant_gross','merchant_platform_fee','merchant_payout_fee','merchant_adjustment','merchant_hold'];
  function format(value,currency='INR'){const scale=currency==='USDT'?6:2,n=BigInt(value),s=(n<0n?-n:n).toString().padStart(scale+1,'0');return (currency==='INR'?'₹':currency+' ')+(n<0n?'-':'')+s.slice(0,-scale)+'.'+s.slice(-scale);}
  function amount(value){if(!/^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/.test(value))throw Error('error.INVALID_INPUT');const [w,f='']=value.split('.');return (BigInt(w)*100n+BigInt(f.padEnd(2,'0'))).toString();}
- const pages={'user.overview.view':'dashboard','merchant.overview.view':'dashboard','user.bank_upi.submit':'bank','user.bank_upi.view':'bank','bank_upi.view':'bank','assignments.view':'assignments','routing.view':'routing','ledger.view':'ledger','merchant.ledger.view':'ledger','merchant.fees.view':'ledger','user.payin_commission.view':'ledger','user.holds.view':'holds','merchant.holds.view':'holds','holds.view':'holds'};
+ const pages={'overview.view':'dashboard','user.overview.view':'dashboard','merchant.overview.view':'dashboard','user.bank_upi.submit':'bank','user.bank_upi.view':'bank','bank_upi.view':'bank','assignments.view':'assignments','routing.view':'routing','ledger.view':'ledger','merchant.ledger.view':'ledger','merchant.fees.view':'ledger','user.payin_commission.view':'ledger','user.holds.view':'holds','merchant.holds.view':'holds','holds.view':'holds'};
  async function render({permission,account,locale,request,post,action,el,container,title}){
   const page=pages[permission];if(!page)return false;const t=key=>root.WPayBusinessLocales.translate(locale,key);
   const admin=!['user','merchant'].includes(account.accountType);title.textContent=t(page);container.replaceChildren();
@@ -16,6 +16,7 @@
   const reload=()=>render({permission,account,locale,request,post,action,el,container,title});
   if(page==='dashboard'){
    const data=await request('business/summary');card.append(el('p',t('foundation'),'notice'));
+   if(admin){title.textContent=t('adminOverview');facts(card,{currency:data.currency,financialOperations:t(data.financialOperationsEnabled?'enabled':'disabled')});card.append(el('p',t('adminOverviewHelp')));return true;}
    const keys=account.accountType==='user'?['allocated','reserved','consumed','available','signedAvailable','deficit','held','commission']:['gross','fees','payoutFees','held','available'];
    facts(card,Object.fromEntries(keys.map(key=>[key,format(data[key]||'0')])));
    if(account.accountType==='merchant'){facts(card,{routingCapacity:format(data.routingCapacity),status:t(data.routingAvailable?'routingAvailable':'noRoute')});}

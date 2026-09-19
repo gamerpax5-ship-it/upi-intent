@@ -1,6 +1,7 @@
 "use strict";
 (function(root){
  const labels={
+  adminOverview:['Admin overview','Обзор администратора','管理员概览'],currency:['Currency','Валюта','币种'],financialOperations:['Live financial operations','Реальные финансовые операции','真实金融操作'],adminOverviewHelp:['Use the account directories to review applications and Reports to inspect scoped activity.','Проверяйте заявки в каталогах аккаунтов и разрешённые операции в отчётах.','使用账户目录审核申请，并在报表中查看授权范围内的活动。'],
   signedAvailable:["Signed remaining","Остаток с учётом дефицита","有符号剩余额度"],deficit:["Capacity deficit","Дефицит лимита","容量缺口"],device_required:["Required device is not eligible","Требуемое устройство недоступно","所需设备不符合条件"],
   reviewState:['Admin review','Проверка администратором','管理员审核中'],deactivated:['Deactivated','Деактивировано','已停用'],
   dashboard:['Business overview','Финансовый обзор','业务概览'],bank:['Bank & UPI','Банк и UPI','银行与 UPI'],assignments:['User Assignment','Назначение пользователей','用户分配'],routing:['Routing','Маршрутизация','路由'],ledger:['Ledger','Журнал операций','账本'],holds:['Holds / Frozen','Удержания / заморозка','冻结金额'],
