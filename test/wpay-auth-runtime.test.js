@@ -20,7 +20,7 @@ function row(type = "user") {
   return { id: "principal-a", subject_id: "subject-a", tenant_id: "development-a", account_type: type, status: "active",
     user_id: type === "user" ? "user-a" : null, merchant_id: type === "merchant" ? "merchant-a" : null,
     current_permission_version: 1, grant_version: 1, session_permission_version: 1, permissions: [...DEFAULT_GRANTS[type]],
-    admin_scope: type === "super_admin" ? { tenantIds: ["development-a"] } : null,
+    admin_scope: type === "super_admin" ? { tenantIds: ["development-a"], platform: true } : null,
     session_epoch: 0, current_session_epoch: 0, created_at: now, last_seen_at: now,
     expires_at: new Date(+now + ABSOLUTE_MS), revoked_at: null, database_now: now,
     approval_status: "approved", mfa_enabled: true, mfa_at: now, security_version: 1, factor_version: 1, session_security_version: 1, session_factor_version: 1,

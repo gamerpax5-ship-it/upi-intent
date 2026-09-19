@@ -34,17 +34,18 @@
     for(const item of data.imports.filter(i=>i.bank_id===bank.id))box.append(el('p',item.id+' · version '+item.bank_version+' · '+item.status+' · '+item.credit_count+' credits · '+item.created_at));card.append(box);
    }return;
   }
-  if(page==='devices'){
+  if(page==='devices'||page==='activation'){
+   title.textContent=page==='activation'?'Activation Codes':'Linked Devices';
    const data=await post('operations/devices',state.afterDevice?{afterDevice:state.afterDevice}:{});
    card.append(el('p','Pair the existing WPay APK with a code issued to your account. A device ID alone cannot establish ownership.','notice'));
    if(data.message)card.append(el('p',data.message));
-   if(data.pairingAvailable)card.append(button('Generate pairing code',async()=>{
+   if(page==='activation'){if(data.pairingAvailable)card.append(button('Generate pairing code',async()=>{
     const result=await post('operations/device/create',{requestId:crypto.randomUUID()}),box=el('section',undefined,'business-row'),code=el('code',result.pairingCode);code.dataset.secret='true';
     box.append(el('h2','Enter this code in the existing APK'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),button('Check pairing',async()=>{const r=await post('operations/device/poll',{requestId:result.id});if(r.state==='linked')await reload();else box.append(el('p',r.state));}),button('Hide code',()=>{code.textContent='Hidden';}));card.prepend(box);
     setTimeout(()=>{code.textContent='Hidden';},Math.min(60000,Math.max(0,+new Date(result.expiresAt)-Date.now())));
    }));else card.append(el('p','OTP source unavailable','notice'));
    for(const pending of data.pending)card.append(button('Check pending pairing · '+new Date(pending.expires_at).toLocaleTimeString(),async()=>{const r=await post('operations/device/poll',{requestId:pending.id});if(r.state==='linked')await reload();else card.append(el('p',r.state));}));
-   for(const d of data.devices){const row=el('article',undefined,'business-row');facts(row,{Device:d.device,Status:d.status,'Access until':new Date(d.validUntil).toLocaleString()});row.append(button('Revoke WPay ownership',async()=>{await post(d.legacyMapping?'resources/revoke':'operations/device/revoke',d.legacyMapping?{linkId:d.id}:{id:d.id});await reload();}));card.append(row);}
+   }if(page==='devices')for(const d of data.devices){const row=el('article',undefined,'business-row');facts(row,{Device:d.device,Status:d.status,'Access until':new Date(d.validUntil).toLocaleString()});row.append(button('Revoke WPay ownership',async()=>{await post(d.legacyMapping?'resources/revoke':'operations/device/revoke',d.legacyMapping?{linkId:d.id}:{id:d.id});await reload();}));card.append(row);}
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({afterDevice:data.nextDeviceCursor})));if(state.afterDevice)card.append(button('First devices',()=>reload()));return;
   }
   if(page==='otp'){
@@ -74,7 +75,7 @@
     const permissions=checkGroup('Permissions',data.permissions.map(p=>[p.id,p.label]),employee?.permissions||data.requiredPermissions,data.requiredPermissions),tenantIds=checkGroup('Operational tenants',data.tenantIds.map(t=>[t,t]),employee?.admin_scope?.tenantIds||data.tenantIds);
     form.append(el('p','Saving permission or status changes invalidates every existing Employee session. Employees always enroll in authenticator MFA.','notice'));
     const save=el('button','Save Employee');save.type='submit';form.append(save,button('Cancel',()=>reload()));
-    form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post(employee?'operations/employee/update':'operations/employee/create',{...(employee?{id:employee.id,status:status.value}:{}),name:name.value,email:email.value,permissions:permissions(),tenantIds:tenantIds()});if(employee)return reload();card.replaceChildren(el('h2','Employee created'),el('p','Save the generated password privately. It is shown once. The Employee must enroll in MFA on first login.'));facts(card,{Email:result.email,'Login URL':result.loginPath});const secret=el('code',result.oneTimePassword);secret.dataset.secret='true';card.append(secret,button('Saved · hide password',()=>{secret.textContent='Hidden';return reload();}));});};card.append(form);
+    form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post(employee?'operations/employee/update':'operations/employee/create',{...(employee?{id:employee.id,status:status.value}:{}),name:name.value,email:email.value,permissions:permissions(),tenantIds:tenantIds()});if(employee)return reload();card.replaceChildren(el('h2','Employee created'),el('p','Save the generated password privately. It is shown once. The temporary password expires in 24 hours. The Employee must choose a new password before mandatory MFA.'));facts(card,{Email:result.email,'Login URL':result.loginPath});const secret=el('code',result.oneTimePassword);secret.dataset.secret='true';result.oneTimePassword=null;setTimeout(()=>{secret.textContent='Hidden';},60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')secret.textContent='Hidden';},{once:true});card.append(secret,button('Saved · hide password',()=>{secret.textContent='Hidden';return reload();}));});};card.append(form);
    };
    card.append(button('Create Employee',()=>edit()));if(!data.employees.length)card.append(el('p','No Employees in your operational scope.'));
    for(const employee of data.employees){const row=el('article',undefined,'business-row');facts(row,{Name:employee.name,Email:employee.email,Status:employee.status,'OTP permission':employee.permissions.includes('apk_otp_events.view_all')?'Granted':'Not granted','Permission version':employee.permission_version});row.append(button('Edit '+employee.name,()=>edit(employee)));card.append(row);}

@@ -59,6 +59,11 @@ async function handleStage(result) {
   $("workspace").hidden = true; $("auth").hidden = false; renderAccess();
 }
 function renderMfa(root) {
+  if(stage.kind==='password-reset'){
+    const t=k=>globalThis.WPayCompletionLocales.text(locale,k),form=el('form');root.append(el('h2',t('resetTitle')),el('p',t('resetHelp'),'notice'));
+    const inputs=[];for(const key of ['newPassword','confirmPassword']){const label=el('label',t(key)),input=el('input');input.type='password';input.autocomplete='new-password';input.required=true;input.minLength=15;input.maxLength=128;label.append(input);form.append(label);inputs.push(input);}
+    const submit=el('button',t('save'),'primary');submit.type='submit';form.append(submit);form.onsubmit=e=>{e.preventDefault();action(async()=>{if(inputs[0].value!==inputs[1].value){inputs[1].setCustomValidity(t('passwordMismatch'));inputs[1].reportValidity();inputs[1].oninput=()=>inputs[1].setCustomValidity('');return;}const body={password:inputs[0].value};inputs.forEach(i=>i.value='');try{await handleStage(await post('password/reset',body));}finally{body.password='';}});};root.append(form,button('backLogin',showLogin,'text-button'));return;
+  }
   root.append(el("h2",tr(stage.kind === "enroll" ? "enrollTitle" : ["save-recovery","recovery-codes"].includes(stage.kind) ? "recoveryTitle" : "mfaTitle")));
   if (["save-recovery","recovery-codes"].includes(stage.kind)) {
     root.append(el("p",tr("recoverySave"),"notice")); const codes = el("pre",stage.codes.join("\n"),"recovery-codes"); codes.setAttribute("data-secret","true"); root.append(codes);
@@ -76,13 +81,7 @@ function renderMfa(root) {
   if (stage.kind === "challenge") root.append(button("recovery",() => { stage = {kind:"recover"}; renderAccess(); },"text-button"));
   root.append(button("backLogin",showLogin,"text-button"));
 }
-function profile() {
-  $("page-title").textContent = tr("account"); const card = el("section",undefined,"card"), facts = el("dl",undefined,"facts");
-  for (const [key,value] of [["name",account.name],["email",account.email],["accountType",tr(account.accountType)],["loginStatus",tr(account.status)],["approval",tr(account.approvalStatus)]]) { const group = el("div"); group.append(el("dt",tr(key)),el("dd",value)); facts.append(group); }
-  card.append(el("h2",tr("welcome")),facts,el("p",tr("emailNote"),"hint"),el("p",tr("onboarding"),"notice"));
-  if (account.accountType === "merchant") { const form = el("form"), select = field(form,"language","text",[["en","English"],["ru","Русский"],["zh-CN","简体中文"]]); select.value = locale; select.onchange = () => action(() => changeLocale(select.value)); card.append(el("h3",tr("settings")),form); }
-  $("page-content").replaceChildren(card);
-}
+function profile() {return globalThis.WPayCompletionPage.render({permission:'profile.view',account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});}
 async function security() {
   const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",tr(value.enabled ? "securityEnabled" : "enrollTitle")),el("p",tr("freshHelp"),"notice"));
   const form = el("form"), password = field(form,"password","password"), code = field(form,"code");
@@ -155,7 +154,7 @@ async function review(item,page,offset) {
   async function decide(decision) {
     const data = Object.fromEntries(new FormData(form)), body = {requestId,accountId:item.id,decision,settings:decision === "approve" ? Object.fromEntries(fields.map(key => [key,data[key]])) : null,reason:decision === "reject" ? data.reason : ""};
     const payload = JSON.stringify({...body,requestId:null}); if (previousPayload && previousPayload !== payload) requestId = crypto.randomUUID(); body.requestId = requestId; previousPayload = payload;
-    await post("approval",body); dialog.close(); await pending(page,offset); message("decisionSaved");
+    await post("approval",body); dialog.close(); await load(page.destinationId); message("decisionSaved");
   }
   form.append(button("saveApproval",() => action(async () => { for (const key of fields) if (!form.elements[key].reportValidity()) return; await decide("approve"); }),"primary"));
   const reason = field(form,"reason"); reason.required = false; reason.maxLength = 500; form.append(button("reject",() => action(() => decide("reject"))),button("cancel",() => dialog.close())); dialog.append(form); dialog.showModal();
@@ -167,18 +166,19 @@ async function load(selected = destination) {
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(account.approvalStatus); $("navigation").replaceChildren();
   for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",(group.id.startsWith("operations.group.") || group.id.endsWith(".transactions")) ? group.label : group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));if(page.destinationId.startsWith('operations.'))item.textContent=page.label;node.append(item);} $("navigation").append(node); }
   destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
-  if (selected === "security" || page?.permissionId === "account_security.view") return security(); if (page && ["users.view","merchants.view"].includes(page.permissionId)) return pending(page);
+  if (selected === "security" || page?.permissionId === "account_security.view") return security(); if(page && globalThis.WPayCompletionPage.pages[page.permissionId])return globalThis.WPayCompletionPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title"),review:item=>review(item,page,0)});
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
+  if(page?.permissionId==='user.activation_codes.view')return globalThis.WPayOperationsPage.render({destination:'operations.activation',account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
   if(page?.destinationId.startsWith('operations.'))return globalThis.WPayOperationsPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
-  if(page?.destinationId==='gateway.orders')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page?.destinationId==='gateway.orders'||page?.permissionId==='transactions.view')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.permissionId==='merchant.api_docs.view')return globalThis.WPayGatewayPage.docs({locale,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayBusinessPage.pages[page.permissionId]) return globalThis.WPayBusinessPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if (!page || ["profile.view","user.overview.view","merchant.overview.view","overview.view"].includes(page.permissionId)) return profile();
-  $("page-title").textContent = tr("nav." + page.permissionId); const root = el("section",undefined,"card"); root.append(el("h2",tr("planned")),el("p",tr("plannedBody")),el("p",tr("noKeys"))); $("page-content").replaceChildren(root);
+  throw new Error("error.NOT_FOUND");
 }
 async function changeLocale(value) {
   if (!L.supported.includes(value)) return; explicitLocale = locale = value; try { localStorage.setItem("wpay-locale",value); } catch { /* Preference only. */ } applyLocale();

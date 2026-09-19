@@ -40,6 +40,10 @@ async function rolesAndResources(){
     await client.query("CREATE DATABASE wpay_12_source_ci");
     await client.query("CREATE DATABASE wpay_9a_reconciliation_0 OWNER wpay_migrator");
     await client.query("CREATE DATABASE wpay_12_source_ci_reconciliation");
+    await client.query("CREATE DATABASE wpay_9a_completion_0 OWNER wpay_migrator");
+    await client.query("CREATE DATABASE wpay_15_upgrade_ci OWNER wpay_migrator");
+    await client.query("CREATE DATABASE wpay_9a_authority_0 OWNER wpay_migrator");
+    await client.query("CREATE DATABASE wpay_15_upgrade_authority_ci OWNER wpay_migrator");
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),"wpay-ci-"));
     const role=(user,database)=>({...connection,user,password:passwords[user],database});
     const hosted={migration:role("wpay_migrator","wpay_hosted_ci"),runtime:role("wpay_runtime","wpay_hosted_ci"),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY};
@@ -66,7 +70,15 @@ async function rolesAndResources(){
     const reconciliationPath=path.join(dir,'reconciliation.json');
     fs.writeFileSync(reconciliationPath,JSON.stringify({migration:role('wpay_migrator','wpay_9a_reconciliation_0'),runtime:role('wpay_runtime','wpay_9a_reconciliation_0'),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY,legacyOwner:{...connection,database:'wpay_12_source_ci_reconciliation'}}),{mode:0o600,flag:'wx'});
     const reconciliationRun=spawnSync(process.execPath,['--test','test/wpay-reconciliation.integration.js'],{env:{...env,WPAY_9A_TEST_CONFIRM:'fresh-local-synthetic-only',WPAY_9A_TEST_CONFIG:reconciliationPath},stdio:'inherit',windowsHide:true});
-    if(reconciliationRun.status!==0)process.exitCode=1;
+    if(reconciliationRun.status!==0){process.exitCode=1;return;}
+    const completionPath=path.join(dir,'completion.json');
+    fs.writeFileSync(completionPath,JSON.stringify({migration:role('wpay_migrator','wpay_9a_completion_0'),runtime:role('wpay_runtime','wpay_9a_completion_0'),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY,upgradeDatabase:'wpay_15_upgrade_ci'}),{mode:0o600,flag:'wx'});
+    const completionRun=spawnSync(process.execPath,['--test','test/wpay-completion.integration.js'],{env:{...env,WPAY_9A_TEST_CONFIRM:'fresh-local-synthetic-only',WPAY_9A_TEST_CONFIG:completionPath},stdio:'inherit',windowsHide:true});
+    if(completionRun.status!==0){process.exitCode=1;return;}
+    const authorityPath=path.join(dir,'authority.json');
+    fs.writeFileSync(authorityPath,JSON.stringify({migration:role('wpay_migrator','wpay_9a_authority_0'),runtime:role('wpay_runtime','wpay_9a_authority_0'),mfaKey:env.WPAY_AUTH_DEV_MFA_KEY,upgradeDatabase:'wpay_15_upgrade_authority_ci'}),{mode:0o600,flag:'wx'});
+    const authorityRun=spawnSync(process.execPath,['--test','test/wpay-platform-authority.integration.js'],{env:{...env,WPAY_9A_TEST_CONFIRM:'fresh-local-synthetic-only',WPAY_9A_TEST_CONFIG:authorityPath},stdio:'inherit',windowsHide:true});
+    if(authorityRun.status!==0)process.exitCode=1;
   }finally{await client.end();}
 }
 rolesAndResources().catch(()=>{console.error("Isolated CI database setup failed.");process.exitCode=1;});

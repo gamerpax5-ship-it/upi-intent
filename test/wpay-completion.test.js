@@ -1,0 +1,6 @@
+"use strict";
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {csvCell}=require('../lib/wpay/panels/api'),{navigation}=require('../lib/wpay/panels/navigation');
+test('CSV cells cannot start spreadsheet formulas or break quoting',()=>{for(const value of ['=HYPERLINK("evil")',' +1','-2','@SUM(A1)','\t=1','\r=1'])assert.ok(csvCell(value).startsWith('"\''));assert.equal(csvCell('quoted,"value"\nnext'),'"quoted,""value""\nnext"');});
+test('runtime navigation hides unimplemented financial/provider descriptors',()=>{const result=navigation([{id:'user.group.operations',children:[{permissionId:'user.parking_payments.create',destinationId:'user.parking-payment'},{permissionId:'support.view',destinationId:'user.support'}]}],{principal:{type:'user'}});assert.deepEqual(result[0].children.map(p=>p.destinationId),['user.support']);assert.equal(result[0].children[0].routeStatus,'implemented');});
+test('completion Merchant messages have explicit English/Russian/Chinese translations',()=>{const context={};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/completion-locales.js','utf8'),context);const l=context.WPayCompletionLocales;for(const key of l.keys)for(const locale of ['en','ru','zh-CN'])assert.notEqual(l.text(locale,key),key);});
