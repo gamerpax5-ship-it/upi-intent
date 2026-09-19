@@ -1,0 +1,10 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require.resolve('../dev/wpay-auth/web/app.js'),'utf8'),loadSource=source.slice(source.indexOf('async function load('),source.indexOf('async function changeLocale('));
+function element(tag,text=''){return {tag,textContent:text,children:[],append(...nodes){this.children.push(...nodes);},replaceChildren(...nodes){this.children=nodes;}};}
+function fixture(allowed=true){const calls=[],nodes=new Map(),page={destinationId:'operations.admins',permissionId:'settings.view',label:'Admin authority'},settings={destinationId:'panel.settings',permissionId:'settings.view',label:'Platform Settings'};
+ const context={destination:null,explicitLocale:null,navigator:{language:'en'},L:{choose:()=> 'en',supported:['en']},applyLocale(){},tr:k=>k,el:element,button:element,action:fn=>fn(),post(){},profile:()=>calls.push('profile'),review(){},$:id=>{if(!nodes.has(id))nodes.set(id,element('div'));return nodes.get(id);},request:async route=>route==='me'?{accountType:'super_admin',status:'active'}:{groups:[{id:'operations.group.admin-authority',children:allowed?[page,settings]:[settings]}]},WPayCompletionPage:{pages:{'settings.view':true},render:()=>calls.push('settings')},WPayOperationsPage:{render:o=>calls.push(o.destination)}};
+ vm.runInNewContext(loadSource,context);return {context,calls};
+}
+test('authorized Admin authority destination selects its own renderer despite shared settings permission',async()=>{const f=fixture();await f.context.load('operations.admins');assert.deepEqual(f.calls,['operations.admins']);});
+test('Platform Settings still selects read-only settings, and absent authority navigation cannot dispatch Admin management',async()=>{const f=fixture();await f.context.load('panel.settings');assert.deepEqual(f.calls,['settings']);const denied=fixture(false);await denied.context.load('operations.admins');assert.deepEqual(denied.calls,['profile']);});
