@@ -129,6 +129,25 @@
     AMBIGUOUS_TRANSFER:["Transfer ownership is ambiguous; review is required.","Принадлежность перевода неоднозначна; требуется проверка.","转账归属不明确；须审核。"]
   };
   for(const [key,values] of Object.entries(fundingErrors))["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language]["error."+key]=values[index];});
+  const completionNavigationLabels = {
+    "nav.user.analytics.view":["Analytics","Аналитика","数据分析"],
+    "nav.user.activation_codes.view":["Activation Codes","Коды активации","激活码"],
+    "group.trade":["Trade with WPay","Торговля с WPay","WPay 交易"],
+    "nav.user.trade.view":["Coming Soon","Скоро","即将推出"],
+    "group.transactions":["Transactions","Транзакции","交易"],
+    "nav.transactions.view":["Orders & Transactions","Заказы и транзакции","订单与交易"],
+    "nav.ledger.adjust":["Ledger Adjustments","Корректировки журнала","账本调整"],
+    "nav.devices.view":["Device Inventory & Pairing","Устройства и привязки","设备清单与配对"],
+    "nav.api_credentials.view":["API Credentials","Учётные данные API","API 凭据"],
+    "nav.webhooks.view":["Webhooks","Вебхуки","Webhook"],
+    "nav.api_logs.view":["API Logs","Журналы API","API 日志"],
+    "group.reports":["Reports","Отчёты","报表"],
+    "nav.reports.view":["Reports","Отчёты","报表"],
+    "nav.reports.export":["Report Exports","Экспорт отчётов","导出报表"],
+    "nav.support_admin.view":["Support Queue","Очередь поддержки","支持工单队列"],
+    "nav.settings.view":["Platform Settings","Настройки платформы","平台设置"]
+  };
+  for (const [key,values] of Object.entries(completionNavigationLabels)) ["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language][key]=values[index];});
   const supported = Object.freeze(["en","ru","zh-CN"]);
   const onboardingErrors={FUNDING_REQUIRED:['Confirmed funding is required before Start.','Перед запуском требуется подтверждённое пополнение.','开始前须确认入金。'],STATEMENT_REQUIRED:['An accepted statement for this bank version is required before Start.','Перед запуском требуется принятая выписка для этой версии счёта.','开始前须接受此账户版本的流水。'],DEVICE_REQUIRED:['An eligible linked device is required before Start.','Перед запуском требуется подходящее привязанное устройство.','开始前须关联符合条件的设备。']};
   for(const [code,values]of Object.entries(onboardingErrors))['en','ru','zh-CN'].forEach((language,index)=>{dictionaries[language]['error.'+code]=values[index];});
