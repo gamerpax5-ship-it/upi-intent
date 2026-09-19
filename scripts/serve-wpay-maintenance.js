@@ -3,7 +3,7 @@ const http=require('node:http');
 // Explicit isolated staging maintenance process: no application/database imports.
 function createServer(){return http.createServer((req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Retry-After','120');
- if(req.method==='GET'&&req.url==='/maintenance-healthz'){res.writeHead(200);res.end(JSON.stringify({maintenance:true}));return;}
+ if(req.method==='GET'&&req.url==='/maintenance_healthz'){res.writeHead(200);res.end(JSON.stringify({maintenance:true}));return;}
  res.writeHead(503);res.end(JSON.stringify({ready:false,maintenance:true,message:'WPay staging maintenance. Please try again shortly.'}));
 });}
 function main(){
