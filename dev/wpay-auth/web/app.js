@@ -196,6 +196,10 @@ async function changeLocale(value) {
 }
 async function logoutAll() { await post("logout-all"); showLogin(); message("loggedOut"); }
 $("language").onchange = () => action(() => changeLocale($("language").value)); $("account-home").onclick = () => action(() => load(null));
+const roleTheme=document.getElementById('role-theme'),roleNotifications=document.getElementById('role-notifications'),roleProfile=document.getElementById('role-profile');
+if(roleTheme){const saved=localStorage.getItem('wpay-role-theme');if(saved==='light')document.documentElement.classList.add('role-light');roleTheme.onclick=()=>{document.documentElement.classList.toggle('role-light');localStorage.setItem('wpay-role-theme',document.documentElement.classList.contains('role-light')?'light':'dark');};}
+if(roleNotifications)roleNotifications.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.notifications'));
+if(roleProfile)roleProfile.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.profile'));
 $("logout").onclick = () => action(async () => { await post("logout"); showLogin(); message("loggedOut"); }); $("logout-all").onclick = () => action(logoutAll);
 for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
 setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
