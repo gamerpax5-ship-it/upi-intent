@@ -186,7 +186,7 @@ async function load(selected = destination) {
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayBusinessPage.pages[page.permissionId]) return globalThis.WPayBusinessPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
-  if((!page||["user.overview.view","merchant.overview.view"].includes(page.permissionId))&&["user","merchant"].includes(account?.accountType))return globalThis.WPayRoleDashboard.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if((!page||["user.overview.view","merchant.overview.view"].includes(page.permissionId))&&["user","merchant"].includes(account?.accountType)&&globalThis.WPayRoleDashboard?.render)return globalThis.WPayRoleDashboard.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if (!page || ["profile.view","overview.view"].includes(page.permissionId)) return profile();
   throw new Error("error.NOT_FOUND");
 }
