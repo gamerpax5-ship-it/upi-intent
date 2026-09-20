@@ -14,14 +14,14 @@
 
   if(page==='beneficiaries'){
    const data=await request('parking/beneficiaries');card.append(el('p','Beneficiaries are created by Admin or an authorized Employee. Add the exact beneficiary in your banking app, then confirm “I added”.','notice'));
-   for(const b of data.rows){const row=el('article',undefined,'business-row');facts(row,{Name:b.details.beneficiaryName,Bank:b.details.bankName,Account:b.details.accountNumber,IFSC:b.details.ifsc,UPI:b.details.upiId||'—'});row.append(el('p',b.confirmed?'I added · confirmed':'Not confirmed'));if(!b.confirmed)row.append(button('I added this beneficiary',async()=>{await post('parking/beneficiary/confirm',{id:b.id});await render(args);}));card.append(row);}if(!data.rows.length)card.append(el('p','No Parking beneficiaries are available.'));return;
+   for(const b of data.rows){const row=el('article',undefined,'business-row');facts(row,{Name:b.details.beneficiaryName,Bank:b.details.bankName,Account:b.details.accountNumber,IFSC:b.details.ifsc,UPI:b.details.upiId||'—',Source:(b.sourceType||'Admin/Employee')+(b.sourceName?' · '+b.sourceName:'')});row.append(el('p',b.confirmed?'I added · confirmed':'Not confirmed'));if(!b.confirmed)row.append(button('I added this beneficiary',async()=>{await post('parking/beneficiary/confirm',{id:b.id});await render(args);}));card.append(row);}if(!data.rows.length)card.append(el('p','No Parking beneficiaries are available.'));return;
   }
 
   if(page==='orders'){
    const data=await request('parking/orders');card.append(el('p','Only orders matching beneficiaries you confirmed are visible. A partial lock is exclusive for 10 minutes; expiry/release keeps that amount hidden for a 5-minute cooldown.','notice'));
    const available=el('div');card.append(el('h2','Available Parking Orders'),available);
    for(const o of data.orders){const row=el('article',undefined,'business-row'),form=el('form'),amount=field(form,'Amount to lock (INR)');amount.value=money(o.minMinor);amount.inputMode='decimal';
-    facts(row,{Reference:o.reference,Beneficiary:o.beneficiary.beneficiaryName,Bank:o.beneficiary.bankName,Account:o.beneficiary.accountNumber,IFSC:o.beneficiary.ifsc,'Total INR':money(o.totalMinor),'Remaining INR':money(o.remainingMinor),'Minimum INR':money(o.minMinor)});
+    facts(row,{Reference:o.reference,Beneficiary:o.beneficiary.beneficiaryName,Bank:o.beneficiary.bankName,Account:o.beneficiary.accountNumber,IFSC:o.beneficiary.ifsc,Source:(o.sourceType||'Admin/Employee')+(o.sourceName?' · '+o.sourceName:''),'Total INR':money(o.totalMinor),'Remaining INR':money(o.remainingMinor),'Minimum INR':money(o.minMinor)});
     submit(form,'Lock amount · 10 minutes',async()=>{const [whole,fraction='']=amount.value.split('.');const minor=(BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))).toString();await post('parking/lock',{requestId:crypto.randomUUID(),orderId:o.id,amountMinor:minor});await render(args);});row.append(form);available.append(row);
    }
    if(!data.orders.length)available.append(el('p','No eligible Parking orders.'));
