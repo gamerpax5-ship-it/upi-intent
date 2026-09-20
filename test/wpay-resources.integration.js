@@ -32,7 +32,7 @@ test('Task 7 real isolated legacy adapters, APK bytes and owner isolation',{time
  await assert.rejects(createLegacyReader(legacyOwner));
  for(const sql of ["SELECT credential_hash FROM devices","SELECT code_mask FROM device_otp_events","SELECT message_masked FROM device_otp_events","SELECT sms_body FROM device_transactions","UPDATE devices SET status=status","SELECT upi_uri FROM payment_links"])await assert.rejects(legacyPool.query(sql),{code:'42501'});
  const crypto=new MfaCrypto(Buffer.from(config.mfaKey,'base64')),service=new AuthService(new SecurityRepository(runtime),{mfaCrypto:crypto,legacyReader:reader});
- const setup=new AuthService(new SecurityRepository(owner),{mfaCrypto:crypto}),password='Synthetic adapter acceptance password!';
+ const setup=new AuthService(new SecurityRepository(owner),{mfaCrypto:crypto}),password='Synthetic adapter acceptance password 1!';
  await setup.bootstrap({name:'Synthetic Verifier',email:'verifier@resources.example.invalid',password});
  for(const [name,type] of [['alice','user'],['bob','user'],['merchant','merchant']])await service.register({name:'Synthetic '+name,email:name+'@resources.example.invalid',password,accountType:type},'127.0.0.1');
  // Explicit synthetic fixture approval; real Admin MFA/approval is tested in the

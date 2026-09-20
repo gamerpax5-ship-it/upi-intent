@@ -27,7 +27,7 @@ test("hosted database roles: actual migrations, runtime MFA/session access, no D
   const crypto=new MfaCrypto(Buffer.from(config.mfaKey,"base64"));
   const ownerService=new AuthService(new SecurityRepository(owner),{mfaCrypto:crypto});
   const service=new AuthService(new SecurityRepository(runtime),{mfaCrypto:crypto});
-  const password="Synthetic hosted role acceptance password!";
+  const password="Synthetic hosted role acceptance password 1!";
   await ownerService.bootstrap({name:"Synthetic Hosted Admin",email:"admin@hosted.example.invalid",password});
   await t.test("runtime performs real TOTP enrollment, persistent session authorization and logout",async()=>{
     const first=await service.login({email:"admin@hosted.example.invalid",password},"127.0.0.1");assert.equal(first.stage,"enroll");

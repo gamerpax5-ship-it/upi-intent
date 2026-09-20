@@ -48,7 +48,7 @@ test('Completion: real PostgreSQL lifecycle, scope, reports and upgrade',async t
  await t.test('directory is scoped, bounded and includes approved and pending accounts',async()=>{
   const d=await call('admin','panel/directory',{type:'user',limit:1});assert.equal(d.rows.length,1);assert.ok(d.nextOffset);assert.ok(d.rows[0].commercialVersion);
   await denied(call('alice','panel/directory',{type:'user'}));await denied(call('merchant','panel/directory',{type:'user'}));await denied(call('admin','panel/directory',{type:'user',limit:1000}),'INVALID_INPUT');
-  await service.register({name:'Pending Test',email:'pending@completion.example.invalid',password:'Synthetic pending completion passphrase!',accountType:'user'},'127.0.0.1');assert.equal((await call('admin','panel/directory',{type:'user',status:'pending'})).rows.length,1);
+  await service.register({name:'Pending Test',email:'pending@completion.example.invalid',password:'Synthetic pending completion passphrase 1!',accountType:'user'},'127.0.0.1');assert.equal((await call('admin','panel/directory',{type:'user',status:'pending'})).rows.length,1);
   await owner.query("UPDATE wpay_auth.accounts SET tenant_id='outside-completion-scope' WHERE id=$1",[ids.bob]);assert.equal((await call('admin','panel/directory',{type:'user',search:'bob'})).rows.length,0);
   await denied(call('admin','panel/directory/update',{requestId:randomUUID(),id:ids.bob,action:'suspend',reason:'Synthetic out of scope',settings:null,expectedVersion:1}));
   await owner.query("UPDATE wpay_auth.accounts SET tenant_id='wpay-auth-development' WHERE id=$1",[ids.bob]);

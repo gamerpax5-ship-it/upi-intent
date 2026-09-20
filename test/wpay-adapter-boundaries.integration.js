@@ -30,7 +30,7 @@ test('isolated PostgreSQL and HTTP adapter boundary acceptance',{timeout:120000}
   const c=cfg.legacyReader,sourceEnv={WPAY_LEGACY_READER_DATABASE_URL:`postgresql://wpay_legacy_reader:${encodeURIComponent(c.password)}@127.0.0.1:${c.port}/${c.database}`,WPAY_LEGACY_READER_TARGET:`127.0.0.1:${c.port}/${c.database}`};
   source=openLegacySource(sourceEnv);assert.equal(await source.reader.ready(),true);
   const crypto=new MfaCrypto(Buffer.from(cfg.mfaKey,'base64')),repository=new SecurityRepository(runtime),service=new AuthService(repository,{mfaCrypto:crypto,legacyReader:source.reader}),setup=new AuthService(new SecurityRepository(owner),{mfaCrypto:crypto});
-  const password='Synthetic adapter checkpoint password!';
+  const password='Synthetic adapter checkpoint password 1!';
   await setup.bootstrap({name:'Synthetic Admin',email:'admin@adapters.example.invalid',password});
   for(const [name,accountType]of [['alice','user'],['bob','user'],['merchant','merchant'],['merchant2','merchant']])await service.register({name:'Synthetic '+name,email:name+'@adapters.example.invalid',password,accountType},'127.0.0.1');
   await new SecurityRepository(owner).createAccount({name:'Synthetic Employee',email:'employee@adapters.example.invalid',accountType:'employee'},await hashPassword(password),DEFAULT_GRANTS.employee);
