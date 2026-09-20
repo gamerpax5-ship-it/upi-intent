@@ -2,7 +2,7 @@
 (function(root){
  const pages={'profile.view':'profile','support.view':'support','support_admin.view':'support','guide.view':'guide','notifications.view':'notifications','user.analytics.view':'analytics','merchant.analytics.view':'analytics','reports.view':'reports','reports.export':'reports','users.view':'directory','merchants.view':'directory','webhooks.view':'webhooks','api_credentials.view':'credentials','api_logs.view':'api-logs','devices.view':'devices','settings.view':'settings','ledger.adjust':'adjust','holds.view':'holds','user.trade.view':'trade'};
  async function render(options,state={}){
-  const {permission,account,locale,request,post,action,el,container,title}=options,kind=pages[permission],t=k=>{const own=root.WPayCompletionLocales.text(locale,k);return own===k&&root.WPayBusinessLocales?root.WPayBusinessLocales.translate(locale,k):own;};
+  const {permission,account,locale,request,post,action,el,container,title}=options,kind=options.destination==='merchant.reports'?'reports':pages[permission],t=k=>{const own=root.WPayCompletionLocales.text(locale,k);return own===k&&root.WPayBusinessLocales?root.WPayBusinessLocales.translate(locale,k):own;};
   title.textContent=root.WPayLocales.translate(locale,'nav.'+permission);container.replaceChildren();const card=el('section',undefined,'card');container.append(card);
   const button=(label,fn)=>{const b=el('button',t(label));b.type='button';b.onclick=()=>action(fn);return b;};
   const field=(form,key,value='',choices)=>{const label=el('label',t(key)),i=el(choices?'select':['message','reply'].includes(key)?'textarea':'input');i.name=key;i.required=true;if(choices)for(const value of choices){const o=el('option',t(value));o.value=value;i.append(o);}else{if(!['message','reply'].includes(key))i.type='text';i.maxLength=['message','reply'].includes(key)?2000:300;}i.value=value;label.append(i);form.append(label);return i;};
@@ -44,7 +44,7 @@
   if(kind==='analytics'||kind==='reports'){
    const data=await post('panel/'+kind,{offset:state.offset||0,...(state.from?{from:state.from,to:state.to}:{})});card.append(el('p',t('pageTotals'),'notice'));
    const form=el('form'),from=field(form,'from',state.from||data.from),to=field(form,'to',state.to||data.to);form.append(button('filter',()=>reload({from:from.value,to:to.value})));card.append(form);facts(card,data.totals);records(data);
-   if(kind==='reports'&&permission==='reports.export')card.append(button('export',async()=>{const exported=await post('panel/reports/export',{offset:state.offset||0,from:data.from,to:data.to});const url=URL.createObjectURL(new Blob([exported.csv],{type:'text/csv;charset=utf-8'})),a=el('a');a.href=url;a.download='wpay-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));return;
+   if(kind==='reports'&&(permission==='reports.export'||account.accountType==='merchant'))card.append(button('export',async()=>{const exported=await post('panel/reports/export',{offset:state.offset||0,from:data.from,to:data.to});const url=URL.createObjectURL(new Blob([exported.csv],{type:'text/csv;charset=utf-8'})),a=el('a');a.href=url;a.download='wpay-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));return;
   }
   if(kind==='settings'){facts(card,await request('panel/settings'));card.append(el('p',t('policy'),'notice'));return;}
   if(kind==='adjust'){
