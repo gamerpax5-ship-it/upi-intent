@@ -1,0 +1,16 @@
+:root{--role:#8b5cf6;--role2:#5f8fff;--role-soft:#15112d}
+body.role-user{background:radial-gradient(circle at 18% 0,rgba(139,92,246,.16),transparent 34rem),#070a13;color:#f8f7ff}
+.role-user .role-top{background:rgba(8,10,20,.88);border-bottom:1px solid rgba(255,255,255,.07);backdrop-filter:blur(18px)}
+.role-user .brand span,.role-user a,.role-user .eyebrow{color:#b99cff}
+.role-user .role-badge{margin-right:auto;padding:5px 10px;border:1px solid rgba(139,92,246,.22);border-radius:999px;color:#c5b2ff;background:rgba(139,92,246,.08);font-size:11px}
+.role-user .role-auth{grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);gap:28px;align-items:center}
+.role-user .role-intro h1{font-size:clamp(44px,5vw,72px);line-height:.98;letter-spacing:-.04em;max-width:820px;background:linear-gradient(90deg,#fff,#c9b3ff 58%,#7fa8ff);-webkit-background-clip:text;color:transparent}
+.role-user .role-intro>p:not(.eyebrow){max-width:760px;color:#a8afc6;font-size:17px;line-height:1.7}
+.role-user .role-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
+.role-user .role-feature-grid article{border:1px solid rgba(139,92,246,.18);border-radius:16px;padding:16px;background:linear-gradient(180deg,rgba(21,17,45,.78),rgba(10,13,27,.82))}
+.role-user .role-feature-grid strong{display:block;color:#f5f1ff}.role-user .role-feature-grid span{display:block;color:#8991a9;font-size:12px;line-height:1.5;margin-top:5px}
+.role-user .auth-card,.role-user .role-sidebar,.role-user .card{background:linear-gradient(180deg,rgba(16,20,39,.97),rgba(10,13,27,.97));border-color:rgba(255,255,255,.07);box-shadow:0 24px 70px rgba(0,0,0,.33)}
+.role-user button.primary,.role-user a.primary{background:linear-gradient(135deg,#9a60ff,#6357ff);color:white;border-color:transparent}
+.role-user .nav-item:hover,.role-user .nav-item:focus-visible{background:rgba(139,92,246,.10)}.role-user nav .nav-item[aria-current="page"]{background:rgba(139,92,246,.18)}
+.role-user input,.role-user select,.role-user textarea{background:#0b1122;color:#f8f7ff;border-color:rgba(255,255,255,.09)}
+@media(max-width:900px){.role-user .role-auth{grid-template-columns:1fr}.role-user .role-feature-grid{grid-template-columns:1fr}.role-user .role-intro h1{font-size:42px}}
