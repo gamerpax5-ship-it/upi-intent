@@ -31,6 +31,8 @@ jobs:
         run: npm ci --prefix lib/wpay/auth/runtime/dependencies
       - name: Syntax checks
         run: npm run check
+      - name: Verify 197 protected legacy hashes
+        run: node scripts/check-protected-legacy.js
       - name: Full isolated PostgreSQL and HTTP suite
         run: npm test
       - name: Working tree must stay clean
