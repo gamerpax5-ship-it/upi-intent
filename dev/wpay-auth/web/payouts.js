@@ -28,7 +28,7 @@
    box.append(button('hide',async()=>detailBox.replaceChildren()));
   }
   const detailBox=el('div');
-  if(page==='merchant-usdt'){const s=await request('payout/merchant-usdt');card.append(el('h2',t('unconfigured')),el('p',s.message));return;}
+  if(page==='merchant-usdt'){const s=await request('payout/merchant-usdt');card.append(el('h2',t('unconfigured')),el('p',s.status==='rate_not_configured'?t('unconfigured'):s.message));return;}
   if(page==='orders'&&merchant){const summary=await request('payout/summary');facts(card,Object.fromEntries(['available','reserved','principal','fees','held'].map(k=>[k,format(summary[k])])));
    const form=el('form'),reference=field(form,'reference'),name=field(form,'beneficiaryName'),number=field(form,'accountNumber'),ifsc=field(form,'ifsc'),amount=field(form,'amount'),note=field(form,'note','text',false),requestId=crypto.randomUUID();
    reference.maxLength=100;number.inputMode='numeric';number.pattern='[0-9]{6,24}';ifsc.pattern='[A-Z]{4}0[A-Z0-9]{6}';amount.inputMode='decimal';
