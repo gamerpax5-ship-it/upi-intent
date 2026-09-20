@@ -19,7 +19,7 @@ async function isolated(t,label){
  const admin=new Pool({connectionString:process.env.TEST_DATABASE_URL}),name=("wpay_"+label+"_"+randomUUID().replaceAll("-","")).slice(0,60);
  await admin.query("CREATE DATABASE "+name);
  const pool=new Pool({connectionString:dbUrl(name)});
- t.after(async()=>{await pool.end();await admin.query("DROP DATABASE "+name+" WITH (FORCE)");await admin.end();});
+ t.after(async()=>{await pool.end();await admin.query("DROP DATABASE "+name);await admin.end();});
  return pool;
 }
 async function account(c,type,name,tenant="tenant-a"){
