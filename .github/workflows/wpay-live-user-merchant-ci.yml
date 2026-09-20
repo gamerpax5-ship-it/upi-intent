@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Install isolated WPay security dependencies
+        run: npm ci --prefix lib/wpay/auth/runtime/dependencies
       - name: Syntax checks
         run: npm run check
       - name: Full isolated PostgreSQL and HTTP suite
