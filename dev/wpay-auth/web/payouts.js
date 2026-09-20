@@ -28,13 +28,33 @@
    box.append(button('hide',async()=>detailBox.replaceChildren()));
   }
   const detailBox=el('div');
-  if(page==='merchant-usdt'){const s=await request('payout/merchant-usdt');card.append(el('h2',t('unconfigured')),el('p',s.status==='rate_not_configured'?t('unconfigured'):s.message));return;}
+  if(page==='merchant-usdt'){
+   const s=await request('payout/merchant-usdt');card.append(el('h2','USDT Withdrawal'),el('p','Admin-set rate · '+s.rate+' INR/USDT · '+s.rounding,'notice'));
+   facts(card,{available:format(s.available),reserved:format(s.reserved),rate:s.rate,rateVersion:s.rateVersion,network:s.network,maxUsdt:format(s.maxUsdtMinor,'USDT')});
+   const form=el('form'),amount=field(form,'amount'),network=select(form,'network',[[s.network,s.network]]),address=field(form,'address'),key=crypto.randomUUID();amount.inputMode='decimal';
+   const quote=el('p','0.000000 USDT','hint');amount.addEventListener('input',()=>{try{const inr=BigInt(minor(amount.value||'0')),rate=BigInt(Math.round(Number(s.rate)*1000000));quote.textContent=(inr*10000000000n/rate/1000000n)+'.'+(inr*10000000000n/rate%1000000n).toString().padStart(6,'0')+' USDT';}catch{quote.textContent='—';}});
+   submit(form,'requestUsdt',async()=>{await post('payout/merchant-usdt/create',{idempotencyKey:key,amountMinor:minor(amount.value),network:network.value,address:address.value});await render(args);});card.append(form,quote);
+   for(const r of s.requests){const row=el('article',undefined,'business-row');facts(row,{id:r.id,state:r.state,inr:format(r.inrMinor),usdt:format(r.usdtMinor,'USDT'),rate:r.rate,network:r.network,createdAt:r.createdAt});if(['requested','review'].includes(r.state)){const cancel=el('form'),reason=field(cancel,'reason');submit(cancel,'cancel',async()=>{await post('payout/merchant-usdt/transition',{id:r.id,action:'cancel',reason:reason.value});await render(args);});row.append(cancel);}card.append(row);}return;
+  }
+  if(page==='merchant-usdt-admin'){
+   const data=await request('payout/merchant-usdt-admin');card.append(el('h2','Merchant USDT Withdrawals'));
+   for(const r of data.requests){const row=el('article',undefined,'business-row');facts(row,{merchant:r.merchantName,id:r.id,state:r.state,inr:format(r.inrMinor),usdt:format(r.usdtMinor,'USDT'),rate:r.rate,network:r.network,createdAt:r.createdAt});
+    if(!['completed','rejected','cancelled'].includes(r.state)){const form=el('form'),reason=field(form,'reason'),send=async(action,extras={})=>{await post('payout/merchant-usdt/transition',{id:r.id,action,reason:reason.value,...extras});await render(args);};
+     if(r.state==='requested')form.append(button('reviewWithdrawal',()=>send('review')));
+     if(['requested','review'].includes(r.state))form.append(button('approveWithdrawal',()=>send('approve')));
+     if(r.state==='approved')form.append(button('process',()=>send('process')));
+     if(['requested','review','approved'].includes(r.state))form.append(button('rejectWithdrawal',()=>send('reject')));
+     if(r.state==='processing'){const reference=field(form,'completionReference'),time=field(form,'completedAt');time.placeholder='2026-09-20T12:00:00Z';form.append(button('complete',()=>send('complete',{reference:reference.value,network:r.network,completedAt:time.value})));}
+     row.append(form);
+    }card.append(row);
+   }return;
+  }
   if(page==='orders'&&merchant){const summary=await request('payout/summary');facts(card,Object.fromEntries(['available','reserved','principal','fees','held'].map(k=>[k,format(summary[k])])));
-   const form=el('form'),reference=field(form,'reference'),name=field(form,'beneficiaryName'),number=field(form,'accountNumber'),ifsc=field(form,'ifsc'),amount=field(form,'amount'),note=field(form,'note','text',false),requestId=crypto.randomUUID();
+   const form=el('form'),reference=field(form,'reference'),name=field(form,'beneficiaryName'),bankName=field(form,'bankName'),number=field(form,'accountNumber'),ifsc=field(form,'ifsc'),upiId=field(form,'upiId','text',false),amount=field(form,'amount'),note=field(form,'note','text',false),requestId=crypto.randomUUID();
    reference.maxLength=100;number.inputMode='numeric';number.pattern='[0-9]{6,24}';ifsc.pattern='[A-Z]{4}0[A-Z0-9]{6}';amount.inputMode='decimal';
-   submit(form,'create',async()=>{const result=await post('payout/create',{idempotencyKey:requestId,reference:reference.value,beneficiaryName:name.value,accountNumber:number.value,ifsc:ifsc.value,amountMinor:minor(amount.value),note:note.value});await render({...args,selectedId:result.id});});card.append(el('h2',t('single')),form);
+   submit(form,'create',async()=>{const result=await post('payout/create',{idempotencyKey:requestId,reference:reference.value,beneficiaryName:name.value,bankName:bankName.value,accountNumber:number.value,ifsc:ifsc.value,upiId:upiId.value,amountMinor:minor(amount.value),note:note.value});await render({...args,selectedId:result.id});});card.append(el('h2',t('single')),form);
    const bulk=el('form'),fileInput=field(bulk,'file','file'),errors=el('p'),batchId=crypto.randomUUID();fileInput.accept='.csv,.xls,.xlsx';
-   submit(bulk,'upload',async()=>{const result=await post('payout/bulk',{idempotencyKey:batchId,file:await file(fileInput)});if(result.errors.length){errors.textContent=t('bulkErrors')+' '+result.errors.map(e=>e.row).join(', ');return;}await render(args);});card.append(el('h2',t('bulk')),el('p',t('bulkHelp'),'hint'),button('template',async()=>download('wpay-payout-template.csv','reference,beneficiaryName,accountNumber,ifsc,amountINR,note\n')),bulk,errors);
+   submit(bulk,'upload',async()=>{const result=await post('payout/bulk',{idempotencyKey:batchId,file:await file(fileInput)});if(result.errors.length){errors.textContent=t('bulkErrors')+' '+result.errors.map(e=>e.row).join(', ');return;}await render(args);});const template=button('template',async()=>{const xml='<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Bulk Payouts"><Table><Row>'+['reference','beneficiaryName','bankName','accountNumber','ifsc','upiId','amountINR','note'].map(h=>'<Cell><Data ss:Type="String">'+h+'</Data></Cell>').join('')+'</Row></Table></Worksheet></Workbook>';download('wpay-payout-template.xls',xml);});card.append(el('h2',t('bulk')),el('p',t('bulkHelp'),'hint'),el('p','Available Merchant balance: INR '+format(summary.available)+' · the server rejects and rolls back any batch that exceeds it.','notice'),template,bulk,errors);
   }
   if(page==='jobs'){
    const queue=await request('payout/queue'),form=el('form'),bank=select(form,'bankId',queue.banks.map(b=>[b.id,b.id]));card.append(el('h2',t('queue')),form);
