@@ -11,5 +11,5 @@ async function main(){
     console.log(`WPay hosted migrations: ${await migrate(pool)}`);
   } finally {await pool.end();}
 }
-if(require.main===module)main().catch(()=>{console.error("WPAY_HOSTED_MIGRATION_UNAVAILABLE");process.exitCode=1;});
+if(require.main===module)main().catch(error=>{const code=typeof error?.code==="string"&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:"UNKNOWN";const message=String(error?.message||"").replace(/postgres(?:ql)?:\/\/[^\s]+/gi,"[redacted]").replace(/[A-Za-z0-9_%-]+:[^@\s]+@/g,"[redacted]@").slice(0,240);console.error("WPAY_HOSTED_MIGRATION_UNAVAILABLE",code,message);process.exitCode=1;});
 module.exports={main};
