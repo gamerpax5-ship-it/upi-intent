@@ -9,7 +9,7 @@
   const [business,gateway,payout,holds,orders]=await Promise.all([
    request('business/summary'),request('gateway/summary'),request('payout/summary'),request('business/holds'),safe(()=>request('gateway/orders'),{orders:[]})
   ]);
-  const active=(holds.holds||[]).filter(h=>h.state==='active'),frozen=active.filter(h=>/freeze|dispute|risk/i.test(h.reason||'')).reduce((n,h)=>n+BigInt(h.amount_minor),0n),held=active.reduce((n,h)=>n+BigInt(h.amount_minor),0n)-frozen;
+  const active=(holds.holds||[]).filter(h=>h.state==='active'),frozen=active.filter(h=>h.category==='frozen').reduce((n,h)=>n+BigInt(h.amount_minor),0n),held=active.filter(h=>h.category!=='frozen').reduce((n,h)=>n+BigInt(h.amount_minor),0n);
   const grid=el('div',undefined,'role-metric-grid');grid.append(
    metric(el,'Available Balance',money(business.available),'Spendable Merchant INR'),
    metric(el,'Frozen Balance',money(frozen),'Risk / dispute frozen'),
