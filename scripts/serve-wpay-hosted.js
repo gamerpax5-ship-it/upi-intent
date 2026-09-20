@@ -1,6 +1,6 @@
 "use strict";
 const { createHostedPool,verifyRuntimeRole } = require("../lib/wpay/db/hosted-config");
-const { validateMigrations } = require("../lib/wpay/db/migrations");
+const { validateMigrations,visibilityCounts } = require("../lib/wpay/db/migrations");
 const { SecurityRepository } = require("../lib/wpay/db/security-repository");
 const { MfaCrypto,readKey } = require("../lib/wpay/auth/runtime/mfa");
 const { fromEnvironment } = require("../lib/wpay/funding/provider");
@@ -31,7 +31,7 @@ async function main(){
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
     return server;
-  }catch(error){if(pool)await pool.end();if(source)await source.close();if(operational)await operational.close();const code=typeof error?.code==="string"&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:"UNKNOWN";const message=String(error?.message||"").replace(/postgres(?:ql)?:\/\/[^\s]+/gi,"[redacted]").replace(/[A-Za-z0-9_%-]+:[^@\s]+@/g,"[redacted]@").slice(0,240);console.error("WPAY_HOSTED_STARTUP_DIAGNOSTIC",stage,code,message);throw error;}
+  }catch(error){if(pool&&stage==="schema_validation"){try{console.error("WPAY_RUNTIME_SCHEMA_VISIBILITY",JSON.stringify(await visibilityCounts(pool)));}catch{}}if(pool)await pool.end();if(source)await source.close();if(operational)await operational.close();const code=typeof error?.code==="string"&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:"UNKNOWN";const message=String(error?.message||"").replace(/postgres(?:ql)?:\/\/[^\s]+/gi,"[redacted]").replace(/[A-Za-z0-9_%-]+:[^@\s]+@/g,"[redacted]@").slice(0,240);console.error("WPAY_HOSTED_STARTUP_DIAGNOSTIC",stage,code,message);throw error;}
 }
 if(require.main===module)main().catch(()=>{console.error("WPAY_HOSTED_UNAVAILABLE");process.exitCode=1;});
 module.exports={main};
