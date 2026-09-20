@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - wpay/user-merchant-live-ui
+      - wpay/runtime-visibility-fix
   workflow_dispatch:
 
 permissions:
