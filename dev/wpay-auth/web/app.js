@@ -181,6 +181,7 @@ async function load(selected = destination) {
   if(page?.destinationId.startsWith('operations.'))return globalThis.WPayOperationsPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
   if(page?.destinationId==='gateway.orders'||page?.permissionId==='transactions.view')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page?.destinationId.startsWith('parking.'))return globalThis.WPayParkingPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.permissionId==='merchant.api_docs.view')return globalThis.WPayGatewayPage.docs({locale,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
