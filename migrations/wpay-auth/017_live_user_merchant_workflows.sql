@@ -9,6 +9,7 @@ ALTER TABLE wpay_auth.business_entries ADD CONSTRAINT business_entries_ledger_ty
  'user_payout_commission','user_commission_adjustment','user_commission_hold','user_commission_reserved','user_commission_withdrawn'));
 
 ALTER TABLE wpay_auth.payout_claims ADD COLUMN cooldown_until timestamptz;
+ALTER TABLE wpay_auth.business_holds ADD COLUMN category text NOT NULL DEFAULT 'hold' CHECK(category IN('hold','frozen'));
 
 ALTER TABLE wpay_auth.payout_economic_references DROP CONSTRAINT payout_economic_references_kind_check;
 ALTER TABLE wpay_auth.payout_economic_references ADD CONSTRAINT payout_economic_references_kind_check
