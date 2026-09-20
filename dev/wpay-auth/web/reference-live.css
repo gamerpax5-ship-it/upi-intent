@@ -33,3 +33,31 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.setup-key,.recovery-codes{overf
 .overlay{display:none}
 @media(max-width:900px){.overlay{display:block;position:fixed;inset:0;z-index:65;background:rgba(0,0,0,.48);opacity:0;pointer-events:none;transition:opacity .2s}.overlay.show{opacity:1;pointer-events:auto}}
 .live-content img{max-width:100%;height:auto}
+/* Preserve supplied dashboard geometry instead of applying generic card padding. */
+.live-content .reference-dashboard{display:block}
+.live-content .reference-dashboard .card{padding:0}
+.live-content .reference-dashboard .pad,.live-content .reference-dashboard .metric{padding:17px}
+.live-content .reference-dashboard .chart-card{padding:20px}
+.live-content .reference-dashboard .quick{padding:17px;cursor:pointer}
+.live-content .reference-dashboard h2{font-size:16px}
+.reference-metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:14px}
+[data-role=merchant] .reference-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+.reference-dashboard .table-card{overflow:hidden}.reference-dashboard .table-head{padding:16px 17px 10px}
+.reference-dashboard .chart{min-height:235px}.reference-dashboard .chart .empty{height:100%;display:grid;place-items:center;color:var(--muted)}
+.live-content .reference-dashboard .metric-value{font-size:25px;font-weight:850}
+.live-content .reference-dashboard .metric-foot{font-size:11px}
+.live-content .reference-dashboard .card-head p{font-size:11px}
+.live-content .reference-dashboard button.btn{padding:7px 11px;font-size:12px}
+.reference-refresh{margin-left:auto}.reference-description{max-width:780px}
+.live-content > .card{padding:20px}.live-content .table-card{padding:0}
+.reference-records{margin-top:14px}.reference-records table{min-width:650px}
+.live-content form:not(.reference-dashboard form){grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+.live-content form > p,.live-content form > textarea{grid-column:1/-1}
+.live-content .facts{background:var(--panel2);padding:16px;border-radius:12px}
+.live-content .btn:focus-visible,[data-go]:focus-visible{outline:2px solid var(--burg3,var(--violet));outline-offset:3px}
+#access-card h2{font-size:26px;letter-spacing:-.6px}#access-card form{margin-top:22px}
+#access-card button.primary{width:100%;font-weight:750;background:linear-gradient(135deg,var(--burg2,var(--violet)),var(--burg,var(--violet)));box-shadow:0 12px 30px #0002}
+@media(max-width:1100px){.reference-metrics,[data-role=merchant] .reference-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.reference-metrics,[data-role=merchant] .reference-metrics{grid-template-columns:1fr}.live-content form:not(.reference-dashboard form){grid-template-columns:1fr}.reference-refresh{margin-left:0}.topbar{gap:8px}.topbar #language{max-width:76px}.reference-dashboard .quick-grid{grid-template-columns:1fr 1fr}}
+#access-card .password-wrap{position:relative}#access-card .password-wrap input{padding-right:70px}#access-card .password-wrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:auto;padding:5px 9px;border:0;background:transparent;color:var(--muted);font-size:12px}
+.account-requirements{margin-bottom:18px;padding:14px 16px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2);color:var(--muted);font-size:12px;line-height:1.6}

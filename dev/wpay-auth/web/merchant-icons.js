@@ -37,4 +37,4 @@ function hydrateIcons(){
   $('#loginLogo').innerHTML='<svg viewBox="0 0 32 32" fill="none"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg>';
   $('#sideLogo').innerHTML=$('#loginLogo').innerHTML;
 }
-hydrateIcons();})();
+globalThis.WPayReferenceIcons={hydrate(scope){scope.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));}};hydrateIcons();})();

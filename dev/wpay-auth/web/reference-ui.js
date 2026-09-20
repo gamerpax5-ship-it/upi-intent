@@ -8,7 +8,7 @@
  function select(key){
   if(!controller)return;
   if(!nav.resolve(role,key,groups)){document.getElementById('message').textContent='This section is unavailable for your current account permissions or funding status.';return;}
-  controller.action(()=>controller.load('ui:'+key));closeSidebar();
+  if(controller.navigate)controller.navigate('ui:'+key);else controller.action(()=>controller.load('ui:'+key));closeSidebar();
  }
  buttons.forEach(b=>{b.onclick=()=>select(b.dataset.page);});
  document.querySelectorAll('[data-go]').forEach(b=>{b.onclick=()=>select(b.dataset.go);});
@@ -23,13 +23,21 @@
   connect(c){controller=c;},
   restoreAvailability(){buttons.forEach(b=>{b.disabled=!nav.resolve(role,b.dataset.page,groups);});},
   settings(){const host=document.getElementById('page-content');document.getElementById('page-title').textContent='Settings';const card=document.createElement('section');card.className='card';const label=document.createElement('label');label.textContent='Appearance';const select=document.createElement('select');for(const value of ['dark','light']){const option=document.createElement('option');option.value=value;option.textContent=value==='dark'?'Dark':'Light';select.append(option);}select.value=document.documentElement.classList.contains('light')?'light':'dark';select.onchange=()=>{document.documentElement.classList.toggle('light',select.value==='light');try{localStorage.setItem('wpay-role-theme',select.value);}catch{/* Appearance still works without persistence. */}};label.append(select);card.append(label);host.replaceChildren(card);},
+  select,
   get section(){return current;},
   sync(account,navigation,selected){
    groups=navigation.groups||[];
+   const requirements=navigation.requirements,blocked=buttons.some(b=>!nav.resolve(role,b.dataset.page,groups));
+   const headline=requirements?document.getElementById('page-title')?.closest('.page-head'):null;
+   if(headline&&requirements){let notice=document.getElementById('account-requirements');if(!notice){notice=document.createElement('div');notice.id='account-requirements';notice.className='notice account-requirements';headline.after(notice);}const missing=[];
+    if(requirements.approvalStatus!=='approved')missing.push('account approval');
+    if(role==='user')for(const [key,label]of [['initialDepositSatisfied','initial deposit'],['approvedBankAccountAvailable','approved bank account'],['statementSatisfied','accepted statement'],['upiApproved','UPI approval'],['upiVerified','UPI verification'],['operationsEnabled','operations enabled by Admin']])if(!requirements[key])missing.push(label);
+    notice.hidden=!blocked;notice.textContent=missing.length?'Some sections are locked until setup is complete: '+missing.join(', ')+'. Start with Bank & UPI and USDT Deposit.':'Some sections are unavailable under your current account permissions. Contact Support for access.';
+   }
    for(const b of buttons){const available=!!nav.resolve(role,b.dataset.page,groups);b.disabled=!available;b.setAttribute('aria-disabled',String(!available));b.title=available?'':'Requires account permission or funding';}
    document.querySelectorAll('[data-account-name]').forEach(n=>{n.textContent=account.name;});
    document.querySelectorAll('[data-account-status]').forEach(n=>{n.textContent=account.approvalStatus||account.status;});
-   let key=selected?.startsWith('ui:')?selected.slice(3):null;
+   let key=selected==='security'?'security':selected?.startsWith('ui:')?selected.slice(3):null;
    if(!selected){key=location.hash.slice(1)|| (role==='user'?'overview':'dashboard');if(!nav.resolve(role,key,groups))key=nav.resolve(role,'profile',groups)?'profile':Object.keys(nav.routes[role]).find(k=>nav.resolve(role,k,groups));}
    if(!key)key=Object.keys(nav.routes[role]).find(k=>nav.resolve(role,k,groups)?.destinationId===selected)||'profile';
    const page=nav.resolve(role,key,groups);if(!page)throw new Error('error.FORBIDDEN');

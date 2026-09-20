@@ -44,4 +44,4 @@ function hydrateIcons(){
   $$('[data-icon]').forEach(el=>el.innerHTML=svgIcon(el.dataset.icon));
 }
 
-hydrateIcons();})();
+globalThis.WPayReferenceIcons={hydrate(scope){scope.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=svgIcon(el.dataset.icon));}};hydrateIcons();})();

@@ -4,7 +4,7 @@ const entryRole=document.querySelector('meta[name="wpay-entry-role"]')?.content;
 const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
-let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now();
+let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now(), pendingNavigation = null;
 const tr = key => globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
 function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
@@ -21,20 +21,30 @@ function message(key = "") {
   if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
 }
 function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
-function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
+function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
 async function request(route,method = "GET",body,csrf) {
-  let response;
-  try { response = await fetch(apiRoot + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
+  let response,value;
+  const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 20000);
+  try { response = await fetch(apiRoot + route,{signal:abort.signal,method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); value=await response.json(); }
   catch { throw new Error("error.UNAVAILABLE"); }
-  let value; try { value = await response.json(); } catch { throw new Error("error.UNAVAILABLE"); }
+  finally { clearTimeout(timeout); }
   if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) || globalThis.WPayPayoutLocales?.hasError(value.error) ? value.error : "UNAVAILABLE")); }
   return value;
 }
-async function post(route,body = {}) { const csrf = await request("csrf","POST",{}); return request(route,"POST",body,csrf.csrfToken); }
+async function post(route,body = {}) {
+  for(let attempt=0;attempt<2;attempt++){
+    if(!post.csrf||post.csrf.until<Date.now())post.csrf={until:Date.now()+300000,promise:request("csrf","POST",{})};
+    try{
+      const csrf=await post.csrf.promise,result=await request(route,"POST",body,csrf.csrfToken);
+      if(/^(login|register|logout|logout-all|refresh|mfa\/|password\/)/.test(route))post.csrf=null;
+      return result;
+    }catch(error){post.csrf=null;if(error.message!=="error.CSRF_FAILED"||attempt)throw error;}
+  }
+}
 async function action(callback) {
   if (busy) return; busy = true; message("loading"); $("workspace").setAttribute("aria-busy","true"); $("language").disabled = true;
   try { await callback(); } catch(error) { message(error.message.startsWith("error.") ? error.message : "error.UNAVAILABLE"); }
-  finally { busy = false; $("workspace").setAttribute("aria-busy","false"); globalThis.WPayReferenceUi?.restoreAvailability(); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); }
+  finally { busy = false; $("workspace").setAttribute("aria-busy","false"); globalThis.WPayReferenceUi?.restoreAvailability(); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); globalThis.WPayReferencePresentation?.refresh(); if(pendingNavigation!==null){const next=pendingNavigation;pendingNavigation=null;navigate(next);} }
 }
 function renderAccess() {
   const root = $("access-card"); root.replaceChildren(); if (stage) return renderMfa(root);
@@ -53,6 +63,7 @@ function renderAccess() {
     finally { password.value = ""; data.password = ""; }
   }); };
   root.append(form);if(!['admin','employee'].includes(entryRole))root.append(button(mode === "register" ? "switchLogin" : "switchRegister",() => { mode = mode === "register" ? "login" : "register"; renderAccess(); message(); },"text-button"));
+  globalThis.WPayReferencePresentation?.login(root,mode,locale);
 }
 async function handleStage(result) {
   if (result.stage === "authenticated") { stage = null; $("access-card").replaceChildren(); return load(); }
@@ -167,18 +178,31 @@ async function review(item,page,offset) {
   form.append(button("saveApproval",() => action(async () => { for (const key of fields) if (!form.elements[key].reportValidity()) return; await decide("approve"); }),"primary"));
   const reason = field(form,"reason"); reason.required = false; reason.maxLength = 500; form.append(button("reject",() => action(() => decide("reject"))),button("cancel",() => dialog.close())); dialog.append(form); dialog.showModal();
 }
-async function load(selected = destination) {
-  account = await request("me"); locale = L.choose(explicitLocale,account.accountType === "merchant" ? account.locale : null,navigator.language);
+function navigate(selected) {
+  if(busy){pendingNavigation=selected;message('loading');return;}
+  return action(()=>load(selected,true));
+}
+async function load(selected = destination, reuseSession = false) {
+  let navigation;
+  if(reuseSession && typeof account !== 'undefined' && account && load.session && Date.now()<load.session.until){
+    navigation=load.session.navigation;
+  }else{
+    const values=await Promise.all([request("me"),request("navigation")]);account=values[0];navigation=values[1];
+    load.session={navigation,until:Date.now()+15000};
+  }
+  locale = L.choose(explicitLocale,account.accountType === "merchant" ? account.locale : null,navigator.language);
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
-  applyLocale(); const navigation = await request("navigation");
+  applyLocale();
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status); $("navigation").replaceChildren();
   for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",(group.id.startsWith("operations.group.") || group.id.startsWith("parking.group.") || group.id.endsWith(".transactions")) ? group.label : group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,account.accountType==='merchant'?'entry':'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));if(page.destinationId.startsWith('operations.')||page.destinationId.startsWith('parking.'))item.textContent=page.label;node.append(item);} $("navigation").append(node); }
   if(globalThis.WPayReferenceUi) selected=globalThis.WPayReferenceUi.sync(account,navigation,selected);
   destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   const referenceSection=globalThis.WPayReferenceUi?.section;
+  if(globalThis.WPayReferencePresentation)globalThis.WPayReferencePresentation.begin(account,referenceSection);
+  if(referenceSection==='fees'&&account.accountType==='merchant')return globalThis.WPayReferencePresentation.fees({request,post,action,el,container:$("page-content")});
   if(referenceSection==='transactions'&&account.accountType==='user')return globalThis.WPayReferenceHistory.render({groups:navigation.groups,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(referenceSection==='settings')return globalThis.WPayReferenceUi.settings();
-  if(page && ["user.overview.view","merchant.overview.view"].includes(page.permissionId))return globalThis.WPayRoleDashboard.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page && ["user.overview.view","merchant.overview.view"].includes(page.permissionId))return (globalThis.WPayReferenceDashboard||globalThis.WPayRoleDashboard).render({account,locale,request,post,action,el,groups:navigation.groups,container:$("page-content"),title:$("page-title")});
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if(page && !page.destinationId.startsWith('operations.') && globalThis.WPayCompletionPage.pages[page.permissionId])return globalThis.WPayCompletionPage.render({permission:page.permissionId,destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title"),review:item=>review(item,page,0)});
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
@@ -191,7 +215,7 @@ async function load(selected = destination) {
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayFundingPage.pages[page.permissionId]) return globalThis.WPayFundingPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page && globalThis.WPayBusinessPage.pages[page.permissionId]) return globalThis.WPayBusinessPage.render({permission:page.permissionId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
-  if((!page||["user.overview.view","merchant.overview.view"].includes(page.permissionId))&&["user","merchant"].includes(account?.accountType)&&globalThis.WPayRoleDashboard?.render)return globalThis.WPayRoleDashboard.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if((!page||["user.overview.view","merchant.overview.view"].includes(page.permissionId))&&["user","merchant"].includes(account?.accountType)&&globalThis.WPayRoleDashboard?.render)return (globalThis.WPayReferenceDashboard||globalThis.WPayRoleDashboard).render({account,locale,request,post,action,el,groups:navigation.groups,container:$("page-content"),title:$("page-title")});
   if (!page || ["profile.view","overview.view"].includes(page.permissionId)) return profile();
   throw new Error("error.NOT_FOUND");
 }
@@ -203,10 +227,10 @@ async function logoutAll() { await post("logout-all"); showLogin(); message("log
 $("language").onchange = () => action(() => changeLocale($("language").value)); $("account-home").onclick = () => action(() => load(null));
 const roleTheme=document.getElementById('role-theme'),roleNotifications=document.getElementById('role-notifications'),roleProfile=document.getElementById('role-profile');
 if(roleTheme){let saved;try{saved=localStorage.getItem('wpay-role-theme');}catch{/* Preference only. */}if(saved==='light')document.documentElement.classList.add(globalThis.WPayReferenceUi?'light':'role-light');roleTheme.onclick=()=>{const themeClass=globalThis.WPayReferenceUi?'light':'role-light';document.documentElement.classList.toggle(themeClass);try{localStorage.setItem('wpay-role-theme',document.documentElement.classList.contains(themeClass)?'light':'dark');}catch{/* Preference only. */}};}
-if(roleNotifications)roleNotifications.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.notifications'));
-if(roleProfile)roleProfile.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.profile'));
+if(roleNotifications)roleNotifications.onclick=()=>navigate((entryRole||account?.accountType)+'.notifications');
+if(roleProfile)roleProfile.onclick=()=>navigate((entryRole||account?.accountType)+'.profile');
 $("logout").onclick = () => action(async () => { await post("logout"); showLogin(); message("loggedOut"); }); $("logout-all").onclick = () => action(logoutAll);
 for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
 setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
-globalThis.WPayReferenceUi?.connect({load,action});
-applyLocale(); renderAccess(); load().catch(error => { showLogin(); if (error.message !== "error.AUTH_FAILED") message(error.message); });
+globalThis.WPayReferenceUi?.connect({load,action,navigate});
+applyLocale(); renderAccess(); action(async()=>{try{await load();}catch(error){showLogin();if(error.message!=="error.AUTH_FAILED")message(error.message);}});
