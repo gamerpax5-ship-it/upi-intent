@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12070d">
+<title>WPay Merchant — Complete Working Prototype</title>
+
+<script src="/wpay-auth/prototype-xlsx.js"></script>
+<meta name="wpay-entry-role" content="merchant"><link rel="stylesheet" href="/wpay-auth/merchant-prototype.css"></head>
+<body><div class="phase-one-notice" role="status">UI preview · Sample data · No real payments or account changes</div>
+
+<section class="login-shell" id="loginView">
+  <div class="login-hero">
+    <div class="brand"><div class="brandmark" id="loginLogo"></div><div><strong>WPay</strong><small>Merchant workspace</small></div></div>
+    <div class="hero-copy">
+      <div class="eyebrow">Merchant Portal</div>
+      <h1>Accept payments. <span>Track every order.</span> Stay in control.</h1>
+      <p>Create manual or API payment links, monitor order success, manage webhooks, review Merchant-originated payout proofs, understand platform fees and keep customer-facing payment status truthful.</p>
+      <div class="hero-grid">
+        <div class="hero-feature"><div class="hi" data-icon="link"></div><div><strong>Payment links</strong><span>Create shareable INR checkout links with QR, expiry, reference and idempotent order creation.</span></div></div>
+        <div class="hero-feature"><div class="hi" data-icon="chart"></div><div><strong>Payment analytics</strong><span>Measure successful, pending, failed and recovered orders without exposing User bank/device details.</span></div></div>
+        <div class="hero-feature"><div class="hi" data-icon="api"></div><div><strong>API & webhooks</strong><span>Scoped API keys, HMAC-signed webhooks, retries, logs and delivery visibility.</span></div></div>
+        <div class="hero-feature"><div class="hi" data-icon="payout"></div><div><strong>Payout review</strong><span>Create beneficiary payout requests and review proof submitted by Users for Merchant-originated orders.</span></div></div>
+      </div>
+    </div>
+    <div class="login-foot">Merchant never sees User bank credentials, devices, OTPs or private routing details.</div>
+  </div>
+  <div class="login-panel">
+    <div class="login-card">
+      <div class="eyebrow">Welcome back</div>
+      <h2>Sign in to WPay Merchant</h2>
+      <p>Use your Merchant password and authenticator MFA.</p>
+      <form id="loginForm">
+        <div class="field"><label>Email address</label><input class="control" id="loginEmail" type="email" value="merchant@wpay.demo" required></div>
+        <div class="field"><label>Password</label><input class="control" id="loginPassword" type="password" value="Merchant@123" required></div>
+        <div class="login-row"><label><input type="checkbox" checked> Remember me</label><a href="#" id="forgotPassword">Forgot password?</a></div>
+        <button class="btn primary w100" style="margin-top:15px">Sign in →</button>
+      </form>
+      <div class="divider">then verify</div>
+      <button class="btn ghost w100" id="authLogin"><span data-icon="shield"></span>Authenticator MFA</button>
+      <div class="demo-box"><strong>Demo:</strong> merchant@wpay.demo · Merchant@123 · MFA 123456<br>Password policy concept: 8+ chars with uppercase, lowercase, number and symbol.</div>
+    </div>
+  </div>
+</section>
+
+<section class="app hidden" id="appView">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brandmark" id="sideLogo"></div><div><strong>WPay</strong><small>Merchant Portal</small></div></div>
+    <nav class="nav">
+      <div class="nav-section"><div class="nav-title">Workspace</div>
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon"></span>Dashboard</button>
+        <button class="nav-item" data-page="analytics"><span class="nav-icon"></span>Analytics</button>
+      </div>
+      <div class="nav-section"><div class="nav-title">Payments</div>
+        <button class="nav-item" data-page="links"><span class="nav-icon"></span>Payment Links</button>
+        <button class="nav-item" data-page="orders"><span class="nav-icon"></span>Orders & Payments</button>
+        <button class="nav-item" data-page="transactions"><span class="nav-icon"></span>Transactions</button>
+        <button class="nav-item" data-page="payouts"><span class="nav-icon"></span>Payout Requests</button>
+        <button class="nav-item" data-page="payout-review"><span class="nav-icon"></span>Payout Review <span class="tag">2</span></button>
+      </div>
+      <div class="nav-section"><div class="nav-title">Developer</div>
+        <button class="nav-item" data-page="api"><span class="nav-icon"></span>API Credentials</button>
+        <button class="nav-item" data-page="webhooks"><span class="nav-icon"></span>Webhooks</button>
+        <button class="nav-item" data-page="logs"><span class="nav-icon"></span>API Logs</button>
+        <button class="nav-item" data-page="docs"><span class="nav-icon"></span>API Documentation</button>
+      </div>
+      <div class="nav-section"><div class="nav-title">Finance</div>
+        <button class="nav-item" data-page="fees"><span class="nav-icon"></span>Platform Fees</button>
+        <button class="nav-item" data-page="ledger"><span class="nav-icon"></span>Balance & Ledger</button>
+        <button class="nav-item" data-page="holds"><span class="nav-icon"></span>Held / Frozen</button>
+        <button class="nav-item" data-page="settlement"><span class="nav-icon"></span>USDT Withdrawal</button>
+        <button class="nav-item" data-page="reports"><span class="nav-icon"></span>Reports</button>
+      </div>
+      <div class="nav-section"><div class="nav-title">Account</div>
+        <button class="nav-item" data-page="notifications"><span class="nav-icon"></span>Notifications</button>
+        <button class="nav-item" data-page="support"><span class="nav-icon"></span>Support</button>
+        <button class="nav-item" data-page="security"><span class="nav-icon"></span>Security</button>
+        <button class="nav-item" data-page="profile"><span class="nav-icon"></span>Profile & Settings</button>
+      </div>
+    </nav>
+    <div class="sidebar-foot"><div class="mini"><div class="avatar">NM</div><div><strong>Nova Merchant</strong><small>Merchant · Approved</small></div><button class="logout" id="logoutBtn" data-icon="logout"></button></div></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="search"><span data-icon="search"></span><input id="globalSearch" placeholder="Search orders, links, payout refs, API logs…"></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" title="Theme"><span data-icon="sun"></span></button>
+        <button class="icon-btn" data-go="notifications" title="Notifications"><span data-icon="bell"></span><span class="notif-dot"></span></button>
+        <button class="icon-btn" data-go="profile" title="Profile"><span data-icon="user"></span></button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-head"><div><div class="eyebrow">Merchant Dashboard</div><h1>Good evening, Nova Merchant.</h1><p>Your orders, payment volume, fees, payouts, webhook health and settlement capability in one place.</p></div><div class="actions"><button class="btn ghost" data-go="payouts">Create Payout</button><button class="btn primary" data-go="links">＋ Create Payment Link</button></div></div>
+        <div class="grid metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+          <div class="card metric"><div class="metric-top"><span>Available Balance</span><span class="metric-icon" data-icon="wallet"></span></div><div class="metric-value" id="dashAvailable">₹12,39,080</div><div class="metric-foot green">Available for payouts / USDT withdrawal</div></div>
+          <div class="card metric"><div class="metric-top"><span>Frozen Balance</span><span class="metric-icon" data-icon="lock"></span></div><div class="metric-value" id="dashFrozen">₹8,000</div><div class="metric-foot red">Dispute / risk frozen</div></div>
+          <div class="card metric"><div class="metric-top"><span>Hold Balance</span><span class="metric-icon" data-icon="clock"></span></div><div class="metric-value" id="dashHold">₹18,500</div><div class="metric-foot amber">Active payout holds</div></div>
+          <div class="card metric"><div class="metric-top"><span>Total Volume</span><span class="metric-icon" data-icon="chart"></span></div><div class="metric-value" id="dashVolume">₹12,84,000</div><div class="metric-foot green">Successful payment volume</div></div>
+          <div class="card metric"><div class="metric-top"><span>Payout Orders</span><span class="metric-icon" data-icon="payout"></span></div><div class="metric-value" id="dashPayoutOrders">2</div><div class="metric-foot">Merchant-created payout requests</div></div>
+          <div class="card metric"><div class="metric-top"><span>Successful Orders</span><span class="metric-icon" data-icon="check"></span></div><div class="metric-value">1,426</div><div class="metric-foot green">96.4% success rate</div></div>
+        </div>
+        <div class="grid two">
+          <div class="card pad"><div class="card-head"><div><h2>Payment Volume</h2><p>Successful vs pending order trend.</p></div><span class="pill info">30 days</span></div><div class="chart"><svg id="dashChart" viewBox="0 0 760 285"></svg></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Operational Health</h2><p>Merchant-facing systems only.</p></div></div><div class="item-list"><div class="item"><div class="tile" data-icon="link"></div><div class="item-main"><strong>Payment links</strong><small>Creation available</small></div><span class="pill ok">Healthy</span></div><div class="item"><div class="tile" data-icon="webhook"></div><div class="item-main"><strong>Webhooks</strong><small>Last delivery 18 sec ago</small></div><span class="pill ok">Healthy</span></div><div class="item"><div class="tile" data-icon="api"></div><div class="item-main"><strong>Merchant API</strong><small>2 active API credentials</small></div><span class="pill ok">Healthy</span></div><div class="item"><div class="tile" data-icon="settlement"></div><div class="item-main"><strong>USDT settlement</strong><small>Merchant-specific FX/custody not approved</small></div><span class="pill pending">Disabled</span></div></div></div>
+        </div>
+        <div class="grid quick-grid">
+          <div class="card quick" data-go="links"><div class="tile" data-icon="link"></div><div><strong>Create Payment Link</strong><small>Manual INR checkout</small></div></div>
+          <div class="card quick" data-go="payouts"><div class="tile" data-icon="payout"></div><div><strong>Create Payout</strong><small>Beneficiary payout request</small></div></div>
+          <div class="card quick" data-go="webhooks"><div class="tile" data-icon="webhook"></div><div><strong>Webhook Health</strong><small>Delivery attempts & retries</small></div></div>
+          <div class="card quick" data-go="api"><div class="tile" data-icon="api"></div><div><strong>API Credentials</strong><small>Scoped server keys</small></div></div>
+        </div>
+        <div class="grid equal" style="margin-top:14px">
+          <div class="card table-card"><div class="table-head"><h2>Recent Orders</h2><button class="btn sm ghost" data-go="orders">View all</button></div><div class="table-scroll"><table><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Channel</th></tr></thead><tbody id="dashOrders"></tbody></table></div></div>
+          <div class="card table-card"><div class="table-head"><h2>Payout Review Queue</h2><button class="btn sm ghost" data-go="payout-review">Open review</button></div><div class="table-scroll"><table><thead><tr><th>Payout</th><th>Amount</th><th>User proof</th><th>Status</th></tr></thead><tbody id="dashPayoutReviews"></tbody></table></div></div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="page" id="page-analytics">
+        <div class="page-head"><div><div class="eyebrow">Performance</div><h1>Analytics</h1><p>Order conversion, successful volume, pending/failed states, recovery and fees.</p></div><div class="actions"><select class="control" id="analyticsWindow"><option>Last 24 hours</option><option selected>Last 7 days</option><option>Last 30 days</option></select><button class="btn ghost" id="analyticsCsv">Export CSV</button></div></div>
+        <div class="grid metrics"><div class="card metric"><div class="metric-top">Success rate</div><div class="metric-value">96.4%</div><div class="metric-foot green">+1.8 pp</div></div><div class="card metric"><div class="metric-top">Pending</div><div class="metric-value">41</div><div class="metric-foot amber">2.8% of orders</div></div><div class="card metric"><div class="metric-top">Failed</div><div class="metric-value">12</div><div class="metric-foot red">0.8% of orders</div></div><div class="card metric"><div class="metric-top">Recovered</div><div class="metric-value">8</div><div class="metric-foot">Statement/UTR recovery</div></div></div>
+        <div class="card pad"><div class="card-head"><div><h2>Order Success Trend</h2><p>Illustrative data for prototype review.</p></div></div><div class="chart"><svg id="analyticsChart" viewBox="0 0 760 285"></svg></div></div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Channel breakdown</h2></div><div class="table-scroll"><table><thead><tr><th>Channel</th><th>Orders</th><th>Success</th><th>Pending</th><th>Failed</th><th>Volume</th><th>Rate</th></tr></thead><tbody><tr><td>Manual Payment Links</td><td>610</td><td>590</td><td>14</td><td>6</td><td>₹5.22L</td><td class="green">96.7%</td></tr><tr><td>API Orders</td><td>852</td><td>822</td><td>27</td><td>3</td><td>₹7.62L</td><td class="green">96.5%</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- PAYMENT LINKS -->
+      <section class="page" id="page-links">
+        <div class="page-head"><div><div class="eyebrow">Collections</div><h1>Payment Links</h1><p>Create canonical Merchant payment links without exposing User bank/device/routing details.</p></div><div class="actions"><button class="btn primary" id="openCreateLink">＋ Create Payment Link</button></div></div>
+        <div class="grid equal">
+          <div class="card pad"><div class="card-head"><div><h2>Create link</h2><p>Manual INR order using the same gateway contract.</p></div></div><form id="linkForm">
+            <div class="field"><label>Merchant reference</label><input class="control" id="linkRef" placeholder="SHOP-ORDER-001" required></div>
+            <div class="field"><label>Amount type</label><select class="control" id="amountType"><option value="fixed">Fixed INR amount</option><option value="open">Customer enters amount</option></select></div>
+            <div class="field" id="fixedAmountField"><label>Amount (INR)</label><input class="control" id="linkAmount" type="number" min="1" step=".01" value="1250.50" required></div>
+            <div class="field"><label>Description</label><input class="control" id="linkDescription" placeholder="Order payment"></div>
+            <div class="facts" style="grid-template-columns:1fr 1fr;margin-top:12px">
+              <div class="fact"><label>Expiry</label><strong><span id="adminLinkTtlText">30 minutes</span> · Admin controlled</strong></div>
+              <div class="fact"><label>Routing</label><strong>Auto · WPay assigned eligible route</strong></div>
+            </div>
+            <div class="notice" style="margin-top:12px">Merchant cannot select expiry or underlying User/UPI route. WPay uses the Admin-configured TTL and an eligible assigned route without exposing User bank/device details.</div>
+            <button class="btn primary" style="margin-top:14px">Generate Payment Link</button>
+          </form><div class="notice" style="margin-top:12px">No eligible routing/capacity → no fake payable link. This prototype uses synthetic routing availability.</div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Generated link</h2><p>Share, copy or open checkout.</p></div></div><div id="linkPreview"><div class="empty"><strong>No generated link yet</strong>Create a link to preview QR, URL and expiry.</div></div></div>
+        </div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Payment Link History</h2></div><div class="table-scroll"><table><thead><tr><th>Reference</th><th>Amount</th><th>Created</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody id="linkRows"></tbody></table></div></div>
+      </section>
+
+      <!-- ORDERS -->
+      <section class="page" id="page-orders">
+        <div class="page-head"><div><div class="eyebrow">Collections</div><h1>Orders & Payments</h1><p>Merchant-facing order status only — no User bank/device/OTP/private route details.</p></div><div class="actions"><input class="control" id="orderSearch" placeholder="Search order/reference"></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Order</th><th>Reference</th><th>Amount</th><th>Origin</th><th>Status</th><th>UTR/Evidence</th><th>Webhook</th></tr></thead><tbody id="orderRows"></tbody></table></div></div>
+      </section>
+
+      <!-- TRANSACTIONS -->
+      <section class="page" id="page-transactions">
+        <div class="page-head"><div><div class="eyebrow">Finance</div><h1>Transactions</h1><p>Unified Merchant order, payout, fee and settlement history.</p></div><div class="actions"><select class="control" id="txFilter"><option value="all">All types</option><option>Order</option><option>Payout</option><option>Fee</option></select></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Gross</th><th>Fees</th><th>Net</th><th>Status</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
+      </section>
+
+      <!-- PAYOUT CREATE -->
+      <section class="page" id="page-payouts">
+        <div class="page-head"><div><div class="eyebrow">Merchant payouts</div><h1>Payout Requests</h1><p>Create a single payout or upload a validated Excel batch. Payout creation is capped by your current available balance.</p></div><div class="actions"><span class="pill info">Available: <strong id="payoutAvailableBalance">₹12,39,080</strong></span></div></div>
+        <div class="tabs" id="payoutTabs"><button class="active" data-payout-tab="single">Single Payout</button><button data-payout-tab="bulk">Bulk Payout · Excel</button></div>
+        <div id="singlePayoutPanel" style="margin-top:14px">
+          <div class="grid equal">
+            <div class="card pad"><h2 style="margin-top:0">Create payout</h2><form id="payoutForm">
+              <div class="field"><label>Beneficiary name</label><input class="control" id="poName" required></div>
+              <div class="field"><label>Bank name</label><input class="control" id="poBank" required></div>
+              <div class="field"><label>Account number</label><input class="control mono" id="poAccount" required></div>
+              <div class="field"><label>IFSC</label><input class="control mono" id="poIfsc" required></div>
+              <div class="field"><label>UPI ID (optional)</label><input class="control" id="poUpi"></div>
+              <div class="field"><label>Amount (INR)</label><input class="control" id="poAmount" type="number" min="1" required></div>
+              <div class="field"><label>Merchant reference</label><input class="control" id="poRef" required></div>
+              <button class="btn primary" style="margin-top:14px">Create Payout</button>
+            </form></div>
+            <div class="card pad"><div class="card-head"><div><h2>What happens next</h2><p>Merchant-originated review path.</p></div></div><div class="item-list"><div class="item"><div class="tile" data-icon="payout"></div><div class="item-main"><strong>1. Request enters User pool</strong><small>Eligible Users see the job; Merchant never sees private User routing details.</small></div></div><div class="item"><div class="tile" data-icon="clock"></div><div class="item-main"><strong>2. User creates payout</strong><small>10-minute lock, then 5-minute cooldown if unpaid.</small></div></div><div class="item"><div class="tile" data-icon="review"></div><div class="item-main"><strong>3. Proof returns to Merchant review</strong><small>Merchant reviews UTR/proof because the payout originated here.</small></div></div></div></div>
+          </div>
+        </div>
+        <div id="bulkPayoutPanel" class="hidden" style="margin-top:14px">
+          <div class="grid equal">
+            <div class="card pad"><div class="card-head"><div><h2>1. Download & fill Excel template</h2><p>Use the exact WPay columns.</p></div></div><div class="notice">Required: Beneficiary Name, Bank Name, Account Number, IFSC, Amount (INR), Merchant Reference. UPI ID is optional.</div><button class="btn primary" id="downloadBulkTemplate" style="margin-top:12px">Download Excel Template (.xlsx)</button><div class="item" style="margin-top:12px"><div class="tile" data-icon="wallet"></div><div class="item-main"><strong>Current available balance</strong><small>The combined upload cannot exceed this amount.</small></div><strong id="bulkAvailableBalance">₹12,39,080</strong></div></div>
+            <div class="card pad"><div class="card-head"><div><h2>2. Upload completed Excel</h2><p>.xlsx preferred; CSV accepted as fallback.</p></div></div><input class="control" type="file" id="bulkPayoutFile" accept=".xlsx,.xls,.csv"><div id="bulkUploadStatus" class="notice" style="margin-top:12px">No file loaded.</div><div class="facts" style="grid-template-columns:1fr 1fr;margin-top:12px"><div class="fact"><label>Valid rows</label><strong id="bulkRowCount">0</strong></div><div class="fact"><label>Batch total</label><strong id="bulkTotal">₹0</strong></div></div><button class="btn primary w100" id="createBulkPayouts" disabled style="margin-top:12px">Create Bulk Payouts</button></div>
+          </div>
+          <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Bulk Upload Preview</h2><span class="pill info" id="bulkBalanceBadge">Balance validation pending</span></div><div class="table-scroll"><table><thead><tr><th>#</th><th>Beneficiary</th><th>Bank</th><th>Account</th><th>IFSC</th><th>UPI</th><th>Amount</th><th>Reference</th><th>Validation</th></tr></thead><tbody id="bulkPreviewRows"><tr><td colspan="9"><div class="empty"><strong>No uploaded rows</strong>Download, fill and upload the Excel template.</div></td></tr></tbody></table></div></div>
+        </div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Created Payout Requests</h2></div><div class="table-scroll"><table><thead><tr><th>Payout</th><th>Beneficiary</th><th>Amount</th><th>Reference</th><th>Status</th><th>Created</th></tr></thead><tbody id="payoutRows"></tbody></table></div></div>
+      </section>
+
+      <!-- PAYOUT REVIEW -->
+      <section class="page" id="page-payout-review">
+        <div class="page-head"><div><div class="eyebrow">Review</div><h1>Payout Review</h1><p>Review UTR/proof submitted by Users only for Merchant-originated payout requests.</p></div></div>
+        <div class="grid equal">
+          <div class="card pad"><div class="card-head"><div><h2>Awaiting review</h2><p>Proof available; financial posting remains once-only and auditable.</p></div><span class="pill pending">2 pending</span></div><div class="item-list" id="reviewList"></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Selected proof</h2><p>User private routing/bank/device details are never shown.</p></div></div><div id="reviewDetail"><div class="empty"><strong>Select a payout</strong>Review Merchant reference, beneficiary, amount, UTR and submitted proof.</div></div></div>
+        </div>
+      </section>
+
+      <!-- API -->
+      <section class="page" id="page-api">
+        <div class="page-head"><div><div class="eyebrow">Developer</div><h1>API Credentials</h1><p>Create scoped server credentials. Secrets are shown once and never displayed again.</p></div><div class="actions"><button class="btn primary" id="createApiKey">＋ Create API Key</button></div></div>
+        <div class="notice">Never expose Merchant API keys in a browser, mobile app, URL or client-side JavaScript. Use them from your server.</div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-scroll"><table><thead><tr><th>Label</th><th>Prefix</th><th>Scopes</th><th>Created</th><th>Last used</th><th>Status</th><th>Action</th></tr></thead><tbody id="apiKeyRows"></tbody></table></div></div>
+      </section>
+
+      <!-- WEBHOOKS -->
+      <section class="page" id="page-webhooks">
+        <div class="page-head"><div><div class="eyebrow">Developer</div><h1>Webhooks</h1><p>Configure HTTPS delivery, rotate HMAC secret and monitor retry state.</p></div></div>
+        <div class="grid equal">
+          <div class="card pad"><h2 style="margin-top:0">Endpoint</h2><form id="webhookForm"><div class="field"><label>HTTPS callback URL</label><input class="control" id="webhookUrl" value="https://merchant.example.com/wpay/webhook" required></div><button class="btn primary" style="margin-top:14px">Save endpoint / Rotate secret</button></form><div class="notice" style="margin-top:12px">HMAC-SHA256(secret, timestamp + "." + eventId + "." + exactBodyBytes). Verify in constant time and reject replayed event IDs.</div></div>
+          <div class="card pad"><h2 style="margin-top:0">Delivery status</h2><div class="item-list"><div class="item"><div class="tile" data-icon="webhook"></div><div class="item-main"><strong>order.successful</strong><small>HTTP 200 · 18 sec ago</small></div><span class="pill ok">Delivered</span></div><div class="item"><div class="tile" data-icon="webhook"></div><div class="item-main"><strong>payout.review_required</strong><small>Attempt 2 · next retry in 48 sec</small></div><span class="pill pending">Pending</span></div></div></div>
+        </div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Webhook Events</h2></div><div class="table-scroll"><table><thead><tr><th>Event ID</th><th>Type</th><th>Order/Payout</th><th>State</th><th>Attempts</th><th>Last code</th><th>Action</th></tr></thead><tbody id="webhookRows"></tbody></table></div></div>
+      </section>
+
+      <!-- LOGS -->
+      <section class="page" id="page-logs">
+        <div class="page-head"><div><div class="eyebrow">Developer</div><h1>API Logs</h1><p>Redacted request metadata, status and latency. Secrets/bodies are not exposed.</p></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Time</th><th>Method</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Request ID</th></tr></thead><tbody><tr><td>20:42:18</td><td>POST</td><td>/wpay-api/v1/orders</td><td><span class="pill ok">201</span></td><td>142 ms</td><td class="mono">req_8e42</td></tr><tr><td>20:41:02</td><td>GET</td><td>/wpay-api/v1/orders/ORD-1042</td><td><span class="pill ok">200</span></td><td>81 ms</td><td class="mono">req_8e31</td></tr><tr><td>20:39:57</td><td>POST</td><td>/wpay-api/v1/orders</td><td><span class="pill bad">409</span></td><td>69 ms</td><td class="mono">req_8e20</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- DOCS -->
+      <section class="page" id="page-docs">
+        <div class="page-head"><div><div class="eyebrow">Developer</div><h1>API Documentation</h1><p>Server-to-server INR order creation, idempotency and webhook verification.</p></div></div>
+        <div class="grid equal">
+          <div class="card pad"><h2 style="margin-top:0">Create order</h2><div class="codebox">POST /wpay-api/v1/orders
+Authorization: Bearer YOUR_API_KEY
+Idempotency-Key: shop-order-001
+Content-Type: application/json
+
+{
+  "reference": "shop-order-001",
+  "amountMinor": "125050",
+  "currency": "INR",
+  "description": "Example order"
+}</div></div>
+          <div class="card pad"><h2 style="margin-top:0">Webhook signature</h2><div class="codebox">HMAC-SHA256(
+  secret,
+  timestamp + "." + eventId + "." + exactBodyBytes
+)
+
+x-wpay-timestamp: Unix seconds
+x-wpay-event-id: stable UUID
+x-wpay-signature: v1=hex</div></div>
+        </div>
+        <div class="notice" style="margin-top:14px">Repeat the same idempotency key + payload after timeout. NO_ROUTE creates no order/payment link. Submitted UTR is never proof of success.</div>
+      </section>
+
+      <!-- FEES -->
+      <section class="page" id="page-fees">
+        <div class="page-head"><div><div class="eyebrow">Commercials</div><h1>Platform Fees</h1><p>Versioned Merchant fee terms and immutable order snapshots.</p></div></div>
+        <div class="grid metrics"><div class="card metric"><div class="metric-top">Pay-in fee</div><div class="metric-value">1.20%</div><div class="metric-foot">Current version</div></div><div class="card metric"><div class="metric-top">Payout fee</div><div class="metric-value">0.45%</div><div class="metric-foot">Current version</div></div><div class="card metric"><div class="metric-top">Fixed fee</div><div class="metric-value">₹2.00</div><div class="metric-foot">Per eligible order</div></div><div class="card metric"><div class="metric-top">Commercial version</div><div class="metric-value">v4</div><div class="metric-foot">Active since 18 Sep</div></div></div>
+        <div class="card table-card"><div class="table-head"><h2>Fee Version History</h2></div><div class="table-scroll"><table><thead><tr><th>Version</th><th>Pay-in</th><th>Payout</th><th>Fixed</th><th>Effective</th><th>Status</th></tr></thead><tbody><tr><td>v4</td><td>1.20%</td><td>0.45%</td><td>₹2</td><td>18 Sep 2026</td><td><span class="pill ok">Current</span></td></tr><tr><td>v3</td><td>1.30%</td><td>0.50%</td><td>₹2</td><td>01 Aug 2026</td><td><span class="pill info">Historical</span></td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- LEDGER -->
+      <section class="page" id="page-ledger">
+        <div class="page-head"><div><div class="eyebrow">Finance</div><h1>Balance & Ledger</h1><p>Immutable Merchant accounting view: gross, fees, holds and available INR.</p></div></div>
+        <div class="grid metrics"><div class="card metric"><div class="metric-top">Gross successful</div><div class="metric-value">₹12.84L</div></div><div class="card metric"><div class="metric-top">Fees</div><div class="metric-value">₹18,420</div></div><div class="card metric"><div class="metric-top">Held</div><div class="metric-value">₹26,500</div></div><div class="card metric"><div class="metric-top">Available</div><div class="metric-value">₹12.39L</div></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Debit</th><th>Credit</th><th>Running impact</th></tr></thead><tbody><tr><td>20 Sep</td><td>ORD-1042</td><td>Pay-in successful</td><td>—</td><td class="green">₹12,500</td><td>Posted</td></tr><tr><td>20 Sep</td><td>FEE-1042</td><td>Platform fee</td><td>₹152</td><td>—</td><td>Posted</td></tr><tr><td>20 Sep</td><td>HLD-390</td><td>Payout hold</td><td>₹18,500</td><td>—</td><td>Held</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- HOLDS -->
+      <section class="page" id="page-holds">
+        <div class="page-head"><div><div class="eyebrow">Risk & Review</div><h1>Held / Frozen Funds</h1><p>Merchant-scoped hold records and release reasons.</p></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Hold</th><th>Reference</th><th>Amount</th><th>Reason</th><th>Status</th></tr></thead><tbody><tr><td>HLD-390</td><td>PO-M-201</td><td>₹18,500</td><td>Merchant payout awaiting completion/review</td><td><span class="pill pending">Active</span></td></tr><tr><td>HLD-366</td><td>ORD-1011</td><td>₹8,000</td><td>Order dispute review</td><td><span class="pill pending">Active</span></td></tr><tr><td>HLD-320</td><td>ORD-0998</td><td>₹11,200</td><td>Released after resolution</td><td><span class="pill ok">Released</span></td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- SETTLEMENT -->
+      <section class="page" id="page-settlement">
+        <div class="page-head"><div><div class="eyebrow">Merchant withdrawal</div><h1>USDT Withdrawal</h1><p>Withdraw available INR balance as USDT using the current Admin-set Merchant rate. Merchant cannot edit the rate.</p></div></div>
+        <div class="grid equal">
+          <div class="card pad"><div class="card-head"><div><h2>Admin-set rate</h2><p>Read-only Merchant rate snapshot.</p></div><span class="pill info">Rate v7</span></div><div class="facts" style="grid-template-columns:1fr 1fr"><div class="fact"><label>Available INR</label><strong id="usdtAvailableInr">₹12,39,080</strong></div><div class="fact"><label>Admin rate</label><strong id="adminUsdtRate">₹83.50 / USDT</strong></div><div class="fact"><label>Max USDT now</label><strong id="maxUsdtQuote">14,839.28 USDT</strong></div><div class="fact"><label>Network</label><strong>TRON (TRC20)</strong></div></div><div class="notice warn" style="margin-top:12px">Prototype performs no blockchain transfer. Production still requires the approved custody/execution provider.</div></div>
+          <div class="card pad"><h2 style="margin-top:0">Request USDT withdrawal</h2><form id="merchantUsdtWithdrawForm"><div class="field"><label>INR balance to convert</label><input class="control" id="merchantUsdtInr" type="number" min="1" step=".01" required></div><button class="btn sm ghost" id="useFullBalance" type="button" style="margin-top:8px">Use Full Available Balance</button><div class="field"><label>TRC20 USDT address</label><input class="control mono" id="merchantUsdtAddress" required></div><div class="facts" style="grid-template-columns:1fr 1fr;margin-top:12px"><div class="fact"><label>Rate</label><strong>₹83.50 / USDT</strong></div><div class="fact"><label>You receive</label><strong id="merchantUsdtQuote">0.00 USDT</strong></div></div><button class="btn primary w100" style="margin-top:12px">Request USDT Withdrawal</button></form></div>
+        </div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>USDT Withdrawal History</h2></div><div class="table-scroll"><table><thead><tr><th>Request</th><th>INR debited</th><th>Rate</th><th>USDT quoted</th><th>Address</th><th>Status</th></tr></thead><tbody id="merchantUsdtRows"><tr><td colspan="6"><div class="empty"><strong>No USDT withdrawals yet</strong></div></td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="page" id="page-reports">
+        <div class="page-head"><div><div class="eyebrow">Reporting</div><h1>Reports</h1><p>Merchant-scoped exports for orders, transactions, fees and payouts.</p></div><div class="actions"><button class="btn ghost" id="downloadReport">Download CSV</button></div></div>
+        <div class="grid three"><div class="card pad"><div class="tile" data-icon="orders"></div><h2>Orders Report</h2><p class="muted">Status, amount, origin, webhook state.</p><button class="btn sm ghost">Prepare</button></div><div class="card pad"><div class="tile" data-icon="fees"></div><h2>Fees Report</h2><p class="muted">Commercial snapshot and posted fee entries.</p><button class="btn sm ghost">Prepare</button></div><div class="card pad"><div class="tile" data-icon="payout"></div><h2>Payout Report</h2><p class="muted">Created requests and review outcomes.</p><button class="btn sm ghost">Prepare</button></div></div>
+      </section>
+
+      <!-- NOTIFICATIONS -->
+      <section class="page" id="page-notifications">
+        <div class="page-head"><div><div class="eyebrow">Inbox</div><h1>Notifications</h1><p>Merchant payment, payout, webhook, support and security notifications.</p></div><div class="actions"><button class="btn ghost" id="markAllRead">Mark all read</button></div></div>
+        <div class="card pad"><div class="item-list" id="notificationList"><div class="item unread"><div class="tile" data-icon="orders"></div><div class="item-main"><strong>Order ORD-1042 successful</strong><small>2 min ago</small></div><span class="pill ok">New</span></div><div class="item unread"><div class="tile" data-icon="review"></div><div class="item-main"><strong>Payout proof requires review</strong><small>PO-M-201 · 7 min ago</small></div><span class="pill pending">Action</span></div><div class="item"><div class="tile" data-icon="webhook"></div><div class="item-main"><strong>Webhook delivered</strong><small>order.successful · 18 min ago</small></div><span class="pill info">Read</span></div></div></div>
+      </section>
+
+      <!-- SUPPORT -->
+      <section class="page" id="page-support">
+        <div class="page-head"><div><div class="eyebrow">Help Center</div><h1>Support</h1><p>Create and continue Merchant support tickets.</p></div><div class="actions"><button class="btn primary" id="newTicket">＋ New Ticket</button></div></div>
+        <div class="grid equal"><div class="card pad"><h2 style="margin-top:0">Tickets</h2><div class="item-list" id="ticketList"></div></div><div class="card pad"><h2 style="margin-top:0">Conversation</h2><div id="ticketThread"><div class="empty"><strong>Select a ticket</strong>Open a support thread.</div></div></div></div>
+      </section>
+
+      <!-- SECURITY -->
+      <section class="page" id="page-security">
+        <div class="page-head"><div><div class="eyebrow">Account Security</div><h1>Security</h1><p>Authenticator MFA, password policy, recovery acknowledgement and sessions.</p></div></div>
+        <div class="grid equal"><div class="card pad"><div class="card-head"><div><h2>Authenticator MFA</h2><p>Required for Merchant login and sensitive actions.</p></div><span class="pill ok">Enabled</span></div><div class="item"><div class="tile" data-icon="shield"></div><div class="item-main"><strong>Authenticator active</strong><small>Recovery acknowledgement complete</small></div></div></div><div class="card pad"><h2 style="margin-top:0">Change password</h2><form id="passwordForm"><div class="field"><label>Current password</label><input class="control" id="currentPassword" type="password" required></div><div class="field"><label>New password</label><input class="control" id="newPassword" type="password" placeholder="8+ upper/lower/number/symbol" required></div><button class="btn primary" style="margin-top:14px">Change password</button></form></div></div>
+        <div class="card pad" style="margin-top:14px"><div class="card-head"><div><h2>Sessions</h2><p>Active Merchant sessions.</p></div><button class="btn sm danger" id="logoutOthers">Logout all others</button></div><div class="item-list"><div class="item"><div class="tile" data-icon="user"></div><div class="item-main"><strong>Chrome · Windows</strong><small>Current session · 2 min ago</small></div><span class="pill ok">Current</span></div><div class="item"><div class="tile" data-icon="device"></div><div class="item-main"><strong>Chrome · Android</strong><small>Yesterday</small></div><button class="btn sm danger">Revoke</button></div></div></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="page" id="page-profile">
+        <div class="page-head"><div><div class="eyebrow">Merchant Account</div><h1>Profile & Settings</h1><p>Business identity, notification preferences and language.</p></div></div>
+        <div class="grid equal"><div class="card pad"><h2 style="margin-top:0">Business Profile</h2><form id="profileForm"><div class="field"><label>Business name</label><input class="control" id="businessName" value="Nova Merchant"></div><div class="field"><label>Merchant email</label><input class="control" value="merchant@wpay.demo" readonly></div><div class="field"><label>Merchant ID</label><input class="control mono" value="MER-NOVA-001" readonly></div><button class="btn primary" style="margin-top:14px">Save profile</button></form></div><div class="card pad"><h2 style="margin-top:0">Preferences</h2><form id="prefsForm"><div class="field"><label>Language</label><select class="control" id="locale"><option value="en">English</option><option value="ru">Русский</option><option value="zh-CN">简体中文</option></select></div><label class="item"><input type="checkbox" checked><div class="item-main"><strong>Payment notifications</strong><small>Order status and recovery events.</small></div></label><label class="item" style="margin-top:9px"><input type="checkbox" checked><div class="item-main"><strong>Developer notifications</strong><small>Webhook/API delivery issues.</small></div></label><button class="btn primary" style="margin-top:14px">Save preferences</button></form></div></div>
+      </section>
+    </div>
+  </main>
+</section>
+
+<section class="hidden" id="checkoutView" style="min-height:100vh;background:radial-gradient(circle at 85% 0,#402045 0,transparent 38%),linear-gradient(135deg,#080918,#15102a 65%,#231027);color:#fff;padding:28px">
+  <div style="max-width:1200px;margin:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="brand"><div class="brandmark" id="checkoutLogo"></div><div><strong>WPAY</strong><small>SECURE CHECKOUT</small></div></div><button class="btn ghost" id="closeCheckout">← Back to Merchant</button></div>
+    <div style="display:grid;grid-template-columns:minmax(260px,.65fr) minmax(0,1fr);gap:24px;align-items:start">
+      <div class="card pad"><div class="eyebrow">Secure payment</div><h1 style="font-size:42px;line-height:1;margin:0">Payments<br>Made <span style="color:#d25a82">Simple</span></h1><p class="muted" style="line-height:1.6">Customer-facing checkout based on the existing repo `/pay/:id` flow.</p><div class="item-list"><div class="item"><div class="tile" data-icon="shield"></div><div class="item-main"><strong>Secure & scoped</strong><small>No Merchant access to User device/OTP/private route data.</small></div></div><div class="item"><div class="tile" data-icon="clock"></div><div class="item-main"><strong>Admin-controlled expiry</strong><small id="checkoutAdminExpiry">30-minute link TTL.</small></div></div></div></div>
+      <div class="card pad" style="border-radius:24px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px"><div><span class="muted">Order</span><strong id="checkoutOrderRef" style="display:block;font-size:18px"></strong></div><div style="text-align:right"><span class="muted">Expires in</span><div class="timer" id="checkoutTimer">30:00</div></div></div><div class="item" style="margin-top:14px"><div class="avatar">NM</div><div class="item-main"><strong>Nova Merchant</strong><small id="checkoutOrderId"></small></div><strong id="checkoutAmount" style="font-size:22px"></strong></div>
+        <div style="margin-top:17px"><strong>1 · Choose Payment Method</strong><div class="grid equal" style="margin-top:10px"><button class="btn ghost checkout-method active" data-method="PhonePe">PhonePe</button><button class="btn ghost checkout-method" data-method="Paytm">Paytm</button></div></div>
+        <div style="margin-top:17px"><strong>2 · Scan QR Code & Pay</strong><div class="grid equal" style="margin-top:10px;align-items:center"><div class="qr" style="margin:auto"></div><div><div class="fact"><label>Assigned UPI</label><strong id="checkoutUpi">••••••@upi</strong></div><button class="btn primary w100" id="openPaymentApp" style="margin-top:10px">Open PhonePe</button><div class="notice" style="margin-top:10px">Route is selected by WPay. Merchant dashboard does not receive User bank/device details.</div></div></div></div>
+        <div style="margin-top:17px"><strong>3 · Enter UTR & Verify</strong><div class="grid equal" style="margin-top:10px"><input class="control mono" id="checkoutUtr" maxlength="12" placeholder="12-digit UTR"><button class="btn primary" id="verifyCheckoutPayment">Verify Payment</button></div><div class="notice warn" id="checkoutVerifyState" style="margin-top:10px">Do not close until independently verified. Prototype verification is synthetic.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="modal-bg" id="modalBg"><div class="modal"><div class="modal-head"><div><h3 id="modalTitle" style="margin:0"></h3><div class="muted" id="modalSubtitle"></div></div><button class="close" id="modalClose">×</button></div><div id="modalBody"></div></div></div>
+<div class="toast" id="toast"></div>
+
+
+<script src="/wpay-auth/merchant-prototype.js"></script></body>
+</html>

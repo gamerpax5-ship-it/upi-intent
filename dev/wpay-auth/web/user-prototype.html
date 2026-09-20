@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07121f">
+<title>WPay User — Final Interactive Prototype</title>
+
+<meta name="wpay-entry-role" content="user"><link rel="stylesheet" href="/wpay-auth/user-prototype.css"></head>
+<body><div class="phase-one-notice" role="status">UI preview · Sample data · No real payments or account changes</div>
+
+<section class="login-shell" id="loginView">
+  <div class="login-side">
+    <div class="login-card">
+      <div class="brand" style="padding:0 0 18px"><div class="brandmark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg></div><div><strong>WPay</strong><small>User Portal</small></div></div>
+      <div class="eyebrow">Welcome back</div>
+      <h2>Sign in to WPay</h2>
+      <p>Sign in to your account and continue your secure payment operations.</p>
+      <form class="form-grid" id="loginForm">
+        <div class="field"><label>Email address</label><input class="control" id="loginEmail" type="email" value="user@wpay.demo" required></div>
+        <div class="field"><label>Password</label><div class="password-wrap"><input class="control" id="loginPassword" type="password" value="WPay@1234" required><button type="button" id="togglePassword">Show</button></div></div>
+        <div class="login-option-row"><label><input type="checkbox" id="rememberLogin" checked> Remember me</label><a href="#" id="forgotPassword">Forgot password?</a></div>
+        <button class="btn primary w100" type="submit">Sign in <span class="btn-svg" data-icon="arrow"></span></button>
+      </form>
+      <div class="login-divider">or continue with</div>
+      <button class="btn auth-btn" id="authenticatorLogin"><span class="btn-svg" data-icon="shield"></span>Sign in with Authenticator<span style="margin-left:auto" class="btn-svg" data-icon="arrow"></span></button>
+      <div class="create-account">New to WPay? <button id="createAccountBtn">Create an account</button></div>
+      <div class="demo-box"><strong>Prototype access</strong><br>Email: user@wpay.demo · Password: WPay@1234<br>Authenticator code when requested: 123456</div>
+    </div>
+  </div>
+  <div class="login-visual">
+    <div class="brand"><div class="brandmark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg></div><div><strong>WPay</strong><small>Payments Beyond Borders</small></div></div>
+    <div class="login-hero">
+      <div class="hero-chip">Global payments · real opportunities</div>
+      <h1 style="margin-top:22px">Move value with <span>clarity, speed & control.</span></h1>
+      <p>Your WPay User workspace brings Bank & UPI, short-window analytics, USDT deposits, commission withdrawals, payout work, Parking beneficiaries and linked devices into one secure operating environment.</p>
+      <div class="hero-feature-grid">
+        <div class="hero-feature"><div class="hero-feature-icon" data-icon="send"></div><div><strong>Payment operations</strong><span>Track pay-ins, payout work, Parking orders and transaction status from one workspace.</span></div></div>
+        <div class="hero-feature"><div class="hero-feature-icon" data-icon="wallet"></div><div><strong>USDT capacity</strong><span>Request provider-backed TRC20 deposits and follow funding status truthfully.</span></div></div>
+        <div class="hero-feature"><div class="hero-feature-icon" data-icon="chart"></div><div><strong>Real-time insight</strong><span>Monitor running UPI IDs in 5-minute, 10-minute and custom operating windows.</span></div></div>
+        <div class="hero-feature"><div class="hero-feature-icon" data-icon="user"></div><div><strong>Built for your role</strong><span>Only your banks, devices, transactions, evidence and support history are visible.</span></div></div>
+      </div>
+      <div class="security-strip"><div><strong>Your security, our priority</strong><br><span>Authenticator MFA · scoped access · auditable activity</span></div><div><span>Banking OTP remains separate from WPay login security</span></div></div>
+    </div>
+    <div class="login-foot">Secure · scoped · transparent · prototype data only</div>
+  </div>
+</section>
+
+<section class="app hidden" id="appView">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brandmark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg></div><div><strong>WPay</strong><small>User workspace</small></div></div>
+    <nav class="nav">
+      <div class="nav-group"><div class="nav-title">Workspace</div>
+        <button class="nav-item active" data-page="overview"><span class="ico"></span>Dashboard</button>
+        <button class="nav-item" data-page="analytics"><span class="ico"></span>Analytics</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Banking & UPI</div>
+        <button class="nav-item" data-page="bank-upi"><span class="ico"></span>Bank & UPI</button>
+        <button class="nav-item" data-page="upi-analytics"><span class="ico"></span>UPI Analytics</button>
+        <button class="nav-item" data-page="upi-verification"><span class="ico"></span>UPI Verification</button>
+        <button class="nav-item" data-page="statements"><span class="ico"></span>Statements</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Funds & Earnings</div>
+        <button class="nav-item" data-page="usdt-deposit"><span class="ico"></span>USDT Deposit</button>
+        <button class="nav-item" data-page="commission"><span class="ico"></span>Commission</button>
+        <button class="nav-item" data-page="withdraw"><span class="ico"></span>Withdraw</button>
+        <button class="nav-item" data-page="holds"><span class="ico"></span>Holds</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Payments</div>
+        <button class="nav-item" data-page="payins"><span class="ico"></span>Pay-in History</button>
+        <button class="nav-item" data-page="payouts"><span class="ico"></span>Payout Orders</button>
+        <button class="nav-item" data-page="transactions"><span class="ico"></span>All Transactions</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Parking</div>
+        <button class="nav-item" data-page="parking-beneficiaries"><span class="ico"></span>Parking Beneficiaries</button>
+        <button class="nav-item" data-page="parking-orders"><span class="ico"></span>Parking Orders</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Devices</div>
+        <button class="nav-item" data-page="agent"><span class="ico"></span>WPay Agent</button>
+        <button class="nav-item" data-page="activation"><span class="ico"></span>Activation Codes</button>
+        <button class="nav-item" data-page="devices"><span class="ico"></span>Linked Devices</button>
+        <button class="nav-item" data-page="otp"><span class="ico"></span>OTP Events</button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Trade</div>
+        <button class="nav-item" data-page="trade"><span class="ico"></span>Trade with WPay <span class="tag">Soon</span></button>
+      </div>
+      <div class="nav-group"><div class="nav-title">Account</div>
+        <button class="nav-item" data-page="guide"><span class="ico"></span>Guide</button>
+        <button class="nav-item" data-page="notifications"><span class="ico"></span>Notifications</button>
+        <button class="nav-item" data-page="support"><span class="ico"></span>Support</button>
+        <button class="nav-item" data-page="security"><span class="ico"></span>Security</button>
+        <button class="nav-item" data-page="settings"><span class="ico"></span>Settings</button>
+        <button class="nav-item" data-page="profile"><span class="ico"></span>Profile</button>
+      </div>
+    </nav>
+    <div class="sidebar-foot"><div class="user-mini"><div class="avatar">RS</div><div><strong id="miniName">Rahul Singh</strong><small>User · Approved</small></div><button class="logout" id="logoutBtn" aria-label="Logout" title="Logout"><span data-icon="logout"></span></button></div></div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Open navigation"><span data-icon="menu"></span></button>
+      <div class="search"><span class="search-svg" data-icon="search"></span><input id="globalSearch" placeholder="Search UPI, bank, UTR, payout, ticket…"></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" aria-label="Switch theme" title="Switch theme"><span id="themeIcon" data-icon="sun"></span></button>
+        <button class="icon-btn" data-go="notifications" aria-label="Notifications" title="Notifications"><span data-icon="bell"></span><span class="notification-dot"></span></button>
+        <button class="top-user-btn" data-go="profile" aria-label="Open profile" title="Profile">
+          <span class="top-user-icon" data-icon="user"></span>
+          <span class="top-user-meta"><strong>Rahul Singh</strong><small>User · Approved</small></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- OVERVIEW -->
+      <section class="page active" id="page-overview">
+        <div class="page-head"><div><div class="eyebrow">Dashboard</div><h1>Good evening, <span id="overviewName">Rahul</span>.</h1><p>Here’s what’s happening with your account today.</p></div><div class="actions"><div class="tabs" id="overviewRanges"><button class="active" data-range="7">7D</button><button data-range="30">30D</button><button data-range="90">90D</button></div></div></div>
+        <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:14px">
+          <div class="card metric"><div class="metric-top"><span>Available Capacity</span><span class="metric-icon-box" data-icon="wallet"></span></div><div class="metric-value">₹4,82,500</div><div class="metric-foot"><span class="green">↑ 8.4%</span> vs last 30 days</div></div>
+          <div class="card metric"><div class="metric-top"><span>Pay-in Commission</span><span class="metric-icon-box" data-icon="layers"></span></div><div class="metric-value">₹12,840</div><div class="metric-foot"><span class="green">↑ 12.6%</span> this month</div></div>
+          <div class="card metric"><div class="metric-top"><span>Payout Commission</span><span class="metric-icon-box" data-icon="coins"></span></div><div class="metric-value">₹5,800</div><div class="metric-foot"><span class="green">↑ 6.1%</span> this month</div></div>
+          <div class="card metric"><div class="metric-top"><span>Success Rate</span><span class="metric-icon-box" data-icon="chart"></span></div><div class="metric-value">96.8%</div><div class="metric-foot"><span class="green">↑ 2.3%</span> vs last 30 days</div></div>
+        </div>
+
+        <div class="grid main-grid">
+          <div class="card chart-card"><div class="card-head"><div><h2>Transaction Overview</h2><p>Pay-ins, payout work and commission activity.</p></div><span class="pill info">Live prototype</span></div><div class="chart"><svg id="overviewChart" viewBox="0 0 760 290" preserveAspectRatio="none"></svg></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Account Readiness</h2><p>Your setup progress.</p></div><span class="pill info">67%</span></div><div class="progress"><span style="width:67%"></span></div><div class="item-list" style="margin-top:12px"><div class="item"><div class="quick-icon" data-icon="user"></div><div class="item-main"><strong>Profile Information</strong><small>Completed</small></div><span class="pill ok">Ready</span></div><div class="item"><div class="quick-icon" data-icon="shield"></div><div class="item-main"><strong>Authenticator MFA</strong><small>Enabled</small></div><span class="pill ok">Ready</span></div><div class="item"><div class="quick-icon" data-icon="bank"></div><div class="item-main"><strong>Bank & UPI</strong><small>One running, one pending verification</small></div><span class="pill pending">Action</span></div><div class="item"><div class="quick-icon" data-icon="parking"></div><div class="item-main"><strong>Parking Beneficiary</strong><small>Confirmation required</small></div><span class="pill pending">Action</span></div></div></div>
+        </div>
+
+        <div class="grid quick-grid">
+          <div class="card quick" data-go="usdt-deposit"><div class="quick-icon" data-icon="wallet"></div><div><strong>USDT Deposit</strong><small>Request TRC20 deposit details</small></div></div>
+          <div class="card quick" data-go="withdraw"><div class="quick-icon" data-icon="withdraw"></div><div><strong>Withdraw</strong><small>INR or USDT commission</small></div></div>
+          <div class="card quick" data-go="parking-orders"><div class="quick-icon" data-icon="parking"></div><div><strong>Parking Orders</strong><small>Beneficiary-matched partial orders</small></div></div>
+          <div class="card quick" data-go="support"><div class="quick-icon" data-icon="support"></div><div><strong>Support</strong><small>Create or read support tickets</small></div></div>
+        </div>
+
+        <div class="card pad" style="margin-top:14px">
+          <div class="card-head"><div><h2>UPI Health</h2><p>Running UPI IDs and short operational status.</p></div><button class="btn sm ghost" data-go="upi-analytics">Open analytics</button></div>
+          <div id="overviewUpiHealth" class="item-list"></div>
+        </div>
+        <div class="grid two-col" style="margin-top:14px">
+          <div class="card table-card"><div class="table-head"><div><h2>Recent Pay-ins</h2><span class="muted">Latest routed payment activity</span></div><button class="btn sm ghost" data-go="payins">View all</button></div><div class="table-scroll"><table><thead><tr><th>Reference</th><th>Merchant</th><th>Status</th><th>Amount</th><th>Commission</th></tr></thead><tbody id="recentPayins"></tbody></table></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Recent Payout Orders</h2><p>Available and recently claimed work.</p></div><button class="btn sm ghost" data-go="payouts">View all</button></div><div id="overviewPayouts"></div></div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="page" id="page-analytics">
+        <div class="page-head"><div><div class="eyebrow">Performance</div><h1>Analytics</h1><p>System-wide User performance across pay-ins, payout work, capacity and commissions.</p></div><div class="actions"><button class="btn ghost" id="exportAnalytics">Export CSV</button></div></div>
+        <div class="grid metrics">
+          <div class="card metric"><div class="metric-top">30-day pay-in volume</div><div class="metric-value">₹18.42L</div><div class="metric-foot green">+12.6%</div></div>
+          <div class="card metric"><div class="metric-top">Success rate</div><div class="metric-value">96.8%</div><div class="metric-foot green">+1.4 pp</div></div>
+          <div class="card metric"><div class="metric-top">Capacity utilization</div><div class="metric-value">73%</div><div class="metric-foot amber">Healthy band</div></div>
+          <div class="card metric"><div class="metric-top">Pay-in commission</div><div class="metric-value">₹12,840</div><div class="metric-foot green">+18%</div></div>
+          <div class="card metric"><div class="metric-top">Payout commission</div><div class="metric-value">₹5,800</div><div class="metric-foot green">+9%</div></div>
+        </div>
+        <div class="grid two-col"><div class="card chart-card"><div class="card-head"><div><h2>Daily pay-in index</h2><p>Illustrative trend.</p></div></div><div class="chart"><svg id="analyticsChart" viewBox="0 0 760 290"></svg></div></div><div class="card pad"><h2 class="section-title">Operational quality</h2><div class="item-list"><div class="item"><div class="item-main"><strong>HDFC UPI</strong><small>98.1% success · highest volume</small></div><span class="pill ok">Strong</span></div><div class="item"><div class="item-main"><strong>Axis UPI</strong><small>Verification pending</small></div><span class="pill pending">Limited</span></div><div class="item"><div class="item-main"><strong>Statement recovery</strong><small>Recovered pay-ins carry zero User pay-in commission</small></div><span class="pill info">Tracked</span></div></div></div></div>
+      </section>
+
+      <!-- BANK & UPI -->
+      <section class="page" id="page-bank-upi">
+        <div class="page-head"><div><div class="eyebrow">Banking & UPI</div><h1>Bank & UPI</h1><p>Manage complete receiving-account details, limits, UPI handles, device mapping and verification status.</p></div><div class="actions"><button class="btn primary" id="openAddBank"><span class="btn-svg" data-icon="plus"></span>Add New Bank Account</button></div></div>
+
+        <div class="account-summary-grid">
+          <div class="summary-tile"><div class="summary-icon" data-icon="bank"></div><div><small>Total Linked Banks</small><strong>2</strong><span class="muted2">1 primary · 1 secondary</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="upi"></div><div><small>UPI Handles</small><strong>2</strong><span class="muted2">1 active · 1 verification</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="phone"></div><div><small>APK Mobile</small><strong>+91 ••••• 48210</strong><span class="green">Linked</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="device"></div><div><small>Trusted Devices</small><strong>1</strong><span class="muted2">Galaxy A54</span></div></div>
+        </div>
+
+        <div class="grid" id="bankCards"></div>
+
+        <div class="bank-side-grid">
+          <div class="card pad"><div class="card-head"><div><h2>Your UPI Handles</h2><p>UPIs attached to approved bank versions.</p></div><button class="btn sm ghost" data-go="upi-verification">Verification</button></div><div class="bank-upi-list"><div class="bank-upi-row"><div class="summary-icon" data-icon="upi" style="width:36px;height:36px"></div><div class="item-main"><strong>rahulstore@upi</strong><small>HDFC Bank · Version 3</small></div><span class="pill ok">Running</span></div><div class="bank-upi-row"><div class="summary-icon" data-icon="upi" style="width:36px;height:36px"></div><div class="item-main"><strong>rahul.pay@upi</strong><small>Axis Bank · Version 1</small></div><span class="pill pending">Verify</span></div></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Linked Mobile & Device</h2><p>Used for device pairing and owner-scoped OTP events.</p></div></div><div class="item"><div class="quick-icon" data-icon="phone"></div><div class="item-main"><strong>+91 ••••• 48210</strong><small>APK mobile · verified pairing</small></div><span class="pill ok">Linked</span></div><div class="item" style="margin-top:9px"><div class="quick-icon" data-icon="device"></div><div class="item-main"><strong>Samsung Galaxy A54</strong><small>Android 15 · Agent 0.10.5</small></div><span class="pill ok">Online</span></div></div>
+        </div>
+      </section>
+
+      <!-- UPI ANALYTICS -->
+      <section class="page" id="page-upi-analytics">
+        <div class="page-head"><div><div class="eyebrow">Short-window monitoring</div><h1>UPI Analytics</h1><p>Compare every running UPI by success, pending, failed, total and volume. Choose short windows for rapid operational monitoring.</p></div></div>
+        <div class="toolbar">
+          <select class="control" id="upiWindow"><option value="5">Last 5 minutes</option><option value="10" selected>Last 10 minutes</option><option value="30">Last 30 minutes</option><option value="60">Last 1 hour</option><option value="360">Last 6 hours</option><option value="1440">Last 24 hours</option></select>
+          <select class="control" id="upiBucket"><option value="1">1-minute buckets</option><option value="5" selected>5-minute buckets</option><option value="10">10-minute buckets</option><option value="30">30-minute buckets</option></select>
+          <select class="control" id="upiStatusFilter"><option value="running">Running UPI only</option><option value="all">All UPI</option></select>
+          <button class="btn ghost" id="refreshUpiAnalytics">Refresh</button>
+        </div>
+        <div class="grid metrics" id="upiMetricCards"></div>
+        <div class="card chart-card"><div class="card-head"><div><h2 id="upiChartTitle">5-minute success rate · last 10 minutes</h2><p>Illustrative prototype data for selected operating window.</p></div></div><div class="chart"><svg id="upiChart" viewBox="0 0 760 290"></svg></div></div>
+        <div class="card table-card" style="margin-top:15px"><div class="table-head"><h2>UPI performance rows</h2></div><div class="table-scroll"><table><thead><tr><th>UPI ID</th><th>Bank</th><th>Status</th><th>Success</th><th>Pending</th><th>Failed</th><th>Total</th><th>Volume</th><th>Success rate</th><th>Trend</th></tr></thead><tbody id="upiAnalyticsRows"></tbody></table></div></div>
+      </section>
+
+      <!-- VERIFICATION -->
+      <section class="page" id="page-upi-verification">
+        <div class="page-head"><div><div class="eyebrow">Verification</div><h1>UPI Verification</h1><p>Run a clearly-labelled dummy verification journey without claiming a real provider or real bank verification.</p></div></div>
+        <div class="grid two-col">
+          <div class="card pad"><h2 class="section-title">Verification queue</h2><div class="item-list" id="verificationQueue"></div></div>
+          <div class="card pad"><h2 class="section-title">How the real flow should behave</h2><div class="callout"><div class="num">1</div><div><strong>Approved account first</strong><span>Only the current approved bank/UPI version enters verification.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">2</div><div><strong>Provider evidence</strong><span>A real verifier must supply authoritative evidence/finality — never infer success from opening a UPI app.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">3</div><div><strong>Enable routing</strong><span>Routing eligibility changes only after the validated outcome.</span></div></div></div>
+        </div>
+      </section>
+
+      <!-- STATEMENTS -->
+      <section class="page" id="page-statements">
+        <div class="page-head"><div><div class="eyebrow">Reconciliation</div><h1>Statements</h1><p>Upload bank statements and track bank-version binding, import and matching status.</p></div><div class="actions"><label class="btn primary">Upload statement<input id="statementFile" type="file" accept=".csv,.pdf,.xlsx" hidden></label></div></div>
+        <div class="card table-card"><div class="table-head"><h2>Statement history</h2></div><div class="table-scroll"><table><thead><tr><th>File</th><th>Bank version</th><th>Account</th><th>Period</th><th>Status</th><th>Rows</th></tr></thead><tbody id="statementRows"><tr><td>HDFC_Aug_2026.pdf</td><td>HDFC v3</td><td>••••2384</td><td>01–31 Aug</td><td><span class="pill ok">Accepted</span></td><td>426</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- USDT DEPOSIT -->
+      <section class="page" id="page-usdt-deposit">
+        <div class="page-head"><div><div class="eyebrow">Capacity funding</div><h1>USDT Deposit</h1><p>Request a TRC20 deposit instruction, then use the generated QR/address only when backed by a real approved provider.</p></div></div>
+        <div class="grid two-col">
+          <div class="card pad"><h2 class="section-title">Request deposit</h2><form class="form-grid" id="depositRequestForm"><div class="field"><label>Deposit amount (USDT)</label><input class="control" id="depositAmount" type="number" min="2000" step="1" placeholder="2000" required></div><div class="field"><label>Network</label><select class="control"><option>TRON (TRC20)</option></select></div><div class="notice warn">Prototype minimum: 2,000 USDT. This standalone file generates only a DEMO request and never a real payment address.</div><button class="btn primary">Request deposit details</button></form></div>
+          <div class="card pad"><h2 class="section-title">Current deposit request</h2><div id="depositInstruction"><div class="empty"><strong>No active request</strong>Request deposit details to display the demo QR and address.</div></div></div>
+        </div>
+        <div class="card table-card" style="margin-top:15px"><div class="table-head"><h2>Deposit history</h2></div><div class="table-scroll"><table><thead><tr><th>Request</th><th>Amount</th><th>Network</th><th>Status</th><th>Capacity</th></tr></thead><tbody id="depositHistory"><tr><td>DEP-2041</td><td>2,500 USDT</td><td>TRC20</td><td><span class="pill ok">Confirmed</span></td><td>Created</td></tr><tr><td>DEP-2033</td><td>1,200 USDT</td><td>TRC20</td><td><span class="pill pending">Below minimum review</span></td><td>Not created</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- COMMISSION -->
+      <section class="page" id="page-commission">
+        <div class="page-head"><div><div class="eyebrow">Earnings</div><h1>Commission</h1><p>Pay-in and payout earnings are shown separately while remaining part of one auditable entitlement.</p></div><div class="actions"><button class="btn primary" data-go="withdraw">Withdraw commission</button></div></div>
+        <div class="grid metrics">
+          <div class="card metric"><div class="metric-top">Pay-in commission available</div><div class="metric-value">₹12,840</div><div class="metric-foot green">₹1,940 earned this month</div></div>
+          <div class="card metric"><div class="metric-top">Payout commission available</div><div class="metric-value">₹5,800</div><div class="metric-foot green">₹540 earned this month</div></div>
+          <div class="card metric"><div class="metric-top">Total entitlement</div><div class="metric-value">₹18,640</div><div class="metric-foot">INR primary view</div></div>
+          <div class="card metric"><div class="metric-top">USDT view</div><div class="metric-value">223.68</div><div class="metric-foot">Illustrative equivalent only</div></div>
+          <div class="card metric"><div class="metric-top">Commission on hold</div><div class="metric-value">₹1,250</div><div class="metric-foot amber">1 active hold</div></div>
+        </div>
+        <div class="tabs" id="commissionTabs"><button class="active" data-commission="payin">Pay-in commission</button><button data-commission="payout">Payout commission</button><button data-commission="all">All</button></div>
+        <div class="card table-card" style="margin-top:12px"><div class="table-scroll"><table><thead><tr><th>Date</th><th>Source</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead><tbody id="commissionRows"></tbody></table></div></div>
+      </section>
+
+      <!-- WITHDRAW -->
+      <section class="page" id="page-withdraw">
+        <div class="page-head"><div><div class="eyebrow">Commission withdrawal</div><h1>Withdraw</h1><p>Provide complete payout details for INR or a TRC20 address for USDT.</p></div></div>
+        <div class="grid two-col">
+          <div class="card pad">
+            <div class="tabs" id="withdrawTabs"><button class="active" data-withdraw="INR">INR withdrawal</button><button data-withdraw="USDT">USDT withdrawal</button></div>
+            <form class="form-grid" id="inrWithdrawForm">
+              <div class="field"><label>Receive using</label><select class="control" id="inrMethod"><option value="bank">Bank account</option><option value="upi">UPI ID</option></select></div>
+              <div id="bankWithdrawFields">
+                <div class="form-row"><div class="field"><label>Account holder name</label><input class="control" id="wdHolder" required></div><div class="field"><label>Bank name</label><input class="control" id="wdBank" required></div></div>
+                <div class="form-row"><div class="field"><label>Account number</label><input class="control mono" id="wdAccount" required></div><div class="field"><label>IFSC</label><input class="control mono" id="wdIfsc" required></div></div>
+              </div>
+              <div id="upiWithdrawFields" class="hidden"><div class="field"><label>UPI ID</label><input class="control" id="wdUpi"></div><div class="field"><label>Name</label><input class="control" id="wdUpiName"></div></div>
+              <div class="field"><label>Amount (INR)</label><input class="control" id="wdInrAmount" type="number" min="1" required></div>
+              <button class="btn primary">Submit INR withdrawal</button>
+            </form>
+            <form class="form-grid hidden" id="usdtWithdrawForm">
+              <div class="field"><label>USDT address</label><input class="control mono" id="wdUsdtAddress" placeholder="TRC20 address" required></div>
+              <div class="field"><label>Network</label><select class="control"><option>TRON (TRC20)</option></select></div>
+              <div class="field"><label>Amount (USDT)</label><input class="control" id="wdUsdtAmount" type="number" min="1" step=".01" required></div>
+              <button class="btn primary">Submit USDT withdrawal</button>
+            </form>
+          </div>
+          <div class="card pad"><h2 class="section-title">Recent withdrawal requests</h2><div class="item-list" id="withdrawList"></div></div>
+        </div>
+      </section>
+
+      <!-- HOLDS -->
+      <section class="page" id="page-holds">
+        <div class="page-head"><div><div class="eyebrow">Reserved funds</div><h1>Holds</h1><p>See capacity and commission holds, reasons and lifecycle.</p></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Reference</th><th>Type</th><th>Amount</th><th>Reason</th><th>Created</th><th>Status</th></tr></thead><tbody><tr><td>HLD-9182</td><td>Capacity</td><td>₹25,000</td><td>Payout order reserved</td><td>20 Sep 16:11</td><td><span class="pill pending">Active</span></td></tr><tr><td>HLD-9107</td><td>Commission</td><td>₹1,250</td><td>Review hold</td><td>19 Sep</td><td><span class="pill pending">Active</span></td></tr><tr><td>HLD-8820</td><td>Capacity</td><td>₹18,000</td><td>Released after completion</td><td>18 Sep</td><td><span class="pill ok">Released</span></td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- PAYINS -->
+      <section class="page" id="page-payins">
+        <div class="page-head"><div><div class="eyebrow">Incoming payments</div><h1>Pay-in History</h1><p>Search routed pay-ins, evidence, recovery state and pay-in commission.</p></div><div class="actions"><input class="control" id="payinSearch" placeholder="Reference / merchant / UPI"></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Reference</th><th>Merchant</th><th>UPI</th><th>Amount</th><th>Status</th><th>Evidence</th><th>Commission</th></tr></thead><tbody id="payinRows"></tbody></table></div></div>
+      </section>
+
+      <!-- PAYOUTS -->
+      <section class="page" id="page-payouts">
+        <div class="page-head"><div><div class="eyebrow">Outbound work pool</div><h1>Payout Orders</h1><p>Process eligible requests generated by Admin, Employee or Merchant. Creating a payout starts a 10-minute exclusive payment window followed by a 5-minute cooldown if unpaid.</p></div></div>
+
+        <div class="payout-metrics">
+          <div class="summary-tile"><div class="summary-icon" data-icon="file"></div><div><small>Available Orders</small><strong id="payoutAvailableCount">3</strong><span class="muted2">Ready to create</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="clock"></div><div><small>My Created Payouts</small><strong id="payoutClaimedCount">0</strong><span class="muted2">In progress</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="check"></div><div><small>Completed Today</small><strong>24</strong><span class="green">↑ 12%</span></div></div>
+          <div class="summary-tile"><div class="summary-icon" data-icon="review"></div><div><small>Under Review</small><strong>4</strong><span class="muted2">Awaiting decision</span></div></div>
+        </div>
+
+        <div class="payout-workspace">
+          <div class="card payout-list-shell">
+            <div class="payout-list-toolbar"><select class="control"><option>All sources</option><option>Admin</option><option>Employee</option><option>Merchant</option></select><select class="control"><option>All amounts</option><option>Under ₹25,000</option><option>₹25,000–₹1,00,000</option></select><select class="control"><option>All banks</option><option>HDFC</option><option>ICICI</option><option>SBI</option></select><button class="btn sm ghost" id="refreshPayouts"><span class="btn-svg" data-icon="refresh"></span>Refresh</button></div>
+            <div class="payout-row header"><span>#</span><span>Order</span><span>Source</span><span>Amount</span><span>Commission</span><span>Status</span><span>Action</span></div>
+            <div id="payoutPool"></div>
+          </div>
+          <div class="card order-detail-card"><div class="card-head"><div><h2>My Payout Order</h2><p>Full payment details appear after claim.</p></div></div><div id="activePayout"><div class="empty"><strong>No active payout order</strong>Create a payout from an eligible request to begin.</div></div></div>
+        </div>
+      </section>
+
+      <!-- PARKING BENEFICIARIES -->
+      <section class="page" id="page-parking-beneficiaries">
+        <div class="page-head"><div><div class="eyebrow">Parking setup</div><h1>Parking Beneficiaries</h1><p>These beneficiaries are created by Admin or an authorized Employee. Add the beneficiary in your banking app, then mark “I added” here. You cannot create or edit Parking beneficiaries from the User panel.</p></div></div>
+        <div class="notice ok">Only beneficiaries you explicitly confirm with “I added” become eligible for your Parking Orders page.</div>
+        <div class="grid" id="beneficiaryList" style="margin-top:15px"></div>
+      </section>
+
+      <!-- PARKING ORDERS -->
+      <section class="page" id="page-parking-orders">
+        <div class="page-head"><div><div class="eyebrow">Parking payment pool</div><h1>Parking Orders</h1><p>Only orders for beneficiaries you confirmed with “I added” are visible. Lock an allowed partial amount; other Users immediately see only the remaining shared amount.</p></div><div class="actions"><button class="btn ghost" id="refreshParkingOrders"><span class="btn-svg" data-icon="refresh"></span>Refresh</button></div></div>
+        <div class="parking-layout">
+          <div class="card pad"><div class="card-head"><div><h2>Available Parking Orders</h2><p>Beneficiary-matched shared order pool.</p></div><span class="pill info">Shared remaining</span></div><div class="item-list" id="parkingOrderPool"></div></div>
+          <div class="card pad"><div class="card-head"><div><h2>Lock Payment</h2><p>Your exclusive 10-minute payment window.</p></div></div><div id="activeParkingOrder"><div class="empty"><strong>No active Parking payment</strong>Lock an eligible partial amount from an order.</div></div></div>
+        </div>
+        <div class="card table-card" style="margin-top:14px"><div class="table-head"><h2>Review Queue & Approval Flow</h2><span class="pill info">Admin/Employee or Merchant review</span></div><div class="table-scroll"><table><thead><tr><th>Payment</th><th>Order</th><th>Beneficiary</th><th>Amount</th><th>Reviewer</th><th>Status</th></tr></thead><tbody id="parkingReviewRows"></tbody></table></div></div>
+      </section>
+
+      <!-- TRANSACTIONS -->
+      <section class="page" id="page-transactions">
+        <div class="page-head"><div><div class="eyebrow">Unified history</div><h1>All Transactions</h1><p>Pay-ins, payout work, USDT deposits, withdrawals, parking and commission history in one place.</p></div><div class="actions"><select class="control" id="txFilter"><option value="all">All types</option><option>Pay-in</option><option>Payout</option><option>USDT Deposit</option><option>Withdrawal</option><option>Parking</option></select></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
+      </section>
+
+      <!-- AGENT -->
+      <section class="page" id="page-agent">
+        <div class="page-head"><div><div class="eyebrow">Android device</div><h1>WPay Agent</h1><p>Official Agent version, checksum and pairing guidance.</p></div><div class="actions"><button class="btn primary" id="downloadApk">Download APK</button></div></div>
+        <div class="grid two-col"><div class="card pad"><div class="facts"><div class="fact"><label>Version</label><strong>0.10.5</strong></div><div class="fact"><label>Build</label><strong>16</strong></div><div class="fact"><label>Size</label><strong>2.36 MB</strong></div><div class="fact"><label>Status</label><strong>Current</strong></div></div><div class="field" style="margin-top:13px"><label>SHA-256</label><input class="control mono" readonly value="0cf08af217b8fdc84e74f0512b93ffbd2d6cac60974fd63f2034c723d152a502"></div></div><div class="card pad"><div class="callout"><div class="num">1</div><div><strong>Download official APK</strong><span>Check version and integrity.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">2</div><div><strong>Create activation code</strong><span>Generate a short-lived owner pairing code.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">3</div><div><strong>Pair your device</strong><span>OTP/SMS events stay scoped to the paired owner.</span></div></div></div></div>
+      </section>
+
+      <!-- ACTIVATION -->
+      <section class="page" id="page-activation">
+        <div class="page-head"><div><div class="eyebrow">Device pairing</div><h1>Activation Codes</h1><p>Generate a short-lived code for your own WPay Agent device.</p></div><div class="actions"><button class="btn primary" id="generateCode">Generate code</button></div></div>
+        <div class="grid two-col"><div class="card pad"><h2 class="section-title">Latest activation code</h2><div id="activationCodeBox"><div class="empty"><strong>No active code</strong>Generate when the Agent is ready to pair.</div></div></div><div class="card pad"><div class="notice ok">Delegated Admin/Employee pairing is intentionally not enabled in this User prototype.</div></div></div>
+      </section>
+
+      <!-- DEVICES -->
+      <section class="page" id="page-devices">
+        <div class="page-head"><div><div class="eyebrow">Paired hardware</div><h1>Linked Devices</h1><p>Your own paired Android devices, APK mobile number, health and app version.</p></div></div>
+        <div class="card pad"><div class="item-list" id="deviceList"></div></div>
+      </section>
+
+      <!-- OTP -->
+      <section class="page" id="page-otp">
+        <div class="page-head"><div><div class="eyebrow">Banking device events</div><h1>OTP Events</h1><p>Only events from your paired devices are shown. Login authenticator MFA is separate.</p></div><div class="actions"><button class="btn ghost" id="revealOtp">Reveal latest · recent MFA</button></div></div>
+        <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Time</th><th>Device</th><th>APK mobile</th><th>Sender</th><th>Event</th><th>Value</th></tr></thead><tbody><tr><td>16:42</td><td>Galaxy A54</td><td>+91 ••••• 48210</td><td>HDFCBK</td><td>Banking OTP</td><td id="otpValue">••••••</td></tr><tr><td>15:11</td><td>Galaxy A54</td><td>+91 ••••• 48210</td><td>AXISBK</td><td>Transaction SMS</td><td>Masked event</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- TRADE -->
+      <section class="page" id="page-trade">
+        <div class="card coming"><div><div class="eyebrow">Independent product section</div><h2>Trade with WPay</h2><p>Trade is intentionally its own navigation section, not an Account setting. Product, custody, settlement and risk rules are not yet approved, so this prototype keeps it truthfully unavailable.</p><span class="pill pending">Coming soon</span></div></div>
+      </section>
+
+      <!-- GUIDE -->
+      <section class="page" id="page-guide">
+        <div class="page-head"><div><div class="eyebrow">Getting started</div><h1>Guide</h1><p>A simple path from approval to operating payments.</p></div></div>
+        <div class="grid two-col"><div class="card pad"><div class="callout"><div class="num">1</div><div><strong>Add Bank & UPI</strong><span>Submit complete account, IFSC, mobiles and limits for Admin review.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">2</div><div><strong>Upload statement & verify UPI</strong><span>Bind statement and complete the approved verification workflow.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">3</div><div><strong>Request USDT deposit</strong><span>Funding creates operating capacity only after authoritative confirmation.</span></div></div></div><div class="card pad"><div class="callout"><div class="num">4</div><div><strong>Pair WPay Agent</strong><span>Generate an activation code and link your own device.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">5</div><div><strong>Monitor UPI analytics</strong><span>Use short windows to decide which approved UPI should remain running.</span></div></div><div class="callout" style="margin-top:9px"><div class="num">6</div><div><strong>Use payouts & Parking</strong><span>Claim eligible payout work and confirm Admin/Employee-provided Parking beneficiaries.</span></div></div></div></div>
+      </section>
+
+      <!-- NOTIFICATIONS -->
+      <section class="page" id="page-notifications">
+        <div class="page-head"><div><div class="eyebrow">Activity inbox</div><h1>Notifications</h1><p>Operational, financial and security events relevant to this User.</p></div><div class="actions"><button class="btn ghost" id="markAllRead">Mark all read</button></div></div>
+        <div class="card pad"><div class="item-list" id="notificationList"><div class="item unread"><div class="item-main"><strong>Axis UPI verification required</strong><small>2 min ago · Banking</small></div><span class="pill pending">Action</span></div><div class="item unread"><div class="item-main"><strong>Payout order available</strong><small>8 min ago · Payout</small></div><span class="pill info">New</span></div><div class="item"><div class="item-main"><strong>Commission posted</strong><small>₹125 pay-in commission · 20 min ago</small></div><span class="pill ok">Read</span></div></div></div>
+      </section>
+
+      <!-- SUPPORT -->
+      <section class="page" id="page-support">
+        <div class="page-head"><div><div class="eyebrow">Help center</div><h1>Support</h1><p>Create a ticket, reply and see Admin responses after fresh login.</p></div><div class="actions"><button class="btn primary" id="openTicketModal">＋ New ticket</button></div></div>
+        <div class="grid two-col"><div class="card pad"><h2 class="section-title">Tickets</h2><div class="item-list" id="ticketList"></div></div><div class="card pad"><h2 class="section-title">Conversation</h2><div id="ticketThread"><div class="empty"><strong>Select a ticket</strong>Open a support thread.</div></div></div></div>
+      </section>
+
+      <!-- SECURITY -->
+      <section class="page" id="page-security">
+        <div class="page-head"><div><div class="eyebrow">Account security</div><h1>Security</h1><p>Authenticator MFA, password policy, recovery and active sessions.</p></div></div>
+        <div class="grid two-col"><div class="card pad"><h2 class="section-title">Authenticator MFA</h2><div class="item"><div class="item-main"><strong>Authenticator enabled</strong><small>Required for login and recent-MFA protected actions.</small></div><span class="pill ok">Enabled</span></div><div class="notice ok" style="margin-top:12px">Banking OTP/SMS is not your WPay login factor.</div></div><div class="card pad"><h2 class="section-title">Change User password</h2><form class="form-grid" id="passwordForm"><div class="field"><label>Current password</label><input class="control" type="password" id="currentPassword" required></div><div class="field"><label>New password</label><input class="control" type="password" id="newPassword" placeholder="8+ upper/lower/number/symbol" required></div><button class="btn primary">Change password</button></form></div></div>
+        <div class="card pad" style="margin-top:15px"><div class="card-head"><div><h2>Sessions</h2><p>Revoke sessions you no longer use.</p></div><button class="btn danger sm" id="logoutAll">Logout all other sessions</button></div><div class="item-list"><div class="item"><div class="item-main"><strong>Chrome · Windows</strong><small>Current session · 2 min ago</small></div><span class="pill ok">Current</span></div><div class="item"><div class="item-main"><strong>Chrome · Android</strong><small>12 hours ago</small></div><button class="btn sm danger">Revoke</button></div></div></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" id="page-settings">
+        <div class="page-head"><div><div class="eyebrow">Workspace preferences</div><h1>Settings</h1><p>Interface, display and operational preferences that do not change financial authority.</p></div></div>
+        <div class="grid two-col"><div class="card pad"><h2 class="section-title">Display</h2><form class="form-grid" id="settingsForm"><div class="field"><label>Theme</label><select class="control" id="themeSetting"><option>System / current</option><option>Dark</option><option>Light</option></select></div><div class="field"><label>Default dashboard range</label><select class="control"><option>7 days</option><option>30 days</option><option>90 days</option></select></div><button class="btn primary">Save settings</button></form></div><div class="card pad"><h2 class="section-title">Privacy</h2><label class="item"><input type="checkbox" checked><div class="item-main"><strong>Mask sensitive banking fields by default</strong><small>Reveal only through supported protected actions.</small></div></label><label class="item" style="margin-top:9px"><input type="checkbox" checked><div class="item-main"><strong>Compact financial references</strong><small>Display masked account numbers in lists.</small></div></label></div></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="page" id="page-profile">
+        <div class="page-head"><div><div class="eyebrow">Personal details</div><h1>Profile</h1><p>Update display name, language and notification preferences.</p></div></div>
+        <div class="grid two-col"><div class="card pad"><h2 class="section-title">Profile</h2><form class="form-grid" id="profileForm"><div class="field"><label>Display name</label><input class="control" id="profileName" value="Rahul Singh" required></div><div class="field"><label>Email</label><input class="control" value="user@wpay.demo" readonly></div><div class="notice warn">Real email ownership verification requires the configured external email provider.</div><button class="btn primary">Save profile</button></form></div><div class="card pad"><h2 class="section-title">Preferences</h2><form class="form-grid" id="prefsForm"><div class="field"><label>Language</label><select class="control"><option>English</option><option>Русский</option><option>简体中文</option></select></div><label class="item"><input type="checkbox" checked><div class="item-main"><strong>Operational notifications</strong><small>UPI, device, bank and routing changes.</small></div></label><label class="item"><input type="checkbox" checked><div class="item-main"><strong>Financial notifications</strong><small>Pay-ins, payouts, deposits and withdrawals.</small></div></label><button class="btn primary">Save preferences</button></form></div></div>
+      </section>
+    </div>
+  </main>
+</section>
+
+<div class="modal-backdrop" id="modalBackdrop"><div class="modal"><div class="modal-head"><div><h3 id="modalTitle">Modal</h3><div class="muted" id="modalSubtitle"></div></div><button class="close" id="modalClose">×</button></div><div id="modalBody"></div></div></div>
+<div class="toast" id="toast">Saved</div>
+
+
+<script src="/wpay-auth/user-prototype.js"></script></body>
+</html>

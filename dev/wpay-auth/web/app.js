@@ -21,7 +21,7 @@ function message(key = "") {
   if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
 }
 function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
-function showLogin() { account = null; stage = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
+function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
 async function request(route,method = "GET",body,csrf) {
   let response;
   try { response = await fetch(apiRoot + route,{method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); }
@@ -32,9 +32,9 @@ async function request(route,method = "GET",body,csrf) {
 }
 async function post(route,body = {}) { const csrf = await request("csrf","POST",{}); return request(route,"POST",body,csrf.csrfToken); }
 async function action(callback) {
-  if (busy) return; busy = true; message("loading"); document.querySelectorAll("button").forEach(node => { node.disabled = true; }); $("language").disabled = true;
+  if (busy) return; busy = true; message("loading"); $("workspace").setAttribute("aria-busy","true"); $("language").disabled = true;
   try { await callback(); } catch(error) { message(error.message.startsWith("error.") ? error.message : "error.UNAVAILABLE"); }
-  finally { busy = false; document.querySelectorAll("button").forEach(node => { node.disabled = false; }); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); }
+  finally { busy = false; $("workspace").setAttribute("aria-busy","false"); globalThis.WPayReferenceUi?.restoreAvailability(); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); }
 }
 function renderAccess() {
   const root = $("access-card"); root.replaceChildren(); if (stage) return renderMfa(root);
@@ -173,14 +173,19 @@ async function load(selected = destination) {
   applyLocale(); const navigation = await request("navigation");
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status); $("navigation").replaceChildren();
   for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",(group.id.startsWith("operations.group.") || group.id.startsWith("parking.group.") || group.id.endsWith(".transactions")) ? group.label : group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,account.accountType==='merchant'?'entry':'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));if(page.destinationId.startsWith('operations.')||page.destinationId.startsWith('parking.'))item.textContent=page.label;node.append(item);} $("navigation").append(node); }
-  destination = selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
+  if(globalThis.WPayReferenceUi) selected=globalThis.WPayReferenceUi.sync(account,navigation,selected);
+  destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
+  const referenceSection=globalThis.WPayReferenceUi?.section;
+  if(referenceSection==='transactions'&&account.accountType==='user')return globalThis.WPayReferenceHistory.render({groups:navigation.groups,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(referenceSection==='settings')return globalThis.WPayReferenceUi.settings();
+  if(page && ["user.overview.view","merchant.overview.view"].includes(page.permissionId))return globalThis.WPayRoleDashboard.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if (selected === "security" || page?.permissionId === "account_security.view") return security(); if(page && !page.destinationId.startsWith('operations.') && globalThis.WPayCompletionPage.pages[page.permissionId])return globalThis.WPayCompletionPage.render({permission:page.permissionId,destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title"),review:item=>review(item,page,0)});
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
   if(page?.permissionId==='user.activation_codes.view')return globalThis.WPayOperationsPage.render({destination:'operations.activation',account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
   if(page?.destinationId.startsWith('operations.'))return globalThis.WPayOperationsPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
-  if(page?.destinationId==='gateway.orders'||page?.permissionId==='transactions.view')return globalThis.WPayGatewayPage.render({account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
-  if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page?.destinationId==='gateway.orders'||page?.permissionId==='transactions.view')return globalThis.WPayGatewayPage.render({view:referenceSection,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
+  if(page?.destinationId.startsWith('payout.'))return globalThis.WPayPayoutPage.render({view:referenceSection,destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('parking.'))return globalThis.WPayParkingPage.render({destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(page?.permissionId==='merchant.api_docs.view')return globalThis.WPayGatewayPage.docs({locale,el,container:$("page-content"),title:$("page-title")});
   if(page?.destinationId.startsWith('user.onboarding-'))return globalThis.WPayOnboardingPage.render({destination:page.destinationId,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});
@@ -197,10 +202,11 @@ async function changeLocale(value) {
 async function logoutAll() { await post("logout-all"); showLogin(); message("loggedOut"); }
 $("language").onchange = () => action(() => changeLocale($("language").value)); $("account-home").onclick = () => action(() => load(null));
 const roleTheme=document.getElementById('role-theme'),roleNotifications=document.getElementById('role-notifications'),roleProfile=document.getElementById('role-profile');
-if(roleTheme){const saved=localStorage.getItem('wpay-role-theme');if(saved==='light')document.documentElement.classList.add('role-light');roleTheme.onclick=()=>{document.documentElement.classList.toggle('role-light');localStorage.setItem('wpay-role-theme',document.documentElement.classList.contains('role-light')?'light':'dark');};}
+if(roleTheme){let saved;try{saved=localStorage.getItem('wpay-role-theme');}catch{/* Preference only. */}if(saved==='light')document.documentElement.classList.add(globalThis.WPayReferenceUi?'light':'role-light');roleTheme.onclick=()=>{const themeClass=globalThis.WPayReferenceUi?'light':'role-light';document.documentElement.classList.toggle(themeClass);try{localStorage.setItem('wpay-role-theme',document.documentElement.classList.contains(themeClass)?'light':'dark');}catch{/* Preference only. */}};}
 if(roleNotifications)roleNotifications.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.notifications'));
 if(roleProfile)roleProfile.onclick=()=>action(()=>load((entryRole||account?.accountType)+'.profile'));
 $("logout").onclick = () => action(async () => { await post("logout"); showLogin(); message("loggedOut"); }); $("logout-all").onclick = () => action(logoutAll);
 for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
 setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
+globalThis.WPayReferenceUi?.connect({load,action});
 applyLocale(); renderAccess(); load().catch(error => { showLogin(); if (error.message !== "error.AUTH_FAILED") message(error.message); });

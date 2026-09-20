@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<meta content="#12070d" name="theme-color"/>
+<title>WPay Merchant</title>
+<meta name="wpay-entry-role" content="merchant"><link href="/wpay-auth/merchant-prototype.css" rel="stylesheet"/><link href="/wpay-auth/reference-live.css" rel="stylesheet"/></head>
+<body>
+<section class="login-shell" id="auth">
+<div class="login-hero">
+<div class="brand"><div class="brandmark" id="loginLogo"></div><div><strong>WPay</strong><small>Merchant workspace</small></div></div>
+<div class="hero-copy">
+<div class="eyebrow">Merchant Portal</div>
+<h1>Accept payments. <span>Track every order.</span> Stay in control.</h1>
+<p>Create manual or API payment links, monitor order success, manage webhooks, review Merchant-originated payout proofs, understand platform fees and keep customer-facing payment status truthful.</p>
+<div class="hero-grid">
+<div class="hero-feature"><div class="hi" data-icon="link"></div><div><strong>Payment links</strong><span>Create shareable INR checkout links with QR, expiry, reference and idempotent order creation.</span></div></div>
+<div class="hero-feature"><div class="hi" data-icon="chart"></div><div><strong>Payment analytics</strong><span>Measure successful, pending, failed and recovered orders without exposing User bank/device details.</span></div></div>
+<div class="hero-feature"><div class="hi" data-icon="api"></div><div><strong>API &amp; webhooks</strong><span>Scoped API keys, HMAC-signed webhooks, retries, logs and delivery visibility.</span></div></div>
+<div class="hero-feature"><div class="hi" data-icon="payout"></div><div><strong>Payout review</strong><span>Create beneficiary payout requests and review proof submitted by Users for Merchant-originated orders.</span></div></div>
+</div>
+</div>
+<div class="login-foot">Merchant never sees User bank credentials, devices, OTPs or private routing details.</div>
+</div>
+<div class="login-panel">
+<div class="login-card" id="access-card"></div>
+</div>
+</section>
+<section class="app" hidden="" id="workspace">
+<aside class="sidebar" id="sidebar">
+<div class="brand"><div class="brandmark" id="sideLogo"></div><div><strong>WPay</strong><small>Merchant Portal</small></div></div>
+<nav class="nav">
+<div class="nav-section"><div class="nav-title">Workspace</div>
+<button aria-disabled="true" class="nav-item active" data-page="dashboard" disabled="" type="button"><span class="nav-icon"></span>Dashboard</button>
+<button aria-disabled="true" class="nav-item" data-page="analytics" disabled="" type="button"><span class="nav-icon"></span>Analytics</button>
+</div>
+<div class="nav-section"><div class="nav-title">Payments</div>
+<button aria-disabled="true" class="nav-item" data-page="links" disabled="" type="button"><span class="nav-icon"></span>Payment Links</button>
+<button aria-disabled="true" class="nav-item" data-page="orders" disabled="" type="button"><span class="nav-icon"></span>Orders &amp; Payments</button>
+<button aria-disabled="true" class="nav-item" data-page="transactions" disabled="" type="button"><span class="nav-icon"></span>Transactions</button>
+<button aria-disabled="true" class="nav-item" data-page="payouts" disabled="" type="button"><span class="nav-icon"></span>Payout Requests</button>
+<button aria-disabled="true" class="nav-item" data-page="payout-review" disabled="" type="button"><span class="nav-icon"></span>Payout Review </button>
+</div>
+<div class="nav-section"><div class="nav-title">Developer</div>
+<button aria-disabled="true" class="nav-item" data-page="api" disabled="" type="button"><span class="nav-icon"></span>API Credentials</button>
+<button aria-disabled="true" class="nav-item" data-page="webhooks" disabled="" type="button"><span class="nav-icon"></span>Webhooks</button>
+<button aria-disabled="true" class="nav-item" data-page="logs" disabled="" type="button"><span class="nav-icon"></span>API Logs</button>
+<button aria-disabled="true" class="nav-item" data-page="docs" disabled="" type="button"><span class="nav-icon"></span>API Documentation</button>
+</div>
+<div class="nav-section"><div class="nav-title">Finance</div>
+<button aria-disabled="true" class="nav-item" data-page="fees" disabled="" type="button"><span class="nav-icon"></span>Platform Fees</button>
+<button aria-disabled="true" class="nav-item" data-page="ledger" disabled="" type="button"><span class="nav-icon"></span>Balance &amp; Ledger</button>
+<button aria-disabled="true" class="nav-item" data-page="holds" disabled="" type="button"><span class="nav-icon"></span>Held / Frozen</button>
+<button aria-disabled="true" class="nav-item" data-page="settlement" disabled="" type="button"><span class="nav-icon"></span>USDT Withdrawal</button>
+<button aria-disabled="true" class="nav-item" data-page="reports" disabled="" type="button"><span class="nav-icon"></span>Reports</button>
+</div>
+<div class="nav-section"><div class="nav-title">Account</div>
+<button aria-disabled="true" class="nav-item" data-page="notifications" disabled="" type="button"><span class="nav-icon"></span>Notifications</button>
+<button aria-disabled="true" class="nav-item" data-page="support" disabled="" type="button"><span class="nav-icon"></span>Support</button>
+<button aria-disabled="true" class="nav-item" data-page="security" disabled="" type="button"><span class="nav-icon"></span>Security</button>
+<button aria-disabled="true" class="nav-item" data-page="profile" disabled="" type="button"><span class="nav-icon"></span>Profile &amp; Settings</button>
+</div>
+</nav>
+<div class="sidebar-foot"><div class="mini"><div class="avatar">W</div><div><strong data-account-name="">WPay account</strong><small data-account-status=""></small></div><button aria-label="Log out" class="logout" data-icon="logout" id="logout"></button></div><button class="btn ghost sm" id="logout-all" type="button">Log out all sessions</button></div>
+</aside>
+<main class="main">
+<div class="overlay" id="overlay"></div>
+<header class="topbar"><button type="button" id="menuBtn" class="icon-btn mobile-menu" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="22" height="22"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+<div class="search"><span data-icon="search"></span><input id="globalSearch" placeholder="Search sections…"/></div>
+<div class="top-actions">
+<button aria-label="Switch theme" class="icon-btn" id="role-theme" title="Theme"><span data-icon="sun"></span></button>
+<button class="icon-btn" data-go="notifications" id="role-notifications" title="Notifications"><span data-icon="bell"></span></button>
+<button class="icon-btn" data-go="profile" id="role-profile" title="Profile"><span data-icon="user"></span></button>
+</div>
+<select aria-label="Language" class="control" id="language"><option value="en">English</option><option value="ru">Русский</option><option value="zh-CN">简体中文</option></select></header>
+<div class="content"><div class="page-head"><div><div class="eyebrow" id="account-type"></div><h1 id="page-title"></h1></div><span class="pill" id="approval-badge"></span></div><div class="live-content" id="page-content"></div></div>
+</main>
+</section>
+
+<nav hidden="" id="navigation"></nav><button hidden="" id="account-home"></button><p aria-live="polite" id="message" role="status"></p><dialog id="approval-dialog"></dialog><script src="/wpay-auth/merchant-icons.js"></script><script src="/wpay-auth/locales.js"></script><script src="/wpay-auth/business-locales.js"></script><script src="/wpay-auth/business.js"></script><script src="/wpay-auth/funding-locales.js"></script><script src="/wpay-auth/funding.js"></script><script src="/wpay-auth/onboarding.js"></script><script src="/wpay-auth/gateway.js"></script><script src="/wpay-auth/payout-locales.js"></script><script src="/wpay-auth/payouts.js"></script><script src="/wpay-auth/parking.js"></script><script src="/wpay-auth/operations.js"></script><script src="/wpay-auth/completion-locales.js"></script><script src="/wpay-auth/completion.js"></script><script src="/wpay-auth/role-dashboard.js"></script><script src="/wpay-auth/password-policy.js"></script><script src="/wpay-auth/reference-navigation.js"></script><script src="/wpay-auth/reference-history.js"></script><script src="/wpay-auth/reference-ui.js"></script><script src="/wpay-auth/app.js"></script></body>
+</html>

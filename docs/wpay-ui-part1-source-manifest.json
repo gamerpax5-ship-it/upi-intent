@@ -1,0 +1,60 @@
+{
+  "user": {
+    "source": "WPay-User-Complete-Working-Prototype-FINAL(2).html",
+    "sha256": "21239bcf2481767364876c44bb4a5c3ec0c9d0b05df03399b0e53aed33d854b8",
+    "pages": [
+      "overview",
+      "analytics",
+      "bank-upi",
+      "upi-analytics",
+      "upi-verification",
+      "statements",
+      "usdt-deposit",
+      "commission",
+      "withdraw",
+      "holds",
+      "payins",
+      "payouts",
+      "parking-beneficiaries",
+      "parking-orders",
+      "transactions",
+      "agent",
+      "activation",
+      "devices",
+      "otp",
+      "trade",
+      "guide",
+      "notifications",
+      "support",
+      "security",
+      "settings",
+      "profile"
+    ]
+  },
+  "merchant": {
+    "source": "WPay-Merchant-Complete-Working-Prototype-v2(2).html",
+    "sha256": "2e34ff9860438bb77d247cf25903585b86a28004e7e6a19bad6400ac3cde50c3",
+    "pages": [
+      "dashboard",
+      "analytics",
+      "links",
+      "orders",
+      "transactions",
+      "payouts",
+      "payout-review",
+      "api",
+      "webhooks",
+      "logs",
+      "docs",
+      "fees",
+      "ledger",
+      "holds",
+      "settlement",
+      "reports",
+      "notifications",
+      "support",
+      "security",
+      "profile"
+    ]
+  }
+}

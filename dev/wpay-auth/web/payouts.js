@@ -49,7 +49,7 @@
     }card.append(row);
    }return;
   }
-  if(page==='orders'&&merchant){const summary=await request('payout/summary');facts(card,Object.fromEntries(['available','reserved','principal','fees','held'].map(k=>[k,format(summary[k])])));
+  if(page==='orders'&&merchant&&args.view!=='payout-review'){const summary=await request('payout/summary');facts(card,Object.fromEntries(['available','reserved','principal','fees','held'].map(k=>[k,format(summary[k])])));
    const form=el('form'),reference=field(form,'reference'),name=field(form,'beneficiaryName'),bankName=field(form,'bankName'),number=field(form,'accountNumber'),ifsc=field(form,'ifsc'),upiId=field(form,'upiId','text',false),amount=field(form,'amount'),note=field(form,'note','text',false),requestId=crypto.randomUUID();
    reference.maxLength=100;number.inputMode='numeric';number.pattern='[0-9]{6,24}';ifsc.pattern='[A-Z]{4}0[A-Z0-9]{6}';amount.inputMode='decimal';
    submit(form,'create',async()=>{const result=await post('payout/create',{idempotencyKey:requestId,reference:reference.value,beneficiaryName:name.value,bankName:bankName.value,accountNumber:number.value,ifsc:ifsc.value,upiId:upiId.value,amountMinor:minor(amount.value),note:note.value});await render({...args,selectedId:result.id});});card.append(el('h2',t('single')),form);
