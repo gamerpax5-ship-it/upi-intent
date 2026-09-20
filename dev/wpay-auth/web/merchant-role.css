@@ -14,3 +14,7 @@ body.role-merchant{background:radial-gradient(circle at 18% 0,rgba(160,43,83,.20
 .role-merchant .nav-item:hover,.role-merchant .nav-item:focus-visible{background:rgba(160,43,83,.10)}.role-merchant nav .nav-item[aria-current="page"]{background:rgba(160,43,83,.18)}
 .role-merchant input,.role-merchant select,.role-merchant textarea{background:#130c11;color:#fff8fb;border-color:rgba(255,255,255,.09)}
 @media(max-width:900px){.role-merchant .role-auth{grid-template-columns:1fr}.role-merchant .role-feature-grid{grid-template-columns:1fr}.role-merchant .role-intro h1{font-size:42px}}
+.role-metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.role-metric{padding:16px}.role-metric-label{display:block;color:#8e95ab;font-size:11px}.role-metric-value{display:block;font-size:24px;letter-spacing:-.02em;margin-top:8px}.role-metric-hint{display:block;color:#747b91;margin-top:5px}
+.role-dashboard-columns{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.7fr);gap:14px}.role-dashboard-card{padding:17px}.role-dashboard-card h2{margin:0 0 12px}.role-dashboard-row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}.role-dashboard-row:last-child{border-bottom:0}.role-dashboard-row span{color:#8b91a7;text-align:right}
+@media(max-width:1050px){.role-metric-grid{grid-template-columns:repeat(2,1fr)}.role-dashboard-columns{grid-template-columns:1fr}}@media(max-width:620px){.role-metric-grid{grid-template-columns:1fr}}
