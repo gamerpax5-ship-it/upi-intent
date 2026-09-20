@@ -31,15 +31,15 @@
   const running=(banks.banks||[]).filter(b=>b.status==='running').length,verified=(banks.banks||[]).filter(b=>b.verified_version===b.version).length;
   const grid=el('div',undefined,'role-metric-grid');grid.append(
    metric(el,'Available Capacity',money(business.available),'Signed capacity '+money(business.signedAvailable||business.available)),
-   metric(el,'Pay-in Commission',money(payout.commission?.payin||'0'),'Earned from verified pay-ins'),
-   metric(el,'Payout Commission',money(payout.commission?.payout||'0'),'Earned from completed payouts'),
+   metric(el,'Pay-in Commission',money(payout.payin||'0'),'Earned from verified pay-ins'),
+   metric(el,'Payout Commission',money(payout.payout||'0'),'Earned from completed payouts'),
    metric(el,'Held / Frozen',money(business.held),'Capacity holds'),
    metric(el,'Running UPI',String(running),String(verified)+' verified bank versions'),
    metric(el,'Parking Orders',String((parking.orders||[]).length),String((parking.history||[]).filter(x=>['active','submitted','review','disputed'].includes(x.state)).length)+' active/review')
   );
   const layout=el('div',undefined,'role-dashboard-columns'),bank=el('section',undefined,'card role-dashboard-card'),park=el('section',undefined,'card role-dashboard-card');
   bank.append(el('h2','Bank & UPI Health'));for(const b of (banks.banks||[]).slice(0,5)){const r=el('article',undefined,'role-dashboard-row');r.append(el('strong',b.details?.upiId||b.details?.bankName||b.id),el('span',b.status+' · '+(b.verification?.status||'not verified')));bank.append(r);}if(!(banks.banks||[]).length)bank.append(el('p','No bank / UPI records.','hint'));
-  park.append(el('h2','Payout & Parking'));park.append(el('p','Commission available: '+money(payout.commission?.available||'0'),'hint'),el('p','Eligible Parking orders: '+String((parking.orders||[]).length),'hint'),el('p','APK / OTP data appears only from your verified source mappings.','hint'));
+  park.append(el('h2','Payout & Parking'));park.append(el('p','Commission available: '+money(payout.available||'0'),'hint'),el('p','Eligible Parking orders: '+String((parking.orders||[]).length),'hint'),el('p','APK / OTP data appears only from your verified source mappings.','hint'));
   layout.append(bank,park);container.replaceChildren(grid,layout);
  }
  async function render(args){if(args.account.accountType==='merchant')return merchant(args);if(args.account.accountType==='user')return user(args);throw new Error('error.FORBIDDEN');}
