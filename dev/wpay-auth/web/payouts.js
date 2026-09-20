@@ -29,7 +29,7 @@
   }
   const detailBox=el('div');
   if(page==='merchant-usdt'){
-   const s=await request('payout/merchant-usdt');if(s.creationDisabled){card.append(el('h2','USDT Withdrawal'),el('p',s.message||'Admin-set Merchant USDT rate is not configured.','notice'));return;}card.append(el('h2','USDT Withdrawal'),el('p','Admin-set rate · '+s.rate+' INR/USDT · '+s.rounding,'notice'));
+   const s=await request('payout/merchant-usdt');if(s.creationDisabled){card.append(el('h2',t('unconfigured')),el('p',s.status==='rate_not_configured'?t('unconfigured'):(s.message||t('unconfigured')),'notice'));return;}card.append(el('h2','USDT Withdrawal'),el('p','Admin-set rate · '+s.rate+' INR/USDT · '+s.rounding,'notice'));
    facts(card,{available:format(s.available),reserved:format(s.reserved),rate:s.rate,rateVersion:s.rateVersion,network:s.network,maxUsdt:format(s.maxUsdtMinor,'USDT')});
    const form=el('form'),amount=field(form,'amount'),network=select(form,'network',[[s.network,s.network]]),address=field(form,'address'),key=crypto.randomUUID();amount.inputMode='decimal';
    const quote=el('p','0.000000 USDT','hint');amount.addEventListener('input',()=>{try{const inr=BigInt(minor(amount.value||'0')),rate=BigInt(Math.round(Number(s.rate)*1000000));quote.textContent=(inr*10000000000n/rate/1000000n)+'.'+(inr*10000000000n/rate%1000000n).toString().padStart(6,'0')+' USDT';}catch{quote.textContent='—';}});
