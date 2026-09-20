@@ -36,22 +36,35 @@ function tronAddress(){
 }
 async function terms(c,accountId,actorId,settings){await c.query("INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)",[randomUUID(),accountId,settings,actorId]);}
 
-test("schema 017 fresh install contains live User Merchant workflow objects",async t=>{
+test("schema 018 fresh install contains live User Merchant workflow objects",async t=>{
  const pool=await isolated(t,"fresh");await migrate(pool);await validateMigrations(pool);
- assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,17);
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,18);
  for(const relation of ["merchant_settlement_withdrawals","parking_beneficiaries","parking_orders","parking_locks","parking_submissions"]){
   assert.ok((await pool.query("SELECT to_regclass($1) r",["wpay_auth."+relation])).rows[0].r);
  }
  assert.equal((await pool.query("SELECT column_default FROM information_schema.columns WHERE table_schema='wpay_auth' AND table_name='business_holds' AND column_name='category'")).rowCount,1);
 });
 
-test("schema 016 to 017 upgrade preserves existing account records",async t=>{
+test("schema 016 to 018 upgrade preserves existing account records",async t=>{
  const pool=await isolated(t,"upgrade");await migrate(pool,{through:16});
  const preserved=await transaction(pool,async c=>{const id=await account(c,"merchant","Preserved Merchant");return {id,count:(await c.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n};});
  await migrate(pool);await validateMigrations(pool);
  assert.equal((await pool.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n,preserved.count);
  assert.equal((await pool.query("SELECT name FROM wpay_auth.accounts WHERE id=$1",[preserved.id])).rows[0].name,"Preserved Merchant");
- assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,17);
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,18);
+});
+
+test("runtime role validates the complete schema fingerprint after migration 018",async t=>{
+ const admin=new Pool({connectionString:process.env.TEST_DATABASE_URL}),name=("wpay_runtime_visibility_"+randomUUID().replaceAll("-","")).slice(0,60),password="RuntimeTestPass_42!";
+ t.after(async()=>{await admin.query("DROP DATABASE IF EXISTS "+name+" WITH (FORCE)").catch(()=>{});await admin.end();});
+ const role=(await admin.query("SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='wpay_runtime'")).rowCount;
+ if(!role)await admin.query("CREATE ROLE wpay_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION PASSWORD '"+password+"'");
+ else await admin.query("ALTER ROLE wpay_runtime WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION PASSWORD '"+password+"'");
+ await admin.query("CREATE DATABASE "+name);await admin.query("GRANT CONNECT ON DATABASE "+name+" TO wpay_runtime");
+ const ownerPool=new Pool({connectionString:dbUrl(name)});await migrate(ownerPool);await validateMigrations(ownerPool);
+ const u=new URL(process.env.TEST_DATABASE_URL);u.pathname="/"+name;u.username="wpay_runtime";u.password=password;
+ const runtimePool=new Pool({connectionString:u.toString()});
+ try{await validateMigrations(runtimePool);const counts=await require("../lib/wpay/db/migrations").visibilityCounts(runtimePool);assert.ok(counts.columns>0);assert.ok(counts.relations>0);}finally{await runtimePool.end();await ownerPool.end();}
 });
 
 test("Admin commercial terms control payment-link TTL and Merchant FX rate",()=>{
