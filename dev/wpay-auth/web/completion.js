@@ -2,8 +2,8 @@
 (function(root){
  const pages={'profile.view':'profile','support.view':'support','support_admin.view':'support','guide.view':'guide','notifications.view':'notifications','user.analytics.view':'analytics','merchant.analytics.view':'analytics','reports.view':'reports','reports.export':'reports','users.view':'directory','merchants.view':'directory','webhooks.view':'webhooks','api_credentials.view':'credentials','api_logs.view':'api-logs','devices.view':'devices','settings.view':'settings','ledger.adjust':'adjust','holds.view':'holds','user.trade.view':'trade'};
  async function render(options,state={}){
-  const {permission,account,locale,request,post,action,el,container,title}=options,kind=pages[permission],t=k=>{const own=root.WPayCompletionLocales.text(locale,k);return own===k&&root.WPayBusinessLocales?root.WPayBusinessLocales.translate(locale,k):own;};
-  title.textContent=root.WPayLocales.translate(locale,'nav.'+permission);container.replaceChildren();const card=el('section',undefined,'card');container.append(card);
+  const {permission,account,locale,request,post,action,el,container,title}=options,kind=options.destination==='merchant.reports'?'reports':pages[permission],t=k=>{const own=root.WPayCompletionLocales.text(locale,k);return own===k&&root.WPayBusinessLocales?root.WPayBusinessLocales.translate(locale,k):own;};
+  title.textContent=options.destination==='merchant.reports'?'Reports':root.WPayLocales.translate(locale,'nav.'+permission);container.replaceChildren();const card=el('section',undefined,'card');container.append(card);
   const button=(label,fn)=>{const b=el('button',t(label));b.type='button';b.onclick=()=>action(fn);return b;};
   const field=(form,key,value='',choices)=>{const label=el('label',t(key)),i=el(choices?'select':['message','reply'].includes(key)?'textarea':'input');i.name=key;i.required=true;if(choices)for(const value of choices){const o=el('option',t(value));o.value=value;i.append(o);}else{if(!['message','reply'].includes(key))i.type='text';i.maxLength=['message','reply'].includes(key)?2000:300;}i.value=value;label.append(i);form.append(label);return i;};
   const facts=(node,record)=>{const dl=el('dl',undefined,'facts');for(const [k,v]of Object.entries(record)){if(v===undefined||v===null)continue;dl.append(el('dt',t(k)),el('dd',typeof v==='object'?JSON.stringify(v):t(String(v))));}node.append(dl);};
@@ -31,7 +31,7 @@
    const type=permission==='users.view'?'user':'merchant',data=await post('panel/directory',{type,status:state.status||'all',search:state.search||'',offset:state.offset||0});
    const filters=el('form'),status=field(filters,'status',state.status||'all',['all','pending','approved','rejected','suspended','disabled']),search=field(filters,'search',state.search||'');search.required=false;search.maxLength=100;filters.append(button('filter',()=>reload({status:status.value,search:search.value})));card.append(filters);
    async function editor(r,mode){const form=el('form');form.append(el('h3',r.name+' · '+t(mode==='suspend'?'suspend':'terms')));const reason=field(form,'reason');let fields={};
-    if(mode==='commercial.update')for(const k of type==='user'?['payinCommission','payoutCommission','inrPerUsdt','depositNetwork','depositAddress']:['payinFee','payoutFee','fixedPayoutFee','fixedFeeCurrency']){fields[k]=field(form,k,r.settings?.[k]??'',k==='depositNetwork'?['ETHEREUM-ERC20','TRON-TRC20']:k==='fixedFeeCurrency'?[data.fixedFeeCurrency]:undefined);}
+    if(mode==='commercial.update')for(const k of type==='user'?['payinCommission','payoutCommission','inrPerUsdt','depositNetwork','depositAddress']:['payinFee','payoutFee','fixedPayoutFee','fixedFeeCurrency','paymentLinkTtlSeconds','inrPerUsdt']){fields[k]=field(form,k,r.settings?.[k]??'',k==='depositNetwork'?['ETHEREUM-ERC20','TRON-TRC20']:k==='fixedFeeCurrency'?[data.fixedFeeCurrency]:undefined);}
     const requestId=crypto.randomUUID();form.append(button('save',async()=>{if(!form.reportValidity())return;await post('panel/directory/update',{requestId,id:r.id,action:mode,reason:reason.value,settings:mode==='suspend'?null:Object.fromEntries(Object.entries(fields).map(([k,i])=>[k,i.value])),expectedVersion:r.commercialVersion||0});await reload();}));card.replaceChildren(form);
    }
    if(!data.rows.length)card.append(el('p',t('empty')));
@@ -44,7 +44,7 @@
   if(kind==='analytics'||kind==='reports'){
    const data=await post('panel/'+kind,{offset:state.offset||0,...(state.from?{from:state.from,to:state.to}:{})});card.append(el('p',t('pageTotals'),'notice'));
    const form=el('form'),from=field(form,'from',state.from||data.from),to=field(form,'to',state.to||data.to);form.append(button('filter',()=>reload({from:from.value,to:to.value})));card.append(form);facts(card,data.totals);records(data);
-   if(kind==='reports'&&permission==='reports.export')card.append(button('export',async()=>{const exported=await post('panel/reports/export',{offset:state.offset||0,from:data.from,to:data.to});const url=URL.createObjectURL(new Blob([exported.csv],{type:'text/csv;charset=utf-8'})),a=el('a');a.href=url;a.download='wpay-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));return;
+   if(kind==='reports'&&(permission==='reports.export'||account.accountType==='merchant'))card.append(button('export',async()=>{const exported=await post('panel/reports/export',{offset:state.offset||0,from:data.from,to:data.to});const url=URL.createObjectURL(new Blob([exported.csv],{type:'text/csv;charset=utf-8'})),a=el('a');a.href=url;a.download='wpay-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));return;
   }
   if(kind==='settings'){facts(card,await request('panel/settings'));card.append(el('p',t('policy'),'notice'));return;}
   if(kind==='adjust'){
@@ -53,7 +53,7 @@
   }
   if(kind==='holds'){
    const data=await request('business/holds');if(!data.holds.length)card.append(el('p',t('empty')));for(const h of data.holds){const item=el('article',undefined,'business-row');facts(item,h);if(data.canManage&&h.state==='active'){const form=el('form'),reason=field(form,'reason');form.append(button('release',async()=>{if(!form.reportValidity())return;await post('business/holds/update',{id:h.id,ownerId:h.owner_id,amountMinor:h.amount_minor,reference:h.reference,reason:reason.value,release:true});await reload();}));item.append(form);}card.append(item);}
-   if(data.canManage){const form=el('form'),fields={};for(const k of ['ownerId','amountMinor','reference','reason'])fields[k]=field(form,k);const id=crypto.randomUUID();form.append(button('hold',async()=>{if(!form.reportValidity())return;await post('business/holds/update',{id,...Object.fromEntries(Object.entries(fields).map(([k,i])=>[k,i.value])),release:false});await reload();}));card.append(form);}return;
+   if(data.canManage){const form=el('form'),fields={};for(const k of ['ownerId','amountMinor','reference','reason'])fields[k]=field(form,k);const category=field(form,'category','hold',['hold','frozen']),id=crypto.randomUUID();form.append(button('hold',async()=>{if(!form.reportValidity())return;await post('business/holds/update',{id,...Object.fromEntries(Object.entries(fields).map(([k,i])=>[k,i.value])),category:category.value,release:false});await reload();}));card.append(form);}return;
   }
   const data=await post('panel/'+kind,{offset:state.offset||0});card.append(el('p',t('metadata'),'notice'));if(kind==='api-logs')card.append(el('p',t('auditOnly')));
   for(const key of ['endpoints','links','pairingRequests'])if(data[key]){card.append(el('h3',t(key)));records(data[key]);}

@@ -1,0 +1,39 @@
+name: WPay Live User Merchant CI
+# Branch-only verification; do not deploy.
+on:
+  push:
+    branches:
+      - wpay/user-merchant-live-ui
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wpay-live-user-merchant-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install isolated WPay security dependencies
+        run: npm ci --prefix lib/wpay/auth/runtime/dependencies
+      - name: Syntax checks
+        run: npm run check
+      - name: Verify 197 protected legacy hashes
+        run: node scripts/check-protected-legacy.js
+      - name: Full isolated PostgreSQL and HTTP suite
+        run: npm test
+      - name: Working tree must stay clean
+        run: git diff --exit-code
