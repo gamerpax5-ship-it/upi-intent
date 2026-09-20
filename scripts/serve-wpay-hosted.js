@@ -1,4 +1,5 @@
 "use strict";
+const {createHash}=require("node:crypto");
 const { createHostedPool,verifyRuntimeRole } = require("../lib/wpay/db/hosted-config");
 const { validateMigrations,visibilityCounts } = require("../lib/wpay/db/migrations");
 const { SecurityRepository } = require("../lib/wpay/db/security-repository");
@@ -18,6 +19,15 @@ async function main(){
   try {
     pool=createHostedPool();
     stage="runtime_role";await verifyRuntimeRole(pool);
+    const p=(await pool.query(`SELECT current_database() AS db,
+      pg_catalog.has_table_privilege(current_user,'wpay_auth.merchant_settlement_withdrawals','SELECT') AS settlement_select,
+      pg_catalog.has_table_privilege(current_user,'wpay_auth.parking_beneficiaries','SELECT') AS beneficiary_select,
+      pg_catalog.has_table_privilege(current_user,'wpay_auth.parking_orders','SELECT') AS order_select,
+      pg_catalog.has_table_privilege(current_user,'wpay_auth.parking_locks','SELECT') AS lock_select,
+      pg_catalog.has_table_privilege(current_user,'wpay_auth.parking_submissions','SELECT') AS submission_select,
+      pg_catalog.has_function_privilege(current_user,'wpay_auth.live_workflow_guard()','EXECUTE') AS guard_execute`)).rows[0];
+    const hash=value=>createHash("sha256").update(String(value||"")).digest("hex").slice(0,16);
+    console.log("WPAY_RUNTIME_TARGET_DIAGNOSTIC",JSON.stringify({...p,db:hash(p.db),target:hash(process.env.WPAY_HOSTED_TARGET)}));
     stage="schema_validation";await validateMigrations(pool);
     stage="mfa_factors";const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
