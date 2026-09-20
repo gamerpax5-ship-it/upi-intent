@@ -12,7 +12,7 @@ ALTER TABLE wpay_auth.payout_claims ADD COLUMN cooldown_until timestamptz;
 
 ALTER TABLE wpay_auth.payout_economic_references DROP CONSTRAINT payout_economic_references_kind_check;
 ALTER TABLE wpay_auth.payout_economic_references ADD CONSTRAINT payout_economic_references_kind_check
- CHECK(kind IN('payout','withdrawal','merchant_settlement'));
+ CHECK(kind IN('payout','withdrawal','merchant_settlement','parking'));
 
 CREATE TABLE wpay_auth.merchant_settlement_withdrawals(
  id uuid PRIMARY KEY,merchant_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),
@@ -27,9 +27,9 @@ CREATE INDEX merchant_settlement_owner ON wpay_auth.merchant_settlement_withdraw
 
 CREATE TABLE wpay_auth.parking_beneficiaries(
  id uuid PRIMARY KEY,tenant_id text NOT NULL,
- actor_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),
+ actor_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),request_id uuid NOT NULL,
  encrypted_details jsonb NOT NULL,details_digest text NOT NULL CHECK(details_digest ~ '^[0-9a-f]{64}$'),
- created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,revoked_at timestamptz
+ created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,revoked_at timestamptz,UNIQUE(actor_id,request_id)
 );
 CREATE INDEX parking_beneficiary_tenant ON wpay_auth.parking_beneficiaries(tenant_id,created_at DESC,id);
 
@@ -43,11 +43,11 @@ CREATE INDEX parking_confirmation_user ON wpay_auth.parking_beneficiary_confirma
 
 CREATE TABLE wpay_auth.parking_orders(
  id uuid PRIMARY KEY,tenant_id text NOT NULL,beneficiary_id uuid NOT NULL REFERENCES wpay_auth.parking_beneficiaries(id),
- actor_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),reference text NOT NULL,
+ actor_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),request_id uuid NOT NULL,reference text NOT NULL,
  total_minor numeric(30,0) NOT NULL CHECK(total_minor>0),min_minor numeric(30,0) NOT NULL CHECK(min_minor>0 AND min_minor<=total_minor),
  state text NOT NULL DEFAULT 'open' CHECK(state IN('open','closed','cancelled')),
  snapshot jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,closed_at timestamptz,
- UNIQUE(tenant_id,reference)
+ UNIQUE(tenant_id,reference),UNIQUE(actor_id,request_id)
 );
 CREATE INDEX parking_order_tenant ON wpay_auth.parking_orders(tenant_id,created_at DESC,id);
 
