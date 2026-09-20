@@ -3,7 +3,7 @@ const {test}=require("node:test");
 const assert=require("node:assert/strict");
 const {randomUUID,createHash}=require("node:crypto");
 const {Pool}=require("pg");
-const {migrate,validateMigrations}=require("../lib/wpay/db/migrations");
+const {migrate,validateMigrations,transaction}=require("../lib/wpay/db/migrations");
 const ledger=require("../lib/wpay/business/ledger");
 const commercial=require("../lib/wpay/auth/runtime/commercial");
 const gatewayValidation=require("../lib/wpay/gateway/validation");
@@ -54,7 +54,7 @@ test("Admin commercial terms control payment-link TTL and Merchant FX rate",()=>
  assert.equal(settings.paymentLinkTtlSeconds,420);assert.equal(settings.inrPerUsdt,"83.5");
  assert.throws(()=>gatewayValidation.order({reference:"ORDER-1",idempotencyKey:"REQ-1",amountMinor:"100",currency:"INR",description:"x",ttlSeconds:60}),{code:"INVALID_INPUT"});
  const legacy=commercial.commercial("merchant",{payinFee:"1",payoutFee:"1",fixedPayoutFee:"0",fixedFeeCurrency:"INR"},"INR");
- assert.equal(legacy.paymentLinkTtlSeconds,300);assert.equal(legacy.inrPerUsdt,null);
+ assert.equal(Object.hasOwn(legacy,"paymentLinkTtlSeconds"),false);assert.equal(Object.hasOwn(legacy,"inrPerUsdt"),false);
 });
 
 test("real XLSX bulk template is parser-compatible and payout timers are 10m + 5m",()=>{
@@ -66,45 +66,37 @@ test("real XLSX bulk template is parser-compatible and payout timers are 10m + 5
 });
 
 test("Merchant USDT withdrawal reserves available INR at immutable Admin rate",async t=>{
- const pool=await isolated(t,"merchant_usdt");await migrate(pool);const c=await pool.connect();
- try{
-  const admin=await account(c,"super_admin","Settlement Admin"),merchant=await account(c,"merchant","Settlement Merchant");
-  await terms(c,merchant,admin,{payinFee:"1.2",payoutFee:"0.45",fixedPayoutFee:"2",fixedFeeCurrency:"INR",paymentLinkTtlSeconds:300,inrPerUsdt:"83.5"});
-  await ledger.post(c,{key:"merchant-seed",referenceType:"test",referenceId:"seed",actorId:admin,entries:ledger.pair(merchant,"merchant_gross","1000000")});
-  const service=new MerchantSettlements(cryptoBox),before=await service.summary(c,merchant);assert.equal(before.available,"1000000");
-  const requested=await service.request(c,merchant,{idempotencyKey:"usdt-withdraw-1",amountMinor:"8350",network:"TRON-TRC20",address:tronAddress()});
-  assert.equal(requested.usdtMinor,"1000000");assert.equal(requested.rate,"83.5");
-  assert.equal((await ledger.summary(c,merchant)).merchantAvailable,"991650");
-  let row=await service.get(c,requested.id);
-  for(const action of ["review","approve","process"]){row=await service.get(c,requested.id);await service.transition(c,row,admin,{id:row.id,action,reason:"Settlement review"});}
-  row=await service.get(c,requested.id);const now=(await c.query("SELECT CURRENT_TIMESTAMP now")).rows[0].now.toISOString();
-  const completed=await service.transition(c,row,admin,{id:row.id,action:"complete",reason:"Settlement completed",reference:"a".repeat(64),network:"TRON-TRC20",completedAt:now});
-  assert.equal(completed.state,"completed");const balance=await ledger.summary(c,merchant);assert.equal(balance.merchantSettlementReserved,"0");assert.equal(balance.merchantSettlementPrincipal,"8350");assert.equal(balance.merchantAvailable,"991650");
- }finally{c.release();}
+ const pool=await isolated(t,"merchant_usdt");await migrate(pool);
+ const ids=await transaction(pool,async c=>{const admin=await account(c,"super_admin","Settlement Admin"),merchant=await account(c,"merchant","Settlement Merchant");await terms(c,merchant,admin,{payinFee:"1.2",payoutFee:"0.45",fixedPayoutFee:"2",fixedFeeCurrency:"INR",paymentLinkTtlSeconds:300,inrPerUsdt:"83.5"});await ledger.post(c,{key:"merchant-seed",referenceType:"test",referenceId:"seed",actorId:admin,entries:ledger.pair(merchant,"merchant_gross","1000000")});return {admin,merchant};});
+ const service=new MerchantSettlements(cryptoBox);
+ const before=await transaction(pool,c=>service.summary(c,ids.merchant));assert.equal(before.available,"1000000");
+ const requested=await transaction(pool,c=>service.request(c,ids.merchant,{idempotencyKey:"usdt-withdraw-1",amountMinor:"8350",network:"TRON-TRC20",address:tronAddress()}));
+ assert.equal(requested.usdtMinor,"1000000");assert.equal(requested.rate,"83.5");
+ assert.equal((await transaction(pool,c=>ledger.summary(c,ids.merchant))).merchantAvailable,"991650");
+ for(const action of ["review","approve","process"])await transaction(pool,async c=>{const row=await service.get(c,requested.id);await service.transition(c,row,ids.admin,{id:row.id,action,reason:"Settlement review"});});
+ const completed=await transaction(pool,async c=>{const row=await service.get(c,requested.id),now=(await c.query("SELECT CURRENT_TIMESTAMP now")).rows[0].now.toISOString();return service.transition(c,row,ids.admin,{id:row.id,action:"complete",reason:"Settlement completed",reference:"a".repeat(64),network:"TRON-TRC20",completedAt:now});});
+ assert.equal(completed.state,"completed");const balance=await transaction(pool,c=>ledger.summary(c,ids.merchant));assert.equal(balance.merchantSettlementReserved,"0");assert.equal(balance.merchantSettlementPrincipal,"8350");assert.equal(balance.merchantAvailable,"991650");
 });
 
 test("Parking uses Admin beneficiary, partial shared locks, cooldown and reviewed capacity restoration",async t=>{
- const pool=await isolated(t,"parking");await migrate(pool);const c=await pool.connect();
- try{
-  const admin=await account(c,"super_admin","Parking Admin"),u1=await account(c,"user","Parking User One"),u2=await account(c,"user","Parking User Two");
-  await terms(c,u1,admin,{payinCommission:"1",payoutCommission:"1",inrPerUsdt:"83.5",depositNetwork:"TRON-TRC20",depositAddress:tronAddress()});
-  const parking=new Parking({crypto:cryptoBox}),beneficiary=await parking.createBeneficiary(c,admin,{requestId:randomUUID(),tenantId:"tenant-a",beneficiaryName:"Neha Traders",bankName:"State Bank of India",accountNumber:"7210451403",ifsc:"SBIN0007210",upiId:"nehatraders@upi"});
-  await parking.confirm(c,u1,"tenant-a",beneficiary.id);await parking.confirm(c,u2,"tenant-a",beneficiary.id);
-  const order=await parking.createOrder(c,admin,{requestId:randomUUID(),tenantId:"tenant-a",beneficiaryId:beneficiary.id,reference:"PARK-500K",totalMinor:"50000000",minMinor:"10000000"});
-  const first=await parking.lock(c,u1,"tenant-a",{requestId:randomUUID(),orderId:order.id,amountMinor:"10000000"});assert.equal(first.amountMinor,"10000000");
-  let visible=(await parking.orders(c,{tenantId:"tenant-a",userId:u2}))[0];assert.equal(visible.remainingMinor,"40000000");
-  const released=await parking.release(c,u1,first.id);assert.equal(released.state,"cooldown");
-  visible=(await parking.orders(c,{tenantId:"tenant-a",userId:u2}))[0];assert.equal(visible.remainingMinor,"40000000");
-  await c.query("UPDATE wpay_auth.parking_locks SET cooldown_until=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[first.id]);await parking.expire(c,order.id);
-  visible=(await parking.orders(c,{tenantId:"tenant-a",userId:u2}))[0];assert.equal(visible.remainingMinor,"50000000");
-  const paid=await parking.lock(c,u1,"tenant-a",{requestId:randomUUID(),orderId:order.id,amountMinor:"10000000"});
-  const proof=await parking.prepare("parking/submit",{proof:{name:"proof.png",data:Buffer.from("89504e470d0a1a0a","hex").toString("base64")}});
-  assert.equal((await parking.submit(c,u1,{id:paid.id,utr:"123456789012",proof:{name:"proof.png",data:"unused"},note:"Parking paid"},proof)).state,"submitted");
-  assert.equal((await parking.review(c,admin,paid.id,"review","Evidence review")).state,"review");
-  const approved=await parking.review(c,admin,paid.id,"approve","Evidence accepted");assert.equal(approved.state,"completed");assert.equal(approved.capacityRestored,true);
-  assert.equal((await ledger.summary(c,u1)).available,"10000000");
-  const duplicate=(await c.query("SELECT count(*)::int n FROM wpay_auth.parking_postings WHERE parking_id=$1",[paid.id])).rows[0].n;assert.equal(duplicate,1);
- }finally{c.release();}
+ const pool=await isolated(t,"parking");await migrate(pool);const parking=new Parking({crypto:cryptoBox});
+ const ids=await transaction(pool,async c=>{const admin=await account(c,"super_admin","Parking Admin"),u1=await account(c,"user","Parking User One"),u2=await account(c,"user","Parking User Two");await terms(c,u1,admin,{payinCommission:"1",payoutCommission:"1",inrPerUsdt:"83.5",depositNetwork:"TRON-TRC20",depositAddress:tronAddress()});return {admin,u1,u2};});
+ const beneficiary=await transaction(pool,c=>parking.createBeneficiary(c,ids.admin,{requestId:randomUUID(),tenantId:"tenant-a",beneficiaryName:"Neha Traders",bankName:"State Bank of India",accountNumber:"7210451403",ifsc:"SBIN0007210",upiId:"nehatraders@upi"}));
+ await transaction(pool,async c=>{await parking.confirm(c,ids.u1,"tenant-a",beneficiary.id);await parking.confirm(c,ids.u2,"tenant-a",beneficiary.id);});
+ const order=await transaction(pool,c=>parking.createOrder(c,ids.admin,{requestId:randomUUID(),tenantId:"tenant-a",beneficiaryId:beneficiary.id,reference:"PARK-500K",totalMinor:"50000000",minMinor:"10000000"}));
+ const first=await transaction(pool,c=>parking.lock(c,ids.u1,"tenant-a",{requestId:randomUUID(),orderId:order.id,amountMinor:"10000000"}));assert.equal(first.amountMinor,"10000000");
+ let visible=(await transaction(pool,c=>parking.orders(c,{tenantId:"tenant-a",userId:ids.u2})))[0];assert.equal(visible.remainingMinor,"40000000");
+ const released=await transaction(pool,c=>parking.release(c,ids.u1,first.id));assert.equal(released.state,"cooldown");
+ visible=(await transaction(pool,c=>parking.orders(c,{tenantId:"tenant-a",userId:ids.u2})))[0];assert.equal(visible.remainingMinor,"40000000");
+ await transaction(pool,async c=>{await c.query("UPDATE wpay_auth.parking_locks SET cooldown_until=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[first.id]);await parking.expire(c,order.id);});
+ visible=(await transaction(pool,c=>parking.orders(c,{tenantId:"tenant-a",userId:ids.u2})))[0];assert.equal(visible.remainingMinor,"50000000");
+ const paid=await transaction(pool,c=>parking.lock(c,ids.u1,"tenant-a",{requestId:randomUUID(),orderId:order.id,amountMinor:"10000000"}));
+ const proof=await parking.prepare("parking/submit",{proof:{name:"proof.png",data:Buffer.from("89504e470d0a1a0a","hex").toString("base64")}});
+ assert.equal((await transaction(pool,c=>parking.submit(c,ids.u1,{id:paid.id,utr:"123456789012",proof:{name:"proof.png",data:"unused"},note:"Parking paid"},proof))).state,"submitted");
+ assert.equal((await transaction(pool,c=>parking.review(c,ids.admin,paid.id,"review","Evidence review"))).state,"review");
+ const approved=await transaction(pool,c=>parking.review(c,ids.admin,paid.id,"approve","Evidence accepted"));assert.equal(approved.state,"completed");assert.equal(approved.capacityRestored,true);
+ assert.equal((await transaction(pool,c=>ledger.summary(c,ids.u1))).available,"10000000");
+ const duplicate=await transaction(pool,async c=>(await c.query("SELECT count(*)::int n FROM wpay_auth.parking_postings WHERE parking_id=$1",[paid.id])).rows[0].n);assert.equal(duplicate,1);
 });
 
 test("role HTML shells preserve real runtime integrations",async()=>{
