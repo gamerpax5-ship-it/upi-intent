@@ -1,0 +1,16 @@
+:root{--role:#a02b53;--role2:#d25a82;--role-soft:#261019}
+body.role-merchant{background:radial-gradient(circle at 18% 0,rgba(160,43,83,.20),transparent 34rem),#0b0709;color:#fff8fb}
+.role-merchant .role-top{background:rgba(14,8,11,.90);border-bottom:1px solid rgba(255,255,255,.07);backdrop-filter:blur(18px)}
+.role-merchant .brand span,.role-merchant a,.role-merchant .eyebrow{color:#e785a6}
+.role-merchant .role-badge{margin-right:auto;padding:5px 10px;border:1px solid rgba(210,90,130,.22);border-radius:999px;color:#f0adc3;background:rgba(160,43,83,.08);font-size:11px}
+.role-merchant .role-auth{grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);gap:28px;align-items:center}
+.role-merchant .role-intro h1{font-size:clamp(44px,5vw,72px);line-height:.98;letter-spacing:-.04em;max-width:820px;background:linear-gradient(90deg,#fff,#f1c2d1 58%,#cf557d);-webkit-background-clip:text;color:transparent}
+.role-merchant .role-intro>p:not(.eyebrow){max-width:760px;color:#b9a8ae;font-size:17px;line-height:1.7}
+.role-merchant .role-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
+.role-merchant .role-feature-grid article{border:1px solid rgba(210,90,130,.18);border-radius:16px;padding:16px;background:linear-gradient(180deg,rgba(38,16,25,.80),rgba(18,10,15,.84))}
+.role-merchant .role-feature-grid strong{display:block;color:#fff5f8}.role-merchant .role-feature-grid span{display:block;color:#9c8991;font-size:12px;line-height:1.5;margin-top:5px}
+.role-merchant .auth-card,.role-merchant .role-sidebar,.role-merchant .card{background:linear-gradient(180deg,rgba(30,15,23,.97),rgba(16,9,14,.97));border-color:rgba(255,255,255,.07);box-shadow:0 24px 70px rgba(0,0,0,.36)}
+.role-merchant button.primary,.role-merchant a.primary{background:linear-gradient(135deg,#b63261,#771735);color:white;border-color:transparent}
+.role-merchant .nav-item:hover,.role-merchant .nav-item:focus-visible{background:rgba(160,43,83,.10)}.role-merchant nav .nav-item[aria-current="page"]{background:rgba(160,43,83,.18)}
+.role-merchant input,.role-merchant select,.role-merchant textarea{background:#130c11;color:#fff8fb;border-color:rgba(255,255,255,.09)}
+@media(max-width:900px){.role-merchant .role-auth{grid-template-columns:1fr}.role-merchant .role-feature-grid{grid-template-columns:1fr}.role-merchant .role-intro h1{font-size:42px}}
