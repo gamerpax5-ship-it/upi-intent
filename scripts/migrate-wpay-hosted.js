@@ -1,4 +1,5 @@
 "use strict";
+const {createHash}=require("node:crypto");
 const { createHostedPool } = require("../lib/wpay/db/hosted-config");
 const { migrate,visibilityCounts } = require("../lib/wpay/db/migrations");
 async function main(){
@@ -15,6 +16,15 @@ async function main(){
     const runtime=await pool.query("SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='wpay_runtime'");
     if(runtime.rowCount!==1)throw Error();
     console.log(`WPay hosted migrations: ${await migrate(pool)}`);console.log("WPAY_SCHEMA_VISIBILITY",JSON.stringify(await visibilityCounts(pool)));
+    const p=(await pool.query(`SELECT current_database() AS db,
+      pg_catalog.has_table_privilege('wpay_runtime','wpay_auth.merchant_settlement_withdrawals','SELECT') AS settlement_select,
+      pg_catalog.has_table_privilege('wpay_runtime','wpay_auth.parking_beneficiaries','SELECT') AS beneficiary_select,
+      pg_catalog.has_table_privilege('wpay_runtime','wpay_auth.parking_orders','SELECT') AS order_select,
+      pg_catalog.has_table_privilege('wpay_runtime','wpay_auth.parking_locks','SELECT') AS lock_select,
+      pg_catalog.has_table_privilege('wpay_runtime','wpay_auth.parking_submissions','SELECT') AS submission_select,
+      pg_catalog.has_function_privilege('wpay_runtime','wpay_auth.live_workflow_guard()','EXECUTE') AS guard_execute`)).rows[0];
+    const hash=value=>createHash("sha256").update(String(value||"")).digest("hex").slice(0,16);
+    console.log("WPAY_MIGRATOR_RUNTIME_PRIVILEGES",JSON.stringify({...p,db:hash(p.db),target:hash(process.env.WPAY_HOSTED_TARGET)}));
   } finally {await pool.end();}
 }
 if(require.main===module)main().catch(error=>{const code=typeof error?.code==="string"&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:"UNKNOWN";const message=String(error?.message||"").replace(/postgres(?:ql)?:\/\/[^\s]+/gi,"[redacted]").replace(/[A-Za-z0-9_%-]+:[^@\s]+@/g,"[redacted]@").slice(0,240);console.error("WPAY_HOSTED_MIGRATION_UNAVAILABLE",code,message);process.exitCode=1;});
