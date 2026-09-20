@@ -1,4 +1,5 @@
 name: WPay Live User Merchant CI
+# Branch-only verification; do not deploy.
 on:
   push:
     branches:
