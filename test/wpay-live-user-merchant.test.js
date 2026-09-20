@@ -56,7 +56,6 @@ test("schema 016 to 018 upgrade preserves existing account records",async t=>{
 
 test("runtime role validates the complete schema fingerprint after migration 018",async t=>{
  const admin=new Pool({connectionString:process.env.TEST_DATABASE_URL}),name=("wpay_runtime_visibility_"+randomUUID().replaceAll("-","")).slice(0,60),password="RuntimeTestPass_42!";
- t.after(async()=>{await admin.query("DROP DATABASE IF EXISTS "+name+" WITH (FORCE)").catch(()=>{});await admin.end();});
  const role=(await admin.query("SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='wpay_runtime'")).rowCount;
  if(!role)await admin.query("CREATE ROLE wpay_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION PASSWORD '"+password+"'");
  else await admin.query("ALTER ROLE wpay_runtime WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION PASSWORD '"+password+"'");
@@ -64,7 +63,7 @@ test("runtime role validates the complete schema fingerprint after migration 018
  const ownerPool=new Pool({connectionString:dbUrl(name)});await migrate(ownerPool);await validateMigrations(ownerPool);
  const u=new URL(process.env.TEST_DATABASE_URL);u.pathname="/"+name;u.username="wpay_runtime";u.password=password;
  const runtimePool=new Pool({connectionString:u.toString()});
- try{await validateMigrations(runtimePool);const counts=await require("../lib/wpay/db/migrations").visibilityCounts(runtimePool);assert.ok(counts.columns>0);assert.ok(counts.relations>0);}finally{await runtimePool.end();await ownerPool.end();}
+ try{await validateMigrations(runtimePool);const counts=await require("../lib/wpay/db/migrations").visibilityCounts(runtimePool);assert.ok(counts.columns>0);assert.ok(counts.relations>0);}finally{await runtimePool.end();await ownerPool.end();await admin.end();}
 });
 
 test("Admin commercial terms control payment-link TTL and Merchant FX rate",()=>{
