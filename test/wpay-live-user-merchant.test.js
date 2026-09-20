@@ -34,19 +34,22 @@ function tronAddress(){
 }
 async function terms(c,accountId,actorId,settings){await c.query("INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)",[randomUUID(),accountId,settings,actorId]);}
 
-test("schema 017 fresh install and 016 upgrade preserve existing records",async t=>{
- const full=await isolated(t,"fresh");await migrate(full);await validateMigrations(full);
- assert.equal((await full.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,17);
+test("schema 017 fresh install contains live User Merchant workflow objects",async t=>{
+ const pool=await isolated(t,"fresh");await migrate(pool);await validateMigrations(pool);
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,17);
  for(const relation of ["merchant_settlement_withdrawals","parking_beneficiaries","parking_orders","parking_locks","parking_submissions"]){
-  assert.ok((await full.query("SELECT to_regclass($1) r",["wpay_auth."+relation])).rows[0].r);
+  assert.ok((await pool.query("SELECT to_regclass($1) r",["wpay_auth."+relation])).rows[0].r);
  }
- const upgrade=await isolated(t,"upgrade");await migrate(upgrade,{through:16});
- const c=await upgrade.connect();let preserved;
- try{const id=await account(c,"merchant","Preserved Merchant");preserved={id,count:(await c.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n};}finally{c.release();}
- await migrate(upgrade);await validateMigrations(upgrade);
- assert.equal((await upgrade.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n,preserved.count);
- assert.equal((await upgrade.query("SELECT name FROM wpay_auth.accounts WHERE id=$1",[preserved.id])).rows[0].name,"Preserved Merchant");
- assert.equal((await upgrade.query("SELECT column_default FROM information_schema.columns WHERE table_schema='wpay_auth' AND table_name='business_holds' AND column_name='category'")).rowCount,1);
+ assert.equal((await pool.query("SELECT column_default FROM information_schema.columns WHERE table_schema='wpay_auth' AND table_name='business_holds' AND column_name='category'")).rowCount,1);
+});
+
+test("schema 016 to 017 upgrade preserves existing account records",async t=>{
+ const pool=await isolated(t,"upgrade");await migrate(pool,{through:16});
+ const preserved=await transaction(pool,async c=>{const id=await account(c,"merchant","Preserved Merchant");return {id,count:(await c.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n};});
+ await migrate(pool);await validateMigrations(pool);
+ assert.equal((await pool.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n,preserved.count);
+ assert.equal((await pool.query("SELECT name FROM wpay_auth.accounts WHERE id=$1",[preserved.id])).rows[0].name,"Preserved Merchant");
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,17);
 });
 
 test("Admin commercial terms control payment-link TTL and Merchant FX rate",()=>{
