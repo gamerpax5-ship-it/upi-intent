@@ -10,6 +10,10 @@ ALTER TABLE wpay_auth.business_entries ADD CONSTRAINT business_entries_ledger_ty
 
 ALTER TABLE wpay_auth.payout_claims ADD COLUMN cooldown_until timestamptz;
 
+ALTER TABLE wpay_auth.payout_economic_references DROP CONSTRAINT payout_economic_references_kind_check;
+ALTER TABLE wpay_auth.payout_economic_references ADD CONSTRAINT payout_economic_references_kind_check
+ CHECK(kind IN('payout','withdrawal','merchant_settlement'));
+
 CREATE TABLE wpay_auth.merchant_settlement_withdrawals(
  id uuid PRIMARY KEY,merchant_id uuid NOT NULL REFERENCES wpay_auth.accounts(id),
  idempotency_key text NOT NULL,payload_digest text NOT NULL,
