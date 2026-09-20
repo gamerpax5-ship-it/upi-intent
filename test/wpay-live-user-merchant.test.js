@@ -9,6 +9,8 @@ const commercial=require("../lib/wpay/auth/runtime/commercial");
 const gatewayValidation=require("../lib/wpay/gateway/validation");
 const uploads=require("../lib/wpay/payouts/uploads");
 const {MerchantSettlements}=require("../lib/wpay/payouts/merchant-settlement");
+const {Payouts}=require("../lib/wpay/payouts/core");
+const {startAuthServer}=require("../lib/wpay/auth/runtime/http");
 const {Parking,LEASE_SECONDS:PARKING_LEASE,COOLDOWN_SECONDS:PARKING_COOLDOWN}=require("../lib/wpay/parking/core");
 const {LEASE_SECONDS:PAYOUT_LEASE,COOLDOWN_SECONDS:PAYOUT_COOLDOWN}=require("../lib/wpay/payouts/claims");
 
@@ -68,6 +70,17 @@ test("real XLSX bulk template is parser-compatible and payout timers are 10m + 5
  assert.equal(PAYOUT_LEASE,600);assert.equal(PAYOUT_COOLDOWN,300);assert.equal(PARKING_LEASE,600);assert.equal(PARKING_COOLDOWN,300);
 });
 
+test("bulk payout validation rejects a batch whose full reserve exceeds Merchant available balance",async t=>{
+ const pool=await isolated(t,"bulk_balance");await migrate(pool);const core=new Payouts({gateway:{},crypto:cryptoBox});
+ const ids=await transaction(pool,async c=>{const admin=await account(c,"super_admin","Bulk Admin"),m=await account(c,"merchant","Bulk Merchant");await terms(c,m,admin,{payinFee:"1",payoutFee:"0",fixedPayoutFee:"0",fixedFeeCurrency:"INR",paymentLinkTtlSeconds:300,inrPerUsdt:"83.5"});await ledger.post(c,{key:"bulk-seed",referenceType:"test",referenceId:"seed",actorId:admin,entries:ledger.pair(m,"merchant_gross","10000")});return {m};});
+ const prepared={errors:[],orders:[
+  {reference:"BULK-1",idempotencyKey:"batch:2",beneficiaryName:"One Beneficiary",bankName:"Bank One",accountNumber:"1234567890",ifsc:"HDFC0000001",upiId:"",amountMinor:"6000",note:""},
+  {reference:"BULK-2",idempotencyKey:"batch:3",beneficiaryName:"Two Beneficiary",bankName:"Bank Two",accountNumber:"1234567891",ifsc:"HDFC0000002",upiId:"",amountMinor:"6000",note:""}
+ ]};
+ const preview=await transaction(pool,c=>core.validateBulk(c,ids.m,prepared));
+ assert.equal(preview.availableMinor,"10000");assert.equal(preview.batchReserveMinor,"12000");assert.equal(preview.exceedsAvailable,true);assert.equal(preview.valid,false);
+});
+
 test("Merchant USDT withdrawal reserves available INR at immutable Admin rate",async t=>{
  const pool=await isolated(t,"merchant_usdt");await migrate(pool);
  const ids=await transaction(pool,async c=>{const admin=await account(c,"super_admin","Settlement Admin"),merchant=await account(c,"merchant","Settlement Merchant");await terms(c,merchant,admin,{payinFee:"1.2",payoutFee:"0.45",fixedPayoutFee:"2",fixedFeeCurrency:"INR",paymentLinkTtlSeconds:300,inrPerUsdt:"83.5"});await ledger.post(c,{key:"merchant-seed",referenceType:"test",referenceId:"seed",actorId:admin,entries:ledger.pair(merchant,"merchant_gross","1000000")});return {admin,merchant};});
@@ -100,6 +113,16 @@ test("Parking uses Admin beneficiary, partial shared locks, cooldown and reviewe
  const approved=await transaction(pool,c=>parking.review(c,ids.admin,paid.id,"approve","Evidence accepted"));assert.equal(approved.state,"completed");assert.equal(approved.capacityRestored,true);
  assert.equal((await transaction(pool,c=>ledger.summary(c,ids.u1))).available,"10000000");
  const duplicate=await transaction(pool,async c=>(await c.query("SELECT count(*)::int n FROM wpay_auth.parking_postings WHERE parking_id=$1",[paid.id])).rows[0].n);assert.equal(duplicate,1);
+});
+
+test("HTTP /user and /merchant serve dedicated role shells while /admin stays generic",async t=>{
+ const server=await startAuthServer({service:{},port:0});t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
+ const base="http://127.0.0.1:"+server.address().port;
+ const user=await fetch(base+"/user"),merchant=await fetch(base+"/merchant"),admin=await fetch(base+"/admin"),userCss=await fetch(base+"/wpay-auth/user-role.css"),merchantCss=await fetch(base+"/wpay-auth/merchant-role.css");
+ assert.equal(user.status,200);assert.match(await user.text(),/wpay-entry-role" content="user"/);
+ assert.equal(merchant.status,200);assert.match(await merchant.text(),/wpay-entry-role" content="merchant"/);
+ assert.equal(admin.status,200);const adminHtml=await admin.text();assert.match(adminHtml,/wpay-entry-role" content="admin"/);assert.doesNotMatch(adminHtml,/user-role\.css|merchant-role\.css/);
+ assert.equal(userCss.status,200);assert.equal(merchantCss.status,200);
 });
 
 test("role HTML shells preserve real runtime integrations",async()=>{
