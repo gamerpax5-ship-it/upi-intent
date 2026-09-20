@@ -14,13 +14,15 @@ async function main(){
   if(process.argv.length!==2 || process.env.NODE_ENV!=="production" || !/^[1-9][0-9]{0,4}$/.test(process.env.PORT||"") || Number(process.env.PORT)>65535)throw Error();
   const policy=transport(process.env.WPAY_HOSTED_ORIGIN);if(!policy.secure)throw Error();
   const mfaCrypto=new MfaCrypto(readKey({WPAY_AUTH_DEV_MFA_KEY:process.env.WPAY_HOSTED_MFA_KEY}),{issuer:"WPay"});mfaCrypto.libraries();
-  const pool=createHostedPool();let stopping=false,source,operational;
+  let stage="runtime_config",pool,stopping=false,source,operational;
   try {
-    await verifyRuntimeRole(pool);await validateMigrations(pool);
-    const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
+    pool=createHostedPool();
+    stage="runtime_role";await verifyRuntimeRole(pool);
+    stage="schema_validation";await validateMigrations(pool);
+    stage="mfa_factors";const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
-    source=openLegacySource();operational=openOperationalSource();const pairingBridge=configuredPairingBridge();
-    const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
+    stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingBridge=configuredPairingBridge();
+    stage="server_start";const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
       port:Number(process.env.PORT),hostedOrigin:policy.origin,readiness:async()=>{
         if(stopping)return false;
         try {await pool.query("SELECT 1");return true;}catch{return false;}
@@ -29,7 +31,7 @@ async function main(){
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
     return server;
-  }catch(error){await pool.end();if(source)await source.close();if(operational)await operational.close();throw error;}
+  }catch(error){if(pool)await pool.end();if(source)await source.close();if(operational)await operational.close();const code=typeof error?.code==="string"&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:"UNKNOWN";const message=String(error?.message||"").replace(/postgres(?:ql)?:\/\/[^\s]+/gi,"[redacted]").replace(/[A-Za-z0-9_%-]+:[^@\s]+@/g,"[redacted]@").slice(0,240);console.error("WPAY_HOSTED_STARTUP_DIAGNOSTIC",stage,code,message);throw error;}
 }
 if(require.main===module)main().catch(()=>{console.error("WPAY_HOSTED_UNAVAILABLE");process.exitCode=1;});
 module.exports={main};
