@@ -58,7 +58,7 @@ object OtpDetector {
     private val currencyPrefix =
         Regex("(?i)(?<![a-z])(?:rs|inr|usd|eur|ref|rrn|utr|txn|paid|a/c)\\.?\\s*\\z|[\\u20B9\\u0024]\\s*\\z")
 
-    fun detect(body: String): DetectedOtp? {
+    fun detect(body: String): DetectedOtp? = null
         if (body.isBlank()) return null
 
         for (pattern in patterns) {
