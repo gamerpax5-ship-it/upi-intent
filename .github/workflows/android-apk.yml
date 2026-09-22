@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - "android-app/**"
-      - ".github/workflows/android-apk.yml"
-      - "scripts/publish-android-apk.py"
+    paths-ignore:
+      - "public/downloads/WPAY-Agent.apk"
+      - "public/downloads/WPAY-Agent.json"
+      - "docs/wpay-apk-evidence.json"
 
 permissions:
   contents: write
