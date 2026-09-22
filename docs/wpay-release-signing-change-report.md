@@ -686,3 +686,7 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/wpay-release.p12"
 ```
+
+## Final automatic-run result
+
+Run https://github.com/gamerpax5-ship-it/upi-intent/actions/runs/35728946228 passed key restoration, Android SDK setup/install, Gradle setup and version preparation. The unit-test step failed during Kotlin compilation, with OtpDetector.kt:62 reporting 'Syntax error: Expecting member declaration' and subsequent orphaned-body errors. No APK was signed or published; the existing download was not replaced. No OTP files were edited to resolve or bypass this failure.
