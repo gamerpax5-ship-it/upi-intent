@@ -11,7 +11,9 @@ import sys
 import tempfile
 
 PACKAGE = 'org.wtron.wpayagent'
-CERT = '27c45dadad724483262f05e623f38000d0c635841a467cf30bd83b5b7a56836a'
+LEGACY_CERT = '27c45dadad724483262f05e623f38000d0c635841a467cf30bd83b5b7a56836a'
+LEGACY_APK_SHA256 = '0cf08af217b8fdc84e74f0512b93ffbd2d6cac60974fd63f2034c723d152a502'
+CERT = os.environ.get('WPAY_SIGNER_SHA256', '').lower()
 BRANCHES = ('main', 'wpay/hosted-integration')
 APK = 'public/downloads/WPAY-Agent.apk'
 META = 'public/downloads/WPAY-Agent.json'
@@ -26,18 +28,25 @@ def run(*args, cwd=None, binary=False):
     return output if binary else output.strip()
 
 
-def inspect(apk):
+def inspect(apk, allow_legacy=False):
+    if not re.fullmatch(r"[a-f0-9]{64}", CERT):
+        raise ValueError("Missing verified WPAY signing certificate fingerprint")
     badging = run(str(SDK / 'aapt'), 'dump', 'badging', str(apk))
     package = re.search(r"package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging)
     if not package or package[1] != PACKAGE:
         raise ValueError('Unexpected APK package')
     signature = run(str(SDK / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk))
     certs = re.findall(r'Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)', signature)
-    if len(certs) != 1 or certs[0].lower() != CERT:
-        raise ValueError('APK signer differs from the existing published APK; publication blocked')
+    legacy = (allow_legacy and len(certs) == 1 and certs[0].lower() == LEGACY_CERT
+              and hashlib.sha256(Path(apk).read_bytes()).hexdigest() == LEGACY_APK_SHA256)
+    if len(certs) != 1 or (certs[0].lower() != CERT and not legacy):
+        raise ValueError('APK signer mismatch; only the exact legacy APK can migrate to the permanent key')
+    signer = re.search(r'Signer #1 certificate DN: (.+)', signature)
+    if not signer:
+        raise ValueError('Missing APK signer identity')
     if 'Verified using v2 scheme (APK Signature Scheme v2): true' not in signature:
         raise ValueError('APK v2 signature verification failed')
-    return {'versionCode': int(package[2]), 'versionName': package[3],
+    return {'signer': signer[1].strip(), 'signerSha256': certs[0].lower(), 'versionCode': int(package[2]), 'versionName': package[3],
             'minimumAndroidApi': int(re.search(r"sdkVersion:'(\d+)'", badging)[1]),
             'targetAndroidApi': int(re.search(r"targetSdkVersion:'(\d+)'", badging)[1])}
 
@@ -51,7 +60,7 @@ def existing(commit):
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / 'published.apk'
         path.write_bytes(run('git', 'show', commit + ':' + APK, binary=True))
-        return inspect(path)
+        return inspect(path, allow_legacy=True)
 
 
 def prepare():
@@ -79,7 +88,7 @@ def prepare():
 
 def publish():
     state = json.loads(STATE.read_text())
-    artifact = Path('android-app/app/build/outputs/apk/debug/app-debug.apk')
+    artifact = Path('android-app/app/build/outputs/apk/release/app-release.apk')
     details = inspect(artifact)
     if details['versionCode'] != state['version']:
         raise ValueError('Built version differs from prepared version')
@@ -94,7 +103,6 @@ def publish():
                 'commit': state['source'], 'builtAt': now}
     evidence = {'artifact': APK, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data),
                 'package': PACKAGE, **details, 'signatureVerified': True, 'signatureScheme': 'v2',
-                'signer': 'C=US, O=Android, CN=Android Debug', 'signerSha256': CERT,
                 'inspectedOn': now[:10], 'tools': 'Android SDK build-tools 35.0.0 aapt dump badging and apksigner verify --verbose --print-certs'}
     commits = []
     with tempfile.TemporaryDirectory() as tmp:
