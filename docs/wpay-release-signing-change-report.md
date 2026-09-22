@@ -690,3 +690,213 @@ jobs:
 ## Final automatic-run result
 
 Run https://github.com/gamerpax5-ship-it/upi-intent/actions/runs/35728946228 passed key restoration, Android SDK setup/install, Gradle setup and version preparation. The unit-test step failed during Kotlin compilation, with OtpDetector.kt:62 reporting 'Syntax error: Expecting member declaration' and subsequent orphaned-body errors. No APK was signed or published; the existing download was not replaced. No OTP files were edited to resolve or bypass this failure.
+
+## Trigger on every main code change
+
+Commit 03306f4b4bac4cb881f71382119d1ad6c8c05ebb changes only the workflow push filter. All main pushes now trigger except changes confined to the three generated APK/metadata files, preventing artifact-only rebuilds. Local edits must be pushed to main; other branches must be merged to main. Successful compilation, tests and signature verification are still required before publication. No OTP files changed. This does not fix the previously verified Kotlin compilation error.
+
+### Full workflow before trigger change
+```yaml
+name: Build WPAY Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "android-app/**"
+      - ".github/workflows/android-apk.yml"
+      - "scripts/publish-android-apk.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wpay-agent-apk-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore permanent WPAY release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WPAY_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.WPAY_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Missing WPAY_ANDROID_KEYSTORE_BASE64 or WPAY_ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/wpay-release.p12"
+          CERT=$(keytool -exportcert -keystore "$RUNNER_TEMP/wpay-release.p12" -storetype PKCS12 -alias wpay -storepass:env KEYSTORE_PASSWORD | sha256sum | cut -d ' ' -f 1)
+          echo "WPAY_SIGNER_SHA256=$CERT" >> "$GITHUB_ENV"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android 35 SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Prepare increasing update version
+        run: python3 scripts/publish-android-apk.py prepare
+
+      - name: Run unit tests
+        run: gradle --no-daemon -p android-app testDebugUnitTest
+
+      - name: Build release APK
+        run: gradle --no-daemon -p android-app assembleRelease
+
+      - name: Sign release APK with permanent WPAY key
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.WPAY_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/wpay-release.p12" --ks-key-alias wpay \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out android-app/app/build/outputs/apk/release/app-release.apk \
+            android-app/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Verify and publish to both Railway branches
+        run: python3 scripts/publish-android-apk.py publish
+
+      - name: Upload verified APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpay-agent-update
+          path: android-app/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove runner signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/wpay-release.p12"
+```
+
+### Full workflow after trigger change
+```yaml
+name: Build WPAY Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "public/downloads/WPAY-Agent.apk"
+      - "public/downloads/WPAY-Agent.json"
+      - "docs/wpay-apk-evidence.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wpay-agent-apk-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore permanent WPAY release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WPAY_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.WPAY_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Missing WPAY_ANDROID_KEYSTORE_BASE64 or WPAY_ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/wpay-release.p12"
+          CERT=$(keytool -exportcert -keystore "$RUNNER_TEMP/wpay-release.p12" -storetype PKCS12 -alias wpay -storepass:env KEYSTORE_PASSWORD | sha256sum | cut -d ' ' -f 1)
+          echo "WPAY_SIGNER_SHA256=$CERT" >> "$GITHUB_ENV"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android 35 SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Prepare increasing update version
+        run: python3 scripts/publish-android-apk.py prepare
+
+      - name: Run unit tests
+        run: gradle --no-daemon -p android-app testDebugUnitTest
+
+      - name: Build release APK
+        run: gradle --no-daemon -p android-app assembleRelease
+
+      - name: Sign release APK with permanent WPAY key
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.WPAY_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/wpay-release.p12" --ks-key-alias wpay \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out android-app/app/build/outputs/apk/release/app-release.apk \
+            android-app/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Verify and publish to both Railway branches
+        run: python3 scripts/publish-android-apk.py publish
+
+      - name: Upload verified APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpay-agent-update
+          path: android-app/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove runner signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/wpay-release.p12"
+```
