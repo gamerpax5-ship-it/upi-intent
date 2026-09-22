@@ -5,7 +5,7 @@
  const money=value=>value===null||value===undefined?'—':(()=>{const n=BigInt(value),a=n<0n?-n:n;return (n<0n?'−':'')+'₹'+(a/100n).toLocaleString('en-IN')+'.'+String(a%100n).padStart(2,'0');})();
  function sync(account,navigation,selected){
   nav=navigation;const pages=navigation.groups.flatMap(g=>g.children),buttons=[...$('navigation').querySelectorAll('button')];
-  buttons.forEach((b,i)=>{b.dataset.destination=pages[i]?.destinationId||'';if(pages[i]?.destinationId===selected||(!selected&&pages[i]?.permissionId==='overview.view'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  buttons.forEach((b,i)=>{if(pages[i]?.permissionId==='account_security.view')b.textContent='Account settings';b.dataset.destination=pages[i]?.destinationId||'';if(pages[i]?.destinationId===selected||(!selected&&pages[i]?.permissionId==='overview.view'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   const groupNames=['OPERATIONS','FINANCE','MANAGEMENT'],groups=groupNames.map(name=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=name;d.append(s);return d;});
   buttons.forEach((b,i)=>{const p=pages[i];if(!p)return;if(p.permissionId==='overview.view')return;const id=p.permissionId;const index=/^(reports|ledger|holds|commissions|commission_hold)/.test(id)?1:/^(users|merchants|bank_upi|routing|assignments|transactions|deposits|withdrawals|payout|commission_withdrawal|parking|utr_center|statement)/.test(id)?0:2;groups[index].append(b);});
   $('navigation').replaceChildren(...groups.filter(g=>g.querySelector('button')));

@@ -5,7 +5,7 @@ const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
 let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now(), pendingNavigation = null;
-const tr = key => globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
+const tr = key => ['admin','super_admin'].includes(account?.accountType) && key==='error.RECENT_MFA_REQUIRED' ? 'Open Account settings and confirm your password, then retry.' : globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
 function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
 function field(form,key,type = "text",options) {
@@ -36,7 +36,7 @@ async function post(route,body = {}) {
     if(!post.csrf||post.csrf.until<Date.now())post.csrf={until:Date.now()+300000,promise:request("csrf","POST",{})};
     try{
       const csrf=await post.csrf.promise,result=await request(route,"POST",body,csrf.csrfToken);
-      if(/^(login|register|logout|logout-all|refresh|mfa\/|password\/)/.test(route))post.csrf=null;
+      if(result.stage || /^(login|register|logout|logout-all|refresh|mfa\/|password\/)/.test(route))post.csrf=null;
       return result;
     }catch(error){post.csrf=null;if(error.message!=="error.CSRF_FAILED"||attempt)throw error;}
   }
@@ -97,7 +97,33 @@ function renderMfa(root) {
   root.append(button("backLogin",showLogin,"text-button"));
 }
 function profile() {return globalThis.WPayCompletionPage.render({permission:'profile.view',account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});}
+async function adminAccountSettings(){
+ const value=await request('security'),root=el('section',undefined,'card');$('page-title').textContent='Account settings';
+ root.append(el('h2','Email & password'),el('p',`Signed in as ${account.email}`),el('p','Confirm your current password to make changes. Other sessions will be signed out.','notice'));
+ const input=(form,label,type,autocomplete)=>{const wrap=el('label',label),i=el('input');i.type=type;i.required=true;i.autocomplete=autocomplete;wrap.append(i);form.append(wrap);return i;};
+ for(const kind of ['email','password','reauth']){
+  const form=el('form');form.append(el('h3',kind==='reauth'?'Confirm password for sensitive actions':`Change ${kind}`));
+  const current=input(form,'Current password','password','current-password');let next,confirm;
+  if(kind!=='reauth'){
+   next=input(form,kind==='email'?'New email':'New password',kind==='email'?'email':'password',kind==='email'?'email':'new-password');
+   confirm=input(form,kind==='email'?'Confirm new email':'Confirm new password',kind==='email'?'email':'password',kind==='email'?'email':'new-password');
+   if(kind==='password'){next.minLength=15;next.maxLength=128;form.append(el('p','Use at least 15 characters.','hint'));}
+   confirm.oninput=()=>confirm.setCustomValidity('');next.oninput=()=>confirm.setCustomValidity('');
+  }
+  const submit=el('button',kind==='reauth'?'Confirm password':`Update ${kind}`,'primary');submit.type='submit';form.append(submit);
+  form.onsubmit=e=>{e.preventDefault();action(async()=>{
+   if(next&&next.value!==confirm.value){confirm.setCustomValidity('Values must match.');confirm.reportValidity();return;}
+   if(!form.reportValidity())return;
+   const body={password:current.value,...(next?{[kind==='email'?'newEmail':'newPassword']:next.value}:{})};
+   current.value='';if(next)next.value=confirm.value='';
+   try{const result=await post('security/admin-'+kind,body);if(result.stage)await handleStage(result);await load('security');message('decisionSaved');}finally{for(const key of Object.keys(body))body[key]='';}
+  });};root.append(form);
+ }
+ root.append(el('h3','Active sessions'));for(const s of value.sessions)root.append(el('p',`${s.current?'This session · ':''}Created: ${s.createdAt} · Expires: ${s.expiresAt}`));
+ root.append(button('logoutAll',()=>action(logoutAll)));$('page-content').replaceChildren(root);
+}
 async function security() {
+  if(['admin','super_admin'].includes(account.accountType))return adminAccountSettings();
   const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",tr(value.enabled ? "securityEnabled" : "enrollTitle")),el("p",tr("freshHelp"),"notice"));
   const form = el("form"), password = field(form,"password","password"), code = field(form,"code");
   for (const route of ["replace","regenerate","stepup"]) form.append(button(route,() => action(async () => {
