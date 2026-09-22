@@ -79,23 +79,7 @@ class CreditRetryWorker(appContext: Context, workerParams: WorkerParameters) : W
                             .put("receivedAt", receivedAt)
                         ApiClient.creditSmsNoReference(store, payload)
                     }
-                    "OTP_DETECTED" -> {
-                        val otpCode = event.reference.takeIf { it.matches(Regex("^\\d{4,8}$")) }
-                        if (otpCode == null) {
-                            eventStore.markFailed(event.id, "OTP code missing or invalid; event dropped")
-                            return@forEach
-                        }
-                        val payload = JSONObject()
-                            .put("simFingerprint", boundFingerprint)
-                            .put("sender", event.sender)
-                            .put("receivedAt", receivedAt)
-                            .put("source", "sms")
-                            .put("otpLength", otpCode.length)
-                            .put("otpCode", otpCode)
-                            .put("smsBody", event.body)
-                            .put("messageMasked", event.body)
-                        ApiClient.otpEvent(store, payload)
-                    }
+                    "OTP_DETECTED" -> 
                     else -> return@forEach
                 }
 
