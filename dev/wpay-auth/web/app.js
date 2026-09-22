@@ -193,9 +193,9 @@ async function pending(page,offset = 0) {
 }
 async function review(item,page,offset) {
   const options = await request("approval-options"), dialog = $("approval-dialog"); dialog.replaceChildren(el("h2",tr("review")),el("p",item.name));
-  const form = el("form"), fields = item.accountType === "user" ? ["payinCommission","payoutCommission","inrPerUsdt","depositNetwork","depositAddress"] : ["payinFee","payoutFee","fixedPayoutFee","fixedFeeCurrency"];
+  const form = el("form"), fields = item.accountType === "user" ? ["payinCommission","payoutCommission","inrPerUsdt","depositNetwork","depositAddress"] : ["payinFee","payoutFee","fixedPayoutFee","fixedFeeCurrency","inrPerUsdt"];
   for (const key of fields) { const choices = key === "depositNetwork" ? options.depositNetworks.map(network => [network,network]) : key === "fixedFeeCurrency" ? [[options.fixedFeeCurrency || "",options.fixedFeeCurrency || tr("unavailable")]] : undefined;
-    const input = field(form,key,"text",choices); if (!choices && key !== "depositAddress") input.inputMode = "decimal";
+    const input = field(form,key,"text",choices); if (!choices && key !== "depositAddress") input.inputMode = "decimal"; if(key==="fixedPayoutFee")input.value="6";
   }
   if (item.accountType === "merchant" && !options.fixedFeeCurrency) dialog.append(el("p",tr("currencyMissing"),"notice"));
   let requestId = crypto.randomUUID(), previousPayload;
@@ -234,7 +234,7 @@ async function load(selected = destination, reuseSession = false) {
   if(referenceSection==='transactions'&&account.accountType==='user')return globalThis.WPayReferenceHistory.render({groups:navigation.groups,request,post,action,el,container:$("page-content"),title:$("page-title")});
   if(referenceSection==='settings')return globalThis.WPayReferenceUi.settings();
   if(page && ["user.overview.view","merchant.overview.view"].includes(page.permissionId))return (globalThis.WPayReferenceDashboard||globalThis.WPayRoleDashboard).render({account,locale,request,post,action,el,groups:navigation.groups,container:$("page-content"),title:$("page-title")});
-  if (selected === "security" || page?.permissionId === "account_security.view") return security(); if(page && !page.destinationId.startsWith('operations.') && globalThis.WPayCompletionPage.pages[page.permissionId])return globalThis.WPayCompletionPage.render({permission:page.permissionId,destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title"),review:item=>review(item,page,0)});
+  if (selected === "security" || page?.permissionId === "account_security.view") return security(); if(page && globalThis.WPayAdminPages?.supports(page.permissionId,account))return globalThis.WPayAdminPages.render({permission:page.permissionId,account,locale,request,post,action,el,container:$('page-content'),title:$('page-title'),review:item=>review(item,page,0),navigate}); if(page && !page.destinationId.startsWith('operations.') && globalThis.WPayCompletionPage.pages[page.permissionId])return globalThis.WPayCompletionPage.render({permission:page.permissionId,destination:page.destinationId,account,locale,request,post,action,el,container:$("page-content"),title:$("page-title"),review:item=>review(item,page,0)});
   if(page && ["user.apk.view","apk.view"].includes(page.permissionId))return apk();
   if(page?.permissionId.endsWith(".source_events.view"))return sources();
   if(page?.permissionId==='user.activation_codes.view')return globalThis.WPayOperationsPage.render({destination:'operations.activation',account,locale,request,post,action,el,container:$('page-content'),title:$('page-title')});
