@@ -80,6 +80,7 @@ class CreditRetryWorker(appContext: Context, workerParams: WorkerParameters) : W
                         ApiClient.creditSmsNoReference(store, payload)
                     }
                     "OTP_DETECTED" -> return@forEach
+                    else -> return@forEach
                 }
 
                 val serverState = response.optString("status", "received")
