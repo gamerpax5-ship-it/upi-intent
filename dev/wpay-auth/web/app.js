@@ -67,7 +67,7 @@ function renderAccess() {
 }
 async function handleStage(result) {
   if (result.stage === "authenticated") { stage = null; $("access-card").replaceChildren(); return load(); }
-  stage = {kind:result.stage,codes:result.recoveryCodes}; if (result.stage === "enroll") stage.setup = await post("mfa/setup");
+  stage = {kind:result.stage,codes:result.recoveryCodes,requiresIst:result.requiresIst ?? stage?.requiresIst ?? entryRole==='admin'}; if (result.stage === "enroll") stage.setup = await post("mfa/setup");
   $("workspace").hidden = true; $("auth").hidden = false; renderAccess();
 }
 function renderMfa(root) {
@@ -88,9 +88,12 @@ function renderMfa(root) {
     const key = el("code",stage.setup.setupKey,"setup-key"); key.setAttribute("data-secret","true"); root.append(image,el("p",tr("setupKey")),key);
   }
   const recover = stage.kind === "recover", form = el("form"); if (recover) root.append(el("p",tr("recoveryHelp")));
-  const code = field(form,recover ? "recoveryCode" : "code",recover ? "password" : "text"); const submit = el("button",tr(recover ? "recover" : "verify"),"primary"); submit.type = "submit"; form.append(submit);
-  form.onsubmit = event => { event.preventDefault(); action(async () => { const value = code.value; code.value = ""; await handleStage(await post(recover ? "mfa/recover" : "mfa/verify",{[recover ? "recoveryCode" : "code"]:value})); }); }; root.append(form);
-  if (stage.kind === "challenge") root.append(button("recovery",() => { stage = {kind:"recover"}; renderAccess(); },"text-button"));
+  const code = field(form,recover ? "recoveryCode" : "code",recover ? "password" : "text");
+  let istCode;
+  if(stage.requiresIst){const label=el('label','Indian time code (HHmm)'),input=el('input');input.name='istCode';input.type='text';input.inputMode='numeric';input.pattern='[0-9]{4}';input.maxLength=4;input.required=true;input.autocomplete='off';input.placeholder='e.g. 1901';label.append(input);form.append(label,el('p','Enter current Indian time in 24-hour format. 7:01 PM = 1901. If the minute changes, enter the new minute. This check does not replace your authenticator.','hint'));istCode=input;}
+  const submit = el("button",tr(recover ? "recover" : "verify"),"primary"); submit.type = "submit"; form.append(submit);
+  form.onsubmit = event => { event.preventDefault(); action(async () => { const value = code.value,timeValue=istCode?.value; code.value = ""; if(istCode)istCode.value=""; await handleStage(await post(recover ? "mfa/recover" : "mfa/verify",{[recover ? "recoveryCode" : "code"]:value,...(istCode?{istCode:timeValue}:{})})); }); }; root.append(form);
+  if (stage.kind === "challenge") root.append(button("recovery",() => { stage = {kind:"recover",requiresIst:stage.requiresIst}; renderAccess(); },"text-button"));
   root.append(button("backLogin",showLogin,"text-button"));
 }
 function profile() {return globalThis.WPayCompletionPage.render({permission:'profile.view',account,locale,request,post,action,el,container:$("page-content"),title:$("page-title")});}
@@ -195,6 +198,8 @@ async function load(selected = destination, reuseSession = false) {
   applyLocale();
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status); $("navigation").replaceChildren();
   for (const group of navigation.groups) { const node = el("details"); node.open = true; node.append(el("summary",(group.id.startsWith("operations.group.") || group.id.startsWith("parking.group.") || group.id.endsWith(".transactions")) ? group.label : group.id === "payout.group.operations" ? globalThis.WPayPayoutLocales.text(locale,"group") : tr("group." + group.id.split(".").at(-1)))); for (const page of group.children) {const item=button("nav." + page.permissionId,() => action(() => load(page.destinationId)),"nav-item");if(page.destinationId.startsWith('user.onboarding-'))item.textContent=globalThis.WPayOnboardingPage.label(locale,page.destinationId);if(page.destinationId==='gateway.orders')item.textContent=globalThis.WPayGatewayPage.text(locale,account.accountType==='merchant'?'entry':'title');if(page.destinationId.startsWith('payout.'))item.textContent=globalThis.WPayPayoutLocales.text(locale,page.destinationId.split('.').at(-1));if(page.destinationId.startsWith('operations.')||page.destinationId.startsWith('parking.'))item.textContent=page.label;node.append(item);} $("navigation").append(node); }
+  globalThis.WPayAdminUi?.sync(account,navigation,selected);
+  if(globalThis.WPayAdminUi && (!selected || navigation.groups.flatMap(g=>g.children).find(p=>p.destinationId===selected)?.permissionId==='overview.view')){destination=selected;return globalThis.WPayAdminUi.overview({account,request,post,action,el,container:$('page-content'),title:$('page-title'),navigate});}
   if(globalThis.WPayReferenceUi) selected=globalThis.WPayReferenceUi.sync(account,navigation,selected);
   destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   const referenceSection=globalThis.WPayReferenceUi?.section;
@@ -233,4 +238,5 @@ $("logout").onclick = () => action(async () => { await post("logout"); showLogin
 for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
 setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
 globalThis.WPayReferenceUi?.connect({load,action,navigate});
+globalThis.WPayAdminUi?.connect({load,action,navigate});
 applyLocale(); renderAccess(); action(async()=>{try{await load();}catch(error){showLogin();if(error.message!=="error.AUTH_FAILED")message(error.message);}});
