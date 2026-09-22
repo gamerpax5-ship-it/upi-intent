@@ -9,6 +9,7 @@ const { initDeviceOtpTables, createDeviceOtpRouter } = require("./lib/device-otp
 const { initStatementTables, createStatementMatchRouter } = require("./lib/statement-match-router");
 const { initDeviceLocationHistoryTables, createDeviceLocationHistoryRouter } = require("./lib/device-location-history");
 const { requireDashboard, loginHandler, logoutHandler } = require("./lib/dashboard-auth");
+const { createPairingService } = require("./lib/device-pairing-service");
 
 async function start() {
   const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
@@ -56,6 +57,7 @@ async function start() {
       } catch (error) { next(error); }
     });
 
+    app.use("/api/pairing-service", createPairingService({ pool, env: process.env }));
     app.use("/api/devices", createDeviceRouter({ pool, env: process.env }));
     app.use("/api/devices", createDeviceCreditRouter({ pool }));
     app.use("/api/devices", createDeviceOtpRouter({ pool }));
