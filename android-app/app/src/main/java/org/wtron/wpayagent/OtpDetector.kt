@@ -59,6 +59,20 @@ object OtpDetector {
         Regex("(?i)(?<![a-z])(?:rs|inr|usd|eur|ref|rrn|utr|txn|paid|a/c)\\.?\\s*\\z|[\\u20B9\\u0024]\\s*\\z")
 
     fun detect(body: String): DetectedOtp? = null
+        if (body.isBlank()) return null
+
+        for (pattern in patterns) {
+            for (match in pattern.findAll(body)) {
+                val group = match.groups[1] ?: continue
+                val detectedCode = group.value
+                if (!detectedCode.matches(Regex("^[0-9]{4,8}$"))) continue
+                if (isCurrencyAmount(body, group.range.first)) continue
+                return DetectedOtp(code = detectedCode, otpLength = detectedCode.length)
+            }
+        }
+
+        return null
+    }
 
     private fun isCurrencyAmount(body: String, digitStart: Int): Boolean {
         val from = (digitStart - 12).coerceAtLeast(0)
