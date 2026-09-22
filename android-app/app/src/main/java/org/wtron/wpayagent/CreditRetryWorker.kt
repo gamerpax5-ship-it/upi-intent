@@ -79,7 +79,7 @@ class CreditRetryWorker(appContext: Context, workerParams: WorkerParameters) : W
                             .put("receivedAt", receivedAt)
                         ApiClient.creditSmsNoReference(store, payload)
                     }
-                    "OTP_DETECTED" -> 
+                    "OTP_DETECTED" -> return@forEach
                     else -> return@forEach
                 }
 
