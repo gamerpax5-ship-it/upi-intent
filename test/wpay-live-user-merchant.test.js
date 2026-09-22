@@ -38,7 +38,7 @@ async function terms(c,accountId,actorId,settings){await c.query("INSERT INTO wp
 
 test("schema 018 fresh install contains live User Merchant workflow objects",async t=>{
  const pool=await isolated(t,"fresh");await migrate(pool);await validateMigrations(pool);
- assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,18);
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,19);
  for(const relation of ["merchant_settlement_withdrawals","parking_beneficiaries","parking_orders","parking_locks","parking_submissions"]){
   assert.ok((await pool.query("SELECT to_regclass($1) r",["wpay_auth."+relation])).rows[0].r);
  }
@@ -51,7 +51,7 @@ test("schema 016 to 018 upgrade preserves existing account records",async t=>{
  await migrate(pool);await validateMigrations(pool);
  assert.equal((await pool.query("SELECT count(*)::int n FROM wpay_auth.accounts")).rows[0].n,preserved.count);
  assert.equal((await pool.query("SELECT name FROM wpay_auth.accounts WHERE id=$1",[preserved.id])).rows[0].name,"Preserved Merchant");
- assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,18);
+ assert.equal((await pool.query("SELECT max(version)::int v FROM wpay_auth.schema_migrations")).rows[0].v,19);
 });
 
 test("runtime role validates the complete schema fingerprint after migration 018",async t=>{
