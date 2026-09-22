@@ -39,11 +39,15 @@
    const data=await post('operations/devices',state.afterDevice?{afterDevice:state.afterDevice}:{});
    card.append(el('p','Pair the existing WPay APK with a code issued to your account. A device ID alone cannot establish ownership.','notice'));
    if(data.message)card.append(el('p',data.message));
-   if(page==='activation'){if(data.pairingAvailable)card.append(button('Generate pairing code',async()=>{
+   if(page==='activation'){
+   card.append(el('h2','Activate WPay Agent'),el('p','Generate your account-owned activation code, enter it in WPay Agent, then check pairing. Codes expire after 10 minutes.'));
+   const generate=button('Generate activation code',async()=>{
     const result=await post('operations/device/create',{requestId:crypto.randomUUID()}),box=el('section',undefined,'business-row'),code=el('code',result.pairingCode);code.dataset.secret='true';
     box.append(el('h2','Enter this code in the existing APK'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),button('Check pairing',async()=>{const r=await post('operations/device/poll',{requestId:result.id});if(r.state==='linked')await reload();else box.append(el('p',r.state));}),button('Hide code',()=>{code.textContent='Hidden';}));card.prepend(box);
     setTimeout(()=>{code.textContent='Hidden';},Math.min(60000,Math.max(0,+new Date(result.expiresAt)-Date.now())));
-   }));else card.append(el('p','OTP source unavailable','notice'));
+   });generate.disabled=!data.pairingAvailable;card.append(generate);
+   if(!data.pairingAvailable)card.append(el('p',data.pairingStatus==='source_unavailable'?'The device pairing connection is temporarily unavailable. Retry shortly.':'APK activation is not connected to this WPay workspace yet. Ask Admin to configure the pairing connection. No activation code has been issued.','notice'));
+   card.append(button('Refresh activation status',()=>reload()));
    for(const pending of data.pending)card.append(button('Check pending pairing · '+new Date(pending.expires_at).toLocaleTimeString(),async()=>{const r=await post('operations/device/poll',{requestId:pending.id});if(r.state==='linked')await reload();else card.append(el('p',r.state));}));
    }if(page==='devices')for(const d of data.devices){const row=el('article',undefined,'business-row');facts(row,{Device:d.device,Status:d.status,'Access until':new Date(d.validUntil).toLocaleString()});row.append(button('Revoke WPay ownership',async()=>{await post(d.legacyMapping?'resources/revoke':'operations/device/revoke',d.legacyMapping?{linkId:d.id}:{id:d.id});await reload();}));card.append(row);}
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({afterDevice:data.nextDeviceCursor})));if(state.afterDevice)card.append(button('First devices',()=>reload()));return;
