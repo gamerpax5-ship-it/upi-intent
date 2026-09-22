@@ -7,20 +7,22 @@ on:
     paths:
       - "android-app/**"
       - ".github/workflows/android-apk.yml"
+      - "scripts/publish-android-apk.py"
 
 permissions:
   contents: write
 
 concurrency:
   group: wpay-agent-apk-publish
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout exact source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -30,6 +32,25 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Restore existing APK signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WPAY_ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Missing WPAY_ANDROID_DEBUG_KEYSTORE_BASE64. Restore the original APK debug.keystore; a new key cannot update existing installations."
+            exit 1
+          fi
+          mkdir -p "$HOME/.android"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+          CERT=$(keytool -exportcert -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android | sha256sum | cut -d ' ' -f 1)
+          if [ "$CERT" != "27c45dadad724483262f05e623f38000d0c635841a467cf30bd83b5b7a56836a" ]; then
+            echo "::error::Signing certificate does not match the existing published APK."
+            exit 1
+          fi
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -42,35 +63,26 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
+      - name: Prepare increasing update version
+        run: python3 scripts/publish-android-apk.py prepare
+
       - name: Run unit tests
         run: gradle --no-daemon -p android-app testDebugUnitTest
 
-      - name: Build debug APK
+      - name: Build APK with existing signing identity
         run: gradle --no-daemon -p android-app assembleDebug
 
-      - name: Publish APK into dashboard
-        run: |
-          git pull --rebase origin main
-          mkdir -p public/downloads
-          cp android-app/app/build/outputs/apk/debug/app-debug.apk public/downloads/WPAY-Agent.apk
-          VERSION=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' android-app/app/build.gradle.kts | head -n 1)
-          COMMIT=$(git rev-parse HEAD)
-          BUILT_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          printf '{"version":"%s","commit":"%s","builtAt":"%s"}\n' "$VERSION" "$COMMIT" "$BUILT_AT" > public/downloads/WPAY-Agent.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/downloads/WPAY-Agent.apk public/downloads/WPAY-Agent.json
-          if git diff --cached --quiet; then
-            echo "APK unchanged"
-          else
-            git commit -m "Publish latest WPAY Agent APK [skip ci]"
-            git push origin HEAD:main
-          fi
+      - name: Verify and publish to both Railway branches
+        run: python3 scripts/publish-android-apk.py publish
 
-      - name: Upload APK artifact
+      - name: Upload verified APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wpay-agent-debug
+          name: wpay-agent-update
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Remove runner signing key
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore"
