@@ -13,11 +13,12 @@
    title.textContent=account.accountType==='user'?'Pay-in Transactions':'UTR Center';
    const data=await post('operations/transactions',{offset:state.offset||0});card.append(el('p',data.note,'notice'));
    if(!data.records.length)card.append(el('p','No transactions'));
-   for(const r of data.records){const box=el('article',undefined,'card');facts(box,{'Order':r.orderId,'Merchant reference':r.reference,'Amount (INR paise)':r.amountMinor,'Status':r.status,'Evidence':r.evidenceState,'Accounting':r.accountingState,'Bank reference':r.bankId,'Bank version':r.bankVersion,'Recovered':r.recovered,...(r.userId?{'User':r.userId,'Merchant':r.merchantId,'Callback':r.callbackState}:{})});
+   for(const r of data.records){const box=el('article',undefined,'card');facts(box,{'Order':r.orderId,'Merchant reference':r.reference,'Amount (INR paise)':r.amountMinor,'Status':r.status,'Created':r.createdAt,'Paid':r.paidAt,'Evidence':r.evidenceState,'Accounting':r.accountingState,'Bank reference':r.bankId,'Bank version':r.bankVersion,'Recovered':r.recovered,...(r.userId?{'User':r.userId,'Merchant':r.merchantId,'Callback':r.callbackState}:{})});
     if(!r.observations.length)box.append(el('p','No UTR observed'));
     for(const o of r.observations)facts(box,{'UTR':o.utr,'Source':o.source,'Captured':o.capturedAt,'Independently verified':o.verified});card.append(box);
    }
-   if(data.hasMore)card.append(button('Next page',()=>reload({offset:data.offset+50})));
+   if(data.offset)card.append(button('Previous page',()=>reload({...state,offset:Math.max(0,data.offset-50)})));
+   if(data.hasMore)card.append(button('Next page',()=>reload({...state,offset:data.offset+50})));
    if(account.accountType!=='user'){
     const sources=await post('operations/utr-source',state.afterSource?{afterLink:state.afterSource}:{}),sourceBox=el('section',undefined,'card');sourceBox.append(el('h2','Legacy UTR observations'),el('p','Source observations remain unbound until independent account/order evidence establishes the payment.'));
     if(!sources.links.length)sourceBox.append(el('p','No verified source/account links'));
