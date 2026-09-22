@@ -7,7 +7,7 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
  const callback=http.createServer(async(req,res)=>{let body='';for await(const chunk of req)body+=chunk;received.push({body,headers:req.headers,valid:verifySignature(signing,req.headers,body)});res.writeHead(callbackCode);res.end('synthetic');});await new Promise(resolve=>callback.listen(0,'127.0.0.1',resolve));t.after(()=>new Promise(resolve=>callback.close(resolve)));
  const gateway=service.gateway=new Gateway({pool:runtime,crypto:f.crypto,allowSynthetic:true,testCallback:`http://127.0.0.1:${callback.address().port}/callback`,verifier:async snapshot=>observations.has(snapshot.orderId)?{...snapshot,...observations.get(snapshot.orderId)}:null});
  const server=await startAuthServer({service,port:0});t.after(()=>new Promise(resolve=>server.close(resolve)));const origin=`http://127.0.0.1:${server.address().port}`;
- const body=(reference,amountMinor='10000')=>({reference,idempotencyKey:reference,amountMinor,currency:'INR',ttlSeconds:30});
+ const body=(reference,amountMinor='10000')=>({reference,idempotencyKey:reference,amountMinor,currency:'INR'});
  const proof=(order,source='normal',utr='123456789012')=>observations.set(order.id,{verified:true,final:true,synthetic:true,status:'confirmed',source,utr,evidenceId:'proof-'+order.id,economicId:'economic-'+order.id,receivedAt:new Date().toISOString()});
  let order,key,endpoint;
  await t.test('real scoped migration, one-time key and callback secrets, exact QR, claim never credits',async()=>{
