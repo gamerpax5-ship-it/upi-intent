@@ -32,6 +32,18 @@ Only the CI runner's temporary copy of android-app/app/build.gradle.kts gets a b
 Python compilation and workflow YAML parsing passed. A disposable local Git integration fixture with mocked Android SDK commands passed: mismatched signer leaves refs unchanged; dual-branch atomic publication; matching artifacts; source SHA attribution; source Gradle unchanged in published commits; repeat/equal version publication rejected. These tests are not real Android compilation/signature validation or Railway deployment of a new APK.
 Full repository npm, PostgreSQL, and protected-legacy checks were not run from the partial local checkout. Protected artifact hashes are intentionally not rebased or weakened; their old frozen baseline will require a separately reviewed baseline decision for any newly authorized APK artifact update. Android unit tests remain mandatory in the workflow.
 
+## Post-deployment verification (2026-09-22)
+
+PR #6 merged into main at `96fba90d6e022fe751332a9353b88c62bae7f1e3`. Backend Railway deployment `e4d2709f-1155-418a-8010-51194c35a98f` is SUCCESS; dashboard deployment `1dd0c553-549e-489b-a68d-096ff6f7fa95` remains SUCCESS.
+
+[First automatic APK workflow run](https://github.com/gamerpax5-ship-it/upi-intent/actions/runs/35724864675) triggered successfully. Job 106735998194 failed at Restore existing APK signing key with: Missing WPAY_ANDROID_DEBUG_KEYSTORE_BASE64. Build/test/publish steps did not execute. No new APK was published. The missing keystore is confirmed by the running workflow, not just an inference.
+
+[Backend CI](https://github.com/gamerpax5-ship-it/upi-intent/actions/runs/35724864623): four tests in test/device-otp-router.test.js still expect the previous OTP storage/access behavior and fail after the user's disabling change. The tests were not altered or skipped; OTP behavior was not re-enabled.
+
+[Hosted acceptance CI](https://github.com/gamerpax5-ship-it/upi-intent/actions/runs/35724250963): protected-source checks, syntax, and full legacy/WPay unit suite passed. Actual PostgreSQL/HTTP/MFA tests passed; a later acceptance group reported 9 failures, beginning with a migration-count assertion (actual 18, expected 16), followed by missing fixture values/invalid requests. These were not repaired as part of the requested packaging/pairing-only changes. The deployment is live, but this does not establish that all dashboard acceptance flows pass.
+
+Android signing continuity requirement: https://developer.android.com/studio/publish/app-signing . Original signing-key availability remains necessary; the new workflow cannot recover a lost key from the APK.
+
 ## Complete workflow BEFORE
 
 ```yaml
