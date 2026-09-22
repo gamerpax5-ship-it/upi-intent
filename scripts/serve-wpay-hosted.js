@@ -8,6 +8,7 @@ const { fromEnvironment } = require("../lib/wpay/funding/provider");
 const { openLegacySource } = require("../lib/wpay/integrations/source-config");
 const {openOperationalSource}=require('../lib/wpay/integrations/operational-source');
 const {configuredPairingBridge}=require('../lib/wpay/integrations/pairing-bridge');
+const {configuredPairingService}=require('../lib/wpay/integrations/pairing-service');
 const { AuthService } = require("../lib/wpay/auth/runtime/service");
 const { startAuthServer } = require("../lib/wpay/auth/runtime/http");
 const { transport } = require("../lib/wpay/auth/runtime/transport");
@@ -30,8 +31,8 @@ async function main(){
     stage="schema_validation";await validateMigrations(pool);
     stage="mfa_factors";const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
-    stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingBridge=configuredPairingBridge();
-    stage="server_start";const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
+    stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingService=configuredPairingService();const pairingBridge=pairingService||configuredPairingBridge();
+    stage="server_start";const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
       port:Number(process.env.PORT),hostedOrigin:policy.origin,readiness:async()=>{
         if(stopping)return false;
         try {await pool.query("SELECT 1");return true;}catch{return false;}
