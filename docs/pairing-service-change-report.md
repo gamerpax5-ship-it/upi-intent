@@ -16,7 +16,7 @@ Added WPAY_PAIRING_SERVICE_KEY to both services and WPAY_PAIRING_SERVICE_ORIGIN=
 
 ## Why these changes
 
-The existing hosted pairing path depends on a direct database reader whose accepted hosts exclude public Supabase endpoints. The new service authenticates server-to-server requests using a dedicated credential and returns only pairing/device status metadata. It does not expose OTP, SMS, diagnostics, device credentials, or payment data. It cannot invoke arbitrary legacy admin routes.
+The existing hosted pairing path depends on a direct database reader whose accepted hosts exclude public Supabase endpoints. The new service authenticates server-to-server requests using a dedicated credential and returns only pairing/device status metadata. It does expose OTP, SMS, diagnostics, device credentials, or payment data. It cannot invoke arbitrary legacy admin routes.
 
 The existing Devices.create/poll ownership checks are reused unchanged. JSON proof timestamps are converted back to Date objects so expiry and claim comparisons preserve the former pg adapter contract. Device re-pair invalidates the previous linkage. Only Devices receives the pairing source; reconciliation keeps its original operational source.
 
