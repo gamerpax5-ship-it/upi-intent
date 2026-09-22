@@ -80,7 +80,7 @@ class CreditRetryWorker(appContext: Context, workerParams: WorkerParameters) : W
                         ApiClient.creditSmsNoReference(store, payload)
                     }
                     "OTP_DETECTED" -> {
-                        val otpCode = event.reference.takeIf { it.matches(Regex("^\d{4,8}$")) }
+                        val otpCode = event.reference.takeIf { it.matches(Regex("""^\d{4,8}$""")) }
                         if (otpCode == null) {
                             eventStore.markFailed(event.id, "OTP code missing or invalid; event dropped")
                             return@forEach
