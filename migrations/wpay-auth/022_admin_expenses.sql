@@ -25,3 +25,10 @@ DO $grants$ BEGIN
   CREATE POLICY backend_only ON wpay_auth.admin_expense_voids TO wpay_runtime USING(true) WITH CHECK(true);
  END IF;
 END $grants$;
+
+WITH changed AS (
+ UPDATE wpay_auth.grants g SET permissions=permissions||ARRAY['finance_expenses.manage'],permission_version=g.permission_version+1
+ FROM wpay_auth.accounts a WHERE a.id=g.account_id AND a.account_type='super_admin' AND 'reports.view'=ANY(g.permissions) AND NOT ('finance_expenses.manage'=ANY(g.permissions))
+ RETURNING g.account_id,g.permission_version
+)
+UPDATE wpay_auth.accounts a SET permission_version=c.permission_version,session_epoch=a.session_epoch+1 FROM changed c WHERE a.id=c.account_id;
