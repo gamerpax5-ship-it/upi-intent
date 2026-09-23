@@ -13,7 +13,7 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
  const pool=new Pool({connectionString:url.toString()});t.after(async()=>{await pool.end();await admin.query('DROP DATABASE '+name);await admin.end();});await migrate(pool);
  const ids={};
  await transaction(pool,async c=>{
-  for(const [key,type,tenant]of [['admin','super_admin','tenant-a'],['user','user','tenant-a'],['m1','merchant','tenant-a'],['m2','merchant','tenant-a'],['foreign','merchant','tenant-b']]){
+  for(const [key,type,tenant]of [['admin','super_admin','tenant-a'],['user','user','tenant-a'],['m1','merchant','tenant-a'],['m2','merchant','tenant-a'],['m3','merchant','tenant-a'],['foreign','merchant','tenant-b']]){
    const id=ids[key]=randomUUID();await c.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,user_id,merchant_id) VALUES($1,$2,$3,$4,$5,$6,'active',$7,$8)",[id,randomUUID(),tenant,key,key+'@test.invalid',type,type==='user'?id:null,type==='merchant'?id:null]);
    await c.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status,initial_deposit_satisfied) VALUES($1,'approved',true)",[id]);
    await c.query("INSERT INTO wpay_auth.account_security(account_id,enabled,factor_version,encrypted_secret) VALUES($1,true,1,'{}')",[id]);
@@ -40,6 +40,11 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   const listing=await call('business/admin-upi',{search:'admin.collection'});assert.equal(listing.banks.length,1);assert.equal(listing.routes.length,2);assert.equal(listing.accounts.some(a=>a.id===ids.foreign),false);
   await assert.rejects(call('business/admin-upi/route',route(bank,ids.m1)),e=>e.code==='CONFLICT');
   await assert.rejects(call('business/admin-upi/route',route(bank,ids.foreign)),e=>e.code==='FORBIDDEN');
+ });
+ await t.test('Admin-created UPIs never enter old blanket user assignments implicitly',async()=>{
+  await transaction(pool,c=>core.assignment(c,ids.admin,{id:null,merchantId:ids.m3,userId:ids.user,priority:10,weight:1,minMinor:'100',maxMinor:'10000',enabled:true}));
+  assert.ok((await transaction(pool,c=>core.candidates(c,ids.m3))).every(r=>!r.bankId));
+  await assert.rejects(transaction(pool,c=>core.reserve(c,ids.m3,{orderReference:'not-assigned',idempotencyKey:'not-assigned',amountMinor:'100'})),e=>e.code==='NO_ROUTE');
  });
  await t.test('route disable and re-enable preserve independent merchant bindings',async()=>{
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:false}));
