@@ -7,7 +7,7 @@
 <meta content="#07121f" name="theme-color"/>
 <title>WPay User</title>
 <meta name="wpay-entry-role" content="user"><link href="/wpay-auth/user-prototype.css" rel="stylesheet"/><link href="/wpay-auth/reference-live.css" rel="stylesheet"/></head>
-<body>
+<body class="user-workspace">
 <section class="login-shell" id="auth">
 <div class="login-side">
 <div class="login-card" id="access-card"></div>
@@ -15,13 +15,13 @@
 <div class="login-visual">
 <div class="brand"><div class="brandmark"><svg aria-hidden="true" fill="none" viewBox="0 0 32 32"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"></path></svg></div><div><strong>WPay</strong><small>Payments Beyond Borders</small></div></div>
 <div class="login-hero">
-<div class="hero-chip">Global payments · real opportunities</div>
-<h1 style="margin-top:22px">Move value with <span>clarity, speed &amp; control.</span></h1>
-<p>Your WPay User workspace brings Bank &amp; UPI, short-window analytics, USDT deposits, commission withdrawals, payout work, Parking beneficiaries and linked devices into one secure operating environment.</p>
+<div class="hero-chip">YOUR PAYMENTS WORKSPACE</div>
+<h1 style="margin-top:22px">Your payments.<br/><span>A clearer view.</span></h1>
+<p>Manage your Bank &amp; UPI accounts, track collections and keep your earnings in view. One workspace for your daily payment operations.</p>
 <div class="hero-feature-grid">
 <div class="hero-feature"><div class="hero-feature-icon" data-icon="send"></div><div><strong>Payment operations</strong><span>Track pay-ins, payout work, Parking orders and transaction status from one workspace.</span></div></div>
-<div class="hero-feature"><div class="hero-feature-icon" data-icon="wallet"></div><div><strong>USDT capacity</strong><span>Request provider-backed TRC20 deposits and follow funding status truthfully.</span></div></div>
-<div class="hero-feature"><div class="hero-feature-icon" data-icon="chart"></div><div><strong>Real-time insight</strong><span>Monitor running UPI IDs in 5-minute, 10-minute and custom operating windows.</span></div></div>
+<div class="hero-feature"><div class="hero-feature-icon" data-icon="wallet"></div><div><strong>USDT capacity</strong><span>View deposit instructions and follow the status of your funding requests.</span></div></div>
+<div class="hero-feature"><div class="hero-feature-icon" data-icon="chart"></div><div><strong>Real-time insight</strong><span>Review UPI performance, payment activity and collection trends.</span></div></div>
 <div class="hero-feature"><div class="hero-feature-icon" data-icon="user"></div><div><strong>Built for your role</strong><span>Only your banks, devices, transactions, evidence and support history are visible.</span></div></div>
 </div>
 <div class="security-strip"><div><strong>Your security, our priority</strong><br/><span>Authenticator MFA · scoped access · auditable activity</span></div><div><span>Banking OTP remains separate from WPay login security</span></div></div>
@@ -32,7 +32,7 @@
 <section class="app" hidden="" id="workspace">
 <aside class="sidebar" id="sidebar">
 <div class="brand"><div class="brandmark"><svg aria-hidden="true" fill="none" viewBox="0 0 32 32"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"></path></svg></div><div><strong>WPay</strong><small>User workspace</small></div></div>
-<nav class="nav">
+<nav class="nav" aria-label="User workspace navigation">
 <div class="nav-group"><div class="nav-title">Workspace</div>
 <button aria-disabled="true" class="nav-item active" data-page="overview" disabled="" type="button"><span class="ico"></span>Dashboard</button>
 <button aria-disabled="true" class="nav-item" data-page="analytics" disabled="" type="button"><span class="ico"></span>Analytics</button>
@@ -82,7 +82,8 @@
 <main class="main">
 <header class="topbar">
 <button aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false" class="menu-btn" id="menuBtn"><span data-icon="menu"></span></button>
-<div class="search"><span class="search-svg" data-icon="search"></span><input id="globalSearch" placeholder="Search sections…"/></div>
+<div class="workspace-location" aria-hidden="true"><small>USER WORKSPACE</small><strong id="workspaceLocation">Overview</strong></div>
+<div class="search"><span class="search-svg" data-icon="search"></span><input id="globalSearch" placeholder="Find a section…" aria-label="Find a workspace section" autocomplete="off"/></div>
 <div class="top-actions">
 <button aria-label="Switch theme" class="icon-btn" id="role-theme" title="Switch theme"><span data-icon="sun" id="themeIcon"></span></button>
 <button aria-label="Notifications" class="icon-btn" data-go="notifications" id="role-notifications" title="Notifications"><span data-icon="bell"></span></button>
@@ -92,7 +93,7 @@
 </button>
 </div>
 <select aria-label="Language" class="control" id="language"><option value="en">English</option><option value="ru">Русский</option><option value="zh-CN">简体中文</option></select></header>
-<div class="content"><div class="page-head"><div><div class="eyebrow" id="account-type"></div><h1 id="page-title"></h1></div><span class="pill" id="approval-badge"></span></div><div class="live-content" id="page-content"></div></div>
+<div class="content"><div class="page-head"><div><div class="eyebrow" id="account-type"></div><h1 id="page-title" tabindex="-1"></h1></div><span class="pill" id="approval-badge"></span></div><div class="live-content" id="page-content"></div></div>
 </main>
 </section>
 
