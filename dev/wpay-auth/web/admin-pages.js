@@ -20,7 +20,12 @@
   if(settings){const data=await request('panel/settings');card.append(el('h2','Authentication & sessions'),el('p','Current server-enforced policy. Change your own email and password from Account settings.','admin-subtitle'));detail(card,data);return;}
   if(directory){
    const type=user?'user':'merchant',data=await post('panel/directory',{type,status:state.status||'all',search:state.search||'',offset:state.offset||0});
-   const intro=el('div',undefined,'admin-toolbar');intro.append(el('p',user?'Review registrations and manage user commissions and USDT terms.':'Review registrations and manage merchant fees and settlement rates.','admin-subtitle'),button('Refresh',()=>reload()));card.append(intro);
+   const intro=el('div',undefined,'admin-toolbar');intro.append(el('p',user?'Review registrations and manage user commissions and USDT terms.':'Review registrations and manage merchant fees and settlement rates.','admin-subtitle'),button('Refresh',()=>reload()));if(data.canCreate)intro.append(button(user?'+ Create user':'+ Create merchant',()=>{
+    const d=el('dialog'),form=el('form',undefined,'admin-editor');d.append(el('h2',user?'Create user':'Create merchant'),button('Close',()=>d.close()),form);card.append(d);d.onclose=()=>d.remove();
+    const name=input(form,'Name'),email=input(form,'Email'),password=input(form,'Password');email.type='email';password.type='password';password.autocomplete='new-password';globalThis.WPayPasswordPolicy.bind(password,'en','establish');
+    form.append(el('p','The account starts pending. Review it and set commercial terms before approving access.','notice'));const save=el('button','Create account','primary');save.type='submit';form.append(save);const requestId=crypto.randomUUID();
+    form.onsubmit=e=>{e.preventDefault();action(async()=>{save.disabled=true;try{await post('panel/directory/create',{requestId,type,name:name.value,email:email.value,password:password.value});password.value='';d.close();await reload({status:'pending',search:email.value,offset:0});}finally{save.disabled=false;}});};d.showModal();
+   },'primary'));card.append(intro);
    const filter=el('form',undefined,'admin-filters'),search=input(filter,'Search name or email',state.search||''),status=input(filter,'Status',state.status||'all',['all','pending','approved','rejected','suspended','disabled']);search.required=false;search.maxLength=100;
    const submit=el('button','Apply filters','primary');submit.type='submit';filter.append(submit);filter.onsubmit=e=>{e.preventDefault();action(()=>reload({search:search.value,status:status.value}));};card.append(filter);
    const drawer=el('section',undefined,'admin-record-detail');drawer.hidden=true;

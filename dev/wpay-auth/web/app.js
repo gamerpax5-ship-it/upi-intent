@@ -230,6 +230,7 @@ async function load(selected = destination, reuseSession = false) {
   destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
   const referenceSection=globalThis.WPayReferenceUi?.section;
   if(globalThis.WPayReferencePresentation)globalThis.WPayReferencePresentation.begin(account,referenceSection);
+  if(page?.destinationId.startsWith('admin-finance.'))return globalThis.WPayAdminFinance.render({page,post,action,el,container:$('page-content'),title:$('page-title')});
   if(page?.destinationId==='administration.admin-upi')return globalThis.WPayAdminUpi.render({post,action,el,container:$('page-content'),title:$('page-title')});
   if(referenceSection==='fees'&&account.accountType==='merchant')return globalThis.WPayReferencePresentation.fees({request,post,action,el,container:$("page-content")});
   if(referenceSection==='transactions'&&account.accountType==='user')return globalThis.WPayReferenceHistory.render({groups:navigation.groups,request,post,action,el,container:$("page-content"),title:$("page-title")});

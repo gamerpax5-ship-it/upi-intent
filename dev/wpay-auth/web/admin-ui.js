@@ -6,22 +6,34 @@
  function sync(account,navigation,selected){
   nav=navigation;const pages=navigation.groups.flatMap(g=>g.children),buttons=[...$('navigation').querySelectorAll('button')];
   buttons.forEach((b,i)=>{if(pages[i]?.permissionId==='account_security.view')b.textContent='Account settings';b.dataset.destination=pages[i]?.destinationId||'';if(pages[i]?.destinationId===selected||(!selected&&pages[i]?.permissionId==='overview.view'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-  const groupNames=['WORKSPACE','PAYMENTS & ROUTING','TREASURY','FINANCE & REPORTS','WPAY AGENT','OPERATIONS'],groups=groupNames.map(name=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=name;d.append(s);return d;});
-  buttons.forEach((b,i)=>{const p=pages[i];if(!p||p.permissionId==='overview.view')return;const id=p.permissionId;let index=5;
-   if(/^(users|merchants|employee)/.test(id))index=0;
-   else if(/^(bank_upi|routing|assignments|transactions|payout|parking|statement)/.test(id))index=1;
-   else if(/^(deposits|withdrawals|holds|commission_withdrawal|commission_hold)/.test(id))index=2;
-   else if(/^(reports|ledger|commissions)/.test(id))index=3;
-   else if(/^(apk|device|otp|utr_center)/.test(id))index=4;
-   if(p.destinationId==='administration.admin-upi'){b.textContent='UPI Directory & Routing';index=1;}
-   const icon=document.createElement('i');icon.className='admin-nav-icon';icon.setAttribute('aria-hidden','true');icon.textContent=['♙','⇄','▥','≡','◇','▤'][index];b.prepend(icon);b.addEventListener('click',()=>document.body.classList.remove('admin-nav-open'));groups[index].append(b);
+  const groupNames=['USERS','MERCHANTS','UPI & ROUTING','APK & DEVICES','EMPLOYEES & RIGHTS','FINANCE & REPORTS','OPERATIONS','SETTINGS'],groups=groupNames.map(name=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=name;d.append(s);return d;});
+  buttons.forEach((b,i)=>{const p=pages[i];if(!p||p.permissionId==='overview.view')return;const id=p.permissionId;let index=6;
+   if(/^(users|deposits|commission_withdrawal|commission_hold|parking|bank_upi|statement)/.test(id))index=0;
+   else if(/^(merchants|transactions|payout|withdrawals|api_credentials|api_logs|webhooks)/.test(id))index=1;
+   else if(/^(routing|assignments)/.test(id))index=2;
+   else if(/^(apk|device|otp|utr_center)/.test(id))index=3;
+   else if(/^employee/.test(id)||p.destinationId==='operations.admins')index=4;
+   else if(/^(reports|ledger|commissions|holds)/.test(id))index=5;
+   else if(/^(settings|profile|account_security)/.test(id))index=7;
+   if(p.destinationId.startsWith('admin-finance.'))index=p.destinationId.endsWith('.audit')?6:5;
+   if(p.destinationId==='administration.admin-upi'){b.textContent='UPI Directory & Routing';index=2;}
+   if(id==='users.view')b.textContent='Users & approvals';
+   if(id==='merchants.view')b.textContent='Merchants & approvals';
+   if(id==='devices.view')b.textContent='Device management & pairing';
+   const icon=document.createElement('i');icon.className='admin-nav-icon';icon.setAttribute('aria-hidden','true');icon.textContent=['♙','▣','⇄','◇','♧','≡','▤','⚙'][index];b.prepend(icon);b.addEventListener('click',()=>document.body.classList.remove('admin-nav-open'));groups[index].append(b);
   });
   $('navigation').replaceChildren(...groups.filter(g=>g.querySelector('button')));
   $('account-home').setAttribute('aria-current',!selected||pages.find(p=>p.destinationId===selected)?.permissionId==='overview.view'?'page':'false');
   let user=$('admin-account');if(!user){user=document.createElement('p');user.id='admin-account';user.className='admin-account';$('workspace').querySelector('aside').prepend(user);}user.textContent=account.name+' · '+(account.accountType==='super_admin'?'Super Admin':'Admin');
   $('account-home').textContent='◇  Overview';
+  const crumb=$('admin-crumb');if(crumb)crumb.textContent=pages.find(p=>p.destinationId===selected)?.label||'Overview';
  }
- function connect(value){api=value;const toggle=document.createElement('button');toggle.type='button';toggle.className='admin-menu-toggle';toggle.textContent='☰';toggle.setAttribute('aria-label','Toggle navigation');toggle.onclick=()=>document.body.classList.toggle('admin-nav-open');document.querySelector('header').prepend(toggle);const veil=document.createElement('button');veil.type='button';veil.className='admin-mobile-veil';veil.setAttribute('aria-label','Close navigation');veil.onclick=()=>document.body.classList.remove('admin-nav-open');document.body.append(veil);$('admin-search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();for(const d of $('navigation').querySelectorAll('details')){let count=0;for(const b of d.querySelectorAll('button')){b.hidden=!b.textContent.toLowerCase().includes(q);if(!b.hidden)count++;}d.hidden=!count;if(q)d.open=true;}});}
+ function connect(value){api=value;
+  const header=document.querySelector('header'),search=$('admin-search').closest('.admin-search'),aside=$('workspace').querySelector('aside');
+  if(search){search.classList.add('admin-sidebar-search');aside.prepend(search);$('admin-search').placeholder='Search modules…';}
+  const crumb=document.createElement('div');crumb.className='admin-breadcrumb';crumb.append(document.createTextNode('Workspace / '));const current=document.createElement('strong');current.id='admin-crumb';current.textContent='Overview';crumb.append(current);header.append(crumb);
+  const theme=document.createElement('button');theme.type='button';theme.className='admin-theme';theme.textContent='◐ Theme';theme.setAttribute('aria-label','Toggle colour theme');theme.onclick=()=>{document.body.classList.toggle('admin-light');try{localStorage.setItem('wpay-admin-theme',document.body.classList.contains('admin-light')?'light':'dark');}catch{}};try{document.body.classList.toggle('admin-light',localStorage.getItem('wpay-admin-theme')==='light');}catch{}header.append(theme);
+const toggle=document.createElement('button');toggle.type='button';toggle.className='admin-menu-toggle';toggle.textContent='☰';toggle.setAttribute('aria-label','Toggle navigation');toggle.onclick=()=>document.body.classList.toggle('admin-nav-open');document.querySelector('header').prepend(toggle);const veil=document.createElement('button');veil.type='button';veil.className='admin-mobile-veil';veil.setAttribute('aria-label','Close navigation');veil.onclick=()=>document.body.classList.remove('admin-nav-open');document.body.append(veil);$('admin-search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();for(const d of $('navigation').querySelectorAll('details')){let count=0;for(const b of d.querySelectorAll('button')){b.hidden=!b.textContent.toLowerCase().includes(q);if(!b.hidden)count++;}d.hidden=!count;if(q)d.open=true;}});}
  async function overview({account,post,action,el,container,title,navigate},days=30){
   title.textContent='Overview';container.replaceChildren(el('p','Loading your operational overview…','admin-empty'));
   let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card admin-panel'),retry=el('button','Retry overview','primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable. Retry to load the current balances.','admin-subtitle'),retry);container.replaceChildren(box);throw error;}container.replaceChildren();
