@@ -17,7 +17,13 @@ test('optional authenticator lifecycle and upgrade on disposable PostgreSQL',asy
  for(const type of ['user','merchant']){await service.register({accountType:type,name:type,email:type+'@optional.invalid',password},'127.0.0.1',type);await pool.query("UPDATE wpay_auth.eligibility SET approval_status='approved' WHERE account_id=(SELECT id FROM wpay_auth.accounts WHERE email=$1)",[type+'@optional.invalid']);}
  const user=await repo.credential('user@optional.invalid');
  await pool.query("UPDATE wpay_auth.account_security SET enabled=true,factor_version=1,encrypted_secret='{}' WHERE account_id=$1",[user.id]);
+ const merchant=await repo.credential('merchant@optional.invalid'),keys=[randomUUID(),randomUUID(),randomUUID()];
+ for(let i=0;i<keys.length;i++)await pool.query("INSERT INTO wpay_auth.gateway_keys(id,merchant_id,prefix,digest,label,scopes,security_version,factor_version,revoked_at) VALUES($1,$2,'test',$3,'synthetic',ARRAY['orders:read'],$4,0,$5)",[keys[i],merchant.id,keys[i],i===2?0:1,i===1?new Date():null]);
  await migrate(pool);assert.equal((await repo.credential('user@optional.invalid')).mfa_enabled,false);
+ const versions=(await pool.query('SELECT id,security_version FROM wpay_auth.gateway_keys WHERE merchant_id=$1',[merchant.id])).rows;
+ assert.equal(versions.find(k=>k.id===keys[0]).security_version,2);
+ assert.equal(versions.find(k=>k.id===keys[1]).security_version,1);
+ assert.equal(versions.find(k=>k.id===keys[2]).security_version,0);
  for(const type of ['user','merchant'])await t.test(type+' password login, password change and optional enrollment',async()=>{
   const email=type+'@optional.invalid',login=await service.login({email,password},'127.0.0.1',type);assert.equal(login.stage,'authenticated');
   assert.equal((await service.authenticated(login.sessionToken,'security')).enabled,false);
