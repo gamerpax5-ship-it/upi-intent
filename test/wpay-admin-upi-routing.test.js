@@ -45,6 +45,8 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   await transaction(pool,c=>core.assignment(c,ids.admin,{id:null,merchantId:ids.m3,userId:ids.user,priority:10,weight:1,minMinor:'100',maxMinor:'10000',enabled:true}));
   assert.ok((await transaction(pool,c=>core.candidates(c,ids.m3))).every(r=>!r.bankId));
   await assert.rejects(transaction(pool,c=>core.reserve(c,ids.m3,{orderReference:'not-assigned',idempotencyKey:'not-assigned',amountMinor:'100'})),e=>e.code==='NO_ROUTE');
+  await call('business/admin-upi/route',route(bank,ids.m3));
+  assert.equal((await transaction(pool,c=>core.candidates(c,ids.m3))).filter(r=>r.bankId===bank.id&&r.assignmentActive).length,1);
  });
  await t.test('route disable and re-enable preserve independent merchant bindings',async()=>{
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:false}));
