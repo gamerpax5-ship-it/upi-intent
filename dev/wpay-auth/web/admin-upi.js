@@ -1,0 +1,47 @@
+'use strict';
+(function(root){
+ const minor=s=>{if(!/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(s))throw Error('Enter a valid INR amount');const [a,b='']=s.split('.');return (BigInt(a)*100n+BigInt(b.padEnd(2,'0'))).toString();};
+ const decimal=s=>{const v=BigInt(s||'0').toString().padStart(3,'0');return v.slice(0,-2)+'.'+v.slice(-2);};
+ const money=s=>'₹'+decimal(s);
+ async function render(args,state={offset:0,search:''}){
+  const {post,action,el,container,title}=args;title.textContent='UPI Directory & Routing';container.replaceChildren(el('p','Loading UPI directory…','admin-empty'));
+  const data=await post('business/admin-upi',state);container.replaceChildren();
+  const button=(label,fn,cls='')=>{const b=el('button',label,cls);b.type='button';b.onclick=()=>action(fn);return b;};
+  const field=(form,label,value='',options)=>{const wrap=el('label',label),input=el(options?'select':'input');input.required=true;if(options)for(const [v,t]of options){const o=el('option',t);o.value=v;input.append(o);}input.value=value;wrap.append(input);form.append(wrap);return input;};
+  const reload=()=>render(args,state);
+  function modal(label,build){const dialog=el('dialog',undefined,'admin-upi-modal'),head=el('div',undefined,'admin-toolbar');head.append(el('h2',label),button('Close',()=>dialog.close()));const form=el('form',undefined,'admin-editor');dialog.append(head,form);container.append(dialog);dialog.onclose=()=>dialog.remove();build(form,dialog);dialog.showModal();}
+  function saveButton(form,label,fn){const b=el('button',label,'primary');b.type='submit';form.append(b);form.onsubmit=e=>{e.preventDefault();action(async()=>{b.disabled=true;try{await fn();}finally{b.disabled=false;}});};}
+  const header=el('div',undefined,'admin-toolbar');header.append(el('p','Manage approved UPIs and their merchant routes.','admin-subtitle'));
+  if(data.canCreate)header.append(button('+ Add Admin UPI',()=>modal('Add Admin-approved UPI',(f,d)=>{
+   const users=data.accounts.filter(a=>a.account_type==='user'),owner=field(f,'Account owner',users[0]?.id||'',users.map(a=>[a.id,a.name]));
+   const inputs={};for(const [k,label,value]of [['upiId','UPI ID',''],['holderName','Account holder',''],['bankName','Bank name',''],['accountNumber','Account number',''],['ifsc','IFSC',''],['mobile','Registered mobile',''],['bankLimit','Shared daily bank limit (INR)','100000.00'],['providerName','UPI provider',''],['notes','Notes','']])inputs[k]=field(f,label,value);
+   inputs.providerName.required=false;inputs.notes.required=false;const type=field(f,'Account type','business',[['business','Business'],['personal','Personal']]),reason=field(f,'Approval reason');
+   const notice=el('p','Admin approval replaces the UPI payment challenge for this entry. Owner funding, account readiness and shared bank limits still apply.','notice');notice.style.gridColumn='1/-1';f.append(notice);const requestId=crypto.randomUUID();
+   saveButton(f,'Create approved UPI',async()=>{const details=Object.fromEntries(Object.entries(inputs).filter(([k])=>k!=='bankLimit').map(([k,i])=>[k,i.value.trim()]));details.bankLimitMinor=minor(inputs.bankLimit.value);details.accountType=type.value;await post('business/admin-upi/create',{ownerId:owner.value,details,reason:reason.value,requestId});d.close();await reload();});
+  }),'primary'));
+  container.append(header);
+  const tiles=el('div',undefined,'admin-summary-grid');for(const [label,value]of [['UPIs on this page',data.banks.length],['Active merchant routes',data.routes.filter(r=>r.status==='active').length],['Admin-approved UPIs',data.banks.filter(b=>b.admin_approved_by).length]]){const tile=el('div',undefined,'admin-summary-tile');tile.append(el('span',label),el('strong',String(value)));tiles.append(tile);}container.append(tiles);
+  const search=el('form',undefined,'admin-filters'),input=field(search,'Search UPI / owner',state.search);input.required=false;saveButton(search,'Search',()=>render(args,{offset:0,search:input.value.trim()}));container.append(search);
+  function routeForm(bank,route){modal(route?'Edit merchant route':'Assign UPI to merchant',(f,d)=>{
+   const merchants=data.accounts.filter(a=>a.account_type==='merchant'&&a.tenant_id===bank.tenant_id);f.append(el('h3',bank.details.upiId));const merchant=field(f,'Merchant',route?.merchant_id||merchants[0]?.id||'',merchants.map(a=>[a.id,a.name]));merchant.disabled=!!route;
+   const min=field(f,'Minimum per payment (INR)',decimal(route?.min_minor||'100')),max=field(f,'Maximum per payment (INR)',decimal(route?.max_minor||'1000000')),priority=field(f,'Priority (lower goes first)',String(route?.priority??100)),reason=field(f,'Change reason');
+   f.append(el('p','One UPI can serve multiple merchants. Its daily bank limit and owner capacity are shared across all routes.','notice'));
+   saveButton(f,'Save merchant route',async()=>{await post('business/admin-upi/route',{id:route?.id||null,bankId:bank.id,version:bank.version,merchantId:merchant.value,priority:Number(priority.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:route?route.status==='active':true,reason:reason.value});d.close();await reload();});
+  });}
+  function routeState(bank,route){modal(route.status==='active'?'Disable merchant route':'Enable merchant route',(f,d)=>{const reason=field(f,'Reason');saveButton(f,'Confirm',async()=>{await post('business/admin-upi/route',{id:route.id,bankId:bank.id,version:bank.version,merchantId:route.merchant_id,priority:route.priority,minMinor:route.min_minor,maxMinor:route.max_minor,enabled:route.status!=='active',reason:reason.value});d.close();await reload();});});}
+  const wrap=el('div',undefined,'table-wrap'),table=el('table',undefined,'admin-table'),head=el('thead'),tr=el('tr');for(const s of ['UPI / owner','Approval','Shared daily limit','Owner available','State','Actions'])tr.append(el('th',s));head.append(tr);table.append(head);const body=el('tbody');table.append(body);wrap.append(table);container.append(wrap);
+  if(!data.banks.length){const tr=el('tr'),td=el('td','No UPIs found.');td.colSpan=6;tr.append(td);body.append(tr);}
+  for(const bank of data.banks){const row=el('tr'),identity=el('td',undefined,'admin-identity');identity.append(el('strong',bank.details.upiId),el('small',bank.owner_name));row.append(identity,el('td',bank.admin_approved_by?'Admin approved':bank.verified_version===bank.version?'Payment verified':'Verification pending'),el('td',money(bank.used)+' used / '+money(bank.sharedLimit||bank.details.bankLimitMinor)),el('td',money(bank.available)),el('td',bank.frozen?'Frozen':bank.status));const actions=el('td',undefined,'admin-row-actions');
+   actions.append(button('Details & routes',()=>details(bank)));if(data.canRoute&&!bank.deactivated)actions.append(button('+ Assign',()=>routeForm(bank)));row.append(actions);body.append(row);
+  }
+  function details(bank){container.querySelector('.admin-route-detail')?.remove();const card=el('section',undefined,'admin-record-detail admin-route-detail'),toolbar=el('div',undefined,'admin-toolbar');toolbar.append(el('h2',bank.details.upiId),button('Close',()=>card.remove()));card.append(toolbar);
+   const facts=el('dl',undefined,'admin-details');for(const [k,v]of Object.entries({'Owner':bank.owner_name,'Account holder':bank.details.holderName,'Bank':bank.details.bankName,'Account number':bank.details.accountNumber,'IFSC':bank.details.ifsc,'Mobile':bank.details.mobile,'Version':bank.version,'Approval':bank.admin_approved_by?'Admin approval · '+new Date(bank.admin_approved_at).toLocaleString():bank.verified_version===bank.version?'Payment verified':'Pending','Notes':bank.details.notes||'—'}))facts.append(el('dt',k),el('dd',String(v)));card.append(facts);
+   if(data.canCreate&&bank.admin_approved_by&&!bank.frozen&&!bank.deactivated)card.append(button(bank.status==='running'?'Stop UPI on all merchants':'Start UPI',()=>modal('Change UPI state',(f,d)=>{const reason=field(f,'Reason');saveButton(f,'Confirm',async()=>{await post('business/admin-upi/state',{bankId:bank.id,version:bank.version,action:bank.status==='running'?'stop':'start',reason:reason.value});d.close();await reload();});})));
+   card.append(el('h3','Merchant assignments'));const routes=data.routes.filter(r=>r.bank_id===bank.id);if(!routes.length)card.append(el('p','No explicit merchant routes yet. Existing user-level assignments remain available under User Assignment.','notice'));
+   for(const r of routes){const route=el('article',undefined,'admin-route-card');route.append(el('strong',r.merchant_name),el('span',r.status,'admin-state '+r.status),el('p',money(r.min_minor)+' – '+money(r.max_minor)+' per payment · priority '+r.priority));if(data.canRoute)route.append(button('Edit',()=>routeForm(bank,r)),button(r.status==='active'?'Disable':'Enable',()=>routeState(bank,r)));card.append(route);}
+   card.append(el('p','Routes become available when the owner has funded capacity and account onboarding is complete. Editing bank identity invalidates the prior approval.','notice'));container.append(card);card.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  const pager=el('div',undefined,'admin-pagination');pager.append(el('span','Page '+(1+state.offset/50)));if(state.offset)pager.append(button('Previous',()=>render(args,{...state,offset:state.offset-50})));if(data.hasMore)pager.append(button('Next',()=>render(args,{...state,offset:state.offset+50})));container.append(pager);
+ }
+ root.WPayAdminUpi={render};
+})(globalThis);
