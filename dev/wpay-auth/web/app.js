@@ -5,7 +5,7 @@ const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
 let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now(), pendingNavigation = null;
-const tr = key => ['admin','super_admin'].includes(account?.accountType) && key==='error.RECENT_MFA_REQUIRED' ? 'Open Account settings and confirm your password, then retry.' : globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
+const tr = key => key==='error.RECENT_MFA_REQUIRED' ? 'Open Security / Account settings and confirm your password (and authenticator code if enabled), then retry.' : globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
 function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
 function field(form,key,type = "text",options) {
@@ -124,19 +124,19 @@ async function adminAccountSettings(){
 }
 async function security() {
   if(['admin','super_admin'].includes(account.accountType))return adminAccountSettings();
-  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",tr(value.enabled ? "securityEnabled" : "enrollTitle")),el("p",tr("freshHelp"),"notice"));
-  const form = el("form"), password = field(form,"password","password"), code = field(form,"code");
-  for (const route of ["replace","regenerate","stepup"]) form.append(button(route,() => action(async () => {
-    if (!form.reportValidity()) return; const body = {password:password.value,code:code.value}; password.value = code.value = "";
+  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",value.enabled?tr("freshHelp"):"Authenticator is optional. Enable it here to require a verification code at login. Confirm your password for security changes.","notice"));
+  const form = el("form"), password = field(form,"password","password"), code = value.enabled?field(form,"code"):null;
+  for (const route of (value.enabled?["replace","regenerate","stepup",...(["user","merchant"].includes(account.accountType)?["disable"]:[])]:["enable","stepup"])) form.append(button(route,() => action(async () => {
+    if (!form.reportValidity()) return; const body = {password:password.value,...(code?{code:code.value}:{})}; password.value = "";if(code)code.value="";
     try { const result = await post("security/" + route,body); if (result.stage) await handleStage(result); else { await load("security"); message("decisionSaved"); } } finally { body.password = body.code = ""; }
   })));
   root.append(form,el("h3",tr("sessions"))); for (const session of value.sessions) root.append(el("p",`${session.current ? tr("current") + " · " : ""}${tr("created")}: ${session.createdAt} · ${tr("expires")}: ${session.expiresAt}`));
   if (["user","merchant"].includes(account.accountType)) {
     const P=globalThis.WPayPasswordPolicy,change=el('form');change.append(el('h3',P.text(locale,'change')),el('p',P.text(locale,'changeHelp'),'notice'));
-    const current=field(change,'password','password'),fresh=field(change,'code');P.bind(current,locale,'login');const inputs=[];
+    const current=field(change,'password','password'),fresh=value.enabled?field(change,'code'):null;P.bind(current,locale,'login');const inputs=[];
     for(const key of ['newPassword','confirmPassword']){const label=el('label',P.text(locale,key)),input=el('input');input.type='password';input.required=true;input.autocomplete='new-password';P.bind(input,locale,'establish');label.append(input);change.append(label);inputs.push(input);}
     change.append(el('p',P.text(locale,'establish'),'hint'));const submit=el('button',P.text(locale,'change'));submit.type='submit';change.append(submit);
-    change.onsubmit=e=>{e.preventDefault();action(async()=>{if(inputs[0].value!==inputs[1].value){inputs[1].setCustomValidity(P.text(locale,'mismatch'));inputs[1].reportValidity();return;}if(!change.reportValidity())return;const body={password:current.value,code:fresh.value,newPassword:inputs[0].value};current.value=fresh.value='';inputs.forEach(i=>i.value='');try{await handleStage(await post('security/password',body));}finally{body.password=body.code=body.newPassword='';}});};root.append(change);
+    change.onsubmit=e=>{e.preventDefault();action(async()=>{if(inputs[0].value!==inputs[1].value){inputs[1].setCustomValidity(P.text(locale,'mismatch'));inputs[1].reportValidity();return;}if(!change.reportValidity())return;const body={password:current.value,...(fresh?{code:fresh.value}:{}),newPassword:inputs[0].value};current.value='';if(fresh)fresh.value='';inputs.forEach(i=>i.value='');try{await handleStage(await post('security/password',body));}finally{body.password=body.code=body.newPassword='';}});};root.append(change);
   }
   root.append(button("logoutAll",() => action(logoutAll))); $("page-content").replaceChildren(root);
 }

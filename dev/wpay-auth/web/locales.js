@@ -148,6 +148,7 @@
     "nav.settings.view":["Platform Settings","Настройки платформы","平台设置"]
   };
   for (const [key,values] of Object.entries(completionNavigationLabels)) ["en","ru","zh-CN"].forEach((language,index)=>{dictionaries[language][key]=values[index];});
+  for(const [key,values] of Object.entries({enable:['Enable authenticator','Включить аутентификатор','启用身份验证器'],disable:['Disable authenticator','Отключить аутентификатор','停用身份验证器']})) ['en','ru','zh-CN'].forEach((language,index)=>{dictionaries[language][key]=values[index];});
   const supported = Object.freeze(["en","ru","zh-CN"]);
   const onboardingErrors={FUNDING_REQUIRED:['Confirmed funding is required before Start.','Перед запуском требуется подтверждённое пополнение.','开始前须确认入金。'],STATEMENT_REQUIRED:['An accepted statement for this bank version is required before Start.','Перед запуском требуется принятая выписка для этой версии счёта.','开始前须接受此账户版本的流水。'],DEVICE_REQUIRED:['An eligible linked device is required before Start.','Перед запуском требуется подходящее привязанное устройство.','开始前须关联符合条件的设备。']};
   for(const [code,values]of Object.entries(onboardingErrors))['en','ru','zh-CN'].forEach((language,index)=>{dictionaries[language]['error.'+code]=values[index];});
