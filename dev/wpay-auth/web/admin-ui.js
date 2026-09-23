@@ -6,21 +6,21 @@
  function sync(account,navigation,selected){
   nav=navigation;const pages=navigation.groups.flatMap(g=>g.children),buttons=[...$('navigation').querySelectorAll('button')];
   buttons.forEach((b,i)=>{if(pages[i]?.permissionId==='account_security.view')b.textContent='Account settings';b.dataset.destination=pages[i]?.destinationId||'';if(pages[i]?.destinationId===selected||(!selected&&pages[i]?.permissionId==='overview.view'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-  const groupNames=['USERS','MERCHANTS','UPI & ROUTING','APK & DEVICES','EMPLOYEES & RIGHTS','FINANCE & REPORTS','OPERATIONS','SETTINGS'],groups=groupNames.map(name=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=name;d.append(s);return d;});
-  buttons.forEach((b,i)=>{const p=pages[i];if(!p||p.permissionId==='overview.view')return;const id=p.permissionId;let index=6;
+  const groupNames=['USERS','MERCHANTS','UPI & ROUTING','APK & DEVICES','EMPLOYEES & RIGHTS','PROFIT & EXPENSES','TREASURY & REPORTS','OPERATIONS','SETTINGS'],groups=groupNames.map(name=>{const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=name;d.append(s);return d;});
+  buttons.forEach((b,i)=>{const p=pages[i];if(!p||p.permissionId==='overview.view')return;const id=p.permissionId;let index=7;
    if(/^(users|deposits|commission_withdrawal|commission_hold|parking|bank_upi|statement)/.test(id))index=0;
    else if(/^(merchants|transactions|payout|withdrawals|api_credentials|api_logs|webhooks)/.test(id))index=1;
    else if(/^(routing|assignments)/.test(id))index=2;
    else if(/^(apk|device|otp|utr_center)/.test(id))index=3;
    else if(/^employee/.test(id)||p.destinationId==='operations.admins')index=4;
-   else if(/^(reports|ledger|commissions|holds)/.test(id))index=5;
-   else if(/^(settings|profile|account_security)/.test(id))index=7;
-   if(p.destinationId.startsWith('admin-finance.'))index=p.destinationId.endsWith('.audit')?6:5;
+   else if(/^(reports|ledger|commissions|holds)/.test(id))index=6;
+   else if(/^(settings|profile|account_security)/.test(id))index=8;
+   if(p.destinationId.startsWith('admin-finance.')){b.textContent=p.label;index=p.destinationId.endsWith('.audit')?7:5;}
    if(p.destinationId==='administration.admin-upi'){b.textContent='UPI Directory & Routing';index=2;}
    if(id==='users.view')b.textContent='Users & approvals';
    if(id==='merchants.view')b.textContent='Merchants & approvals';
    if(id==='devices.view')b.textContent='Device management & pairing';
-   const icon=document.createElement('i');icon.className='admin-nav-icon';icon.setAttribute('aria-hidden','true');icon.textContent=['♙','▣','⇄','◇','♧','≡','▤','⚙'][index];b.prepend(icon);b.addEventListener('click',()=>document.body.classList.remove('admin-nav-open'));groups[index].append(b);
+   const icon=document.createElement('i');icon.className='admin-nav-icon';icon.setAttribute('aria-hidden','true');icon.textContent=['♙','▣','⇄','◇','♧','◉','≡','▤','⚙'][index];b.prepend(icon);b.addEventListener('click',()=>document.body.classList.remove('admin-nav-open'));groups[index].append(b);
   });
   $('navigation').replaceChildren(...groups.filter(g=>g.querySelector('button')));
   $('account-home').setAttribute('aria-current',!selected||pages.find(p=>p.destinationId===selected)?.permissionId==='overview.view'?'page':'false');
