@@ -1,4 +1,8 @@
 "use strict";
+// The supplied Merchant shell has its own presentation controller; other roles keep their existing runtime.
+if (globalThis.WPayMerchantPremium) {
+  globalThis.WPayMerchantPremium.start();
+} else {
 const $ = id => document.getElementById(id), L = globalThis.WPayLocales;
 const entryRole=document.querySelector('meta[name="wpay-entry-role"]')?.content;
 const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
@@ -268,3 +272,5 @@ setInterval(() => { if (account && !stage && !busy && document.visibilityState =
 globalThis.WPayReferenceUi?.connect({load,action,navigate});
 globalThis.WPayAdminUi?.connect({load,action,navigate});
 applyLocale(); renderAccess(); action(async()=>{try{await load();}catch(error){showLogin();if(error.message!=="error.AUTH_FAILED")message(error.message);}});
+
+}

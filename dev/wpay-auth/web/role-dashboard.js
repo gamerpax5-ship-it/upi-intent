@@ -43,5 +43,5 @@
   layout.append(bank,park);container.replaceChildren(grid,layout);
  }
  async function render(args){if(args.account.accountType==='merchant')return merchant(args);if(args.account.accountType==='user')return user(args);throw new Error('error.FORBIDDEN');}
- root.WPayRoleDashboard={render};
+ root.WPayRoleDashboard={render,money};
 })(globalThis);

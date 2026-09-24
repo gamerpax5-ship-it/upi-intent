@@ -1,0 +1,37 @@
+name: Merchant premium integration
+on:
+  push:
+    branches: [wpay/merchant-premium, wpay/hosted-integration]
+permissions:
+  contents: read
+jobs:
+  merchant-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-merchant-ui
+          POSTGRES_DB: postgres
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm ci --prefix lib/wpay/auth/runtime/dependencies --registry=https://registry.npmjs.org
+      - run: node scripts/check-protected-legacy.js && npm run check
+      - name: Scoped API, accounting and authentication regressions
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:isolated-merchant-ui@127.0.0.1:5432/postgres
+        run: node --test test/wpay-merchant-premium.test.js test/wpay-reference-ui.test.js test/wpay-live-user-merchant.test.js test/wpay-public-role.test.js test/wpay-gateway.test.js test/wpay-panel-speed.test.js test/wpay-optional-authenticator.test.js test/wpay-admin-managed-collections.test.js test/wpay-admin-route-readiness.test.js test/wpay-admin-upi-routing.test.js test/wpay-business.test.js
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/merchant-ui" linkedom@0.18.13 --ignore-scripts --package-lock=false --registry=https://registry.npmjs.org
+      - name: Merchant UI requests and every page
+        run: WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/merchant-ui/node_modules/linkedom" node scripts/test-merchant-ui.js
