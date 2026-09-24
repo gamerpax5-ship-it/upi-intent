@@ -1,0 +1,34 @@
+name: Admin routing readiness regression
+on:
+  push:
+    branches: [wpay/admin-routing-readiness, wpay/hosted-integration]
+permissions:
+  contents: read
+jobs:
+  admin-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-admin-upi
+          POSTGRES_DB: postgres
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm ci --prefix lib/wpay/auth/runtime/dependencies --registry=https://registry.npmjs.org
+      - run: node scripts/check-protected-legacy.js
+      - run: npm run check
+      - name: Real disposable database and existing regression checks
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:isolated-admin-upi@127.0.0.1:5432/postgres
+        run: node --test test/wpay-admin-route-readiness.test.js test/wpay-admin-upi-routing.test.js test/wpay-business.test.js
