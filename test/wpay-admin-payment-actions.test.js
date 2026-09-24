@@ -49,7 +49,7 @@ test('Admin manual payment and callback integration under runtime database role'
   assert.equal((await ledger.summary(runtime,ids.merchant)).gross,'10000');await assert.rejects(call('gateway/admin/callback',{...retry,requestId:randomUUID()}),e=>e.code==='RATE_LIMITED');
  });
  await t.test('expired manual receipt records recovery and consumes bank volume',async()=>{
-  const late=await create('late');await owner.query("UPDATE wpay_auth.business_reservations SET expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=(SELECT reservation_id FROM wpay_auth.gateway_orders WHERE id=$1)",[late.id]);
+  const late=await create('late');await owner.query("UPDATE wpay_auth.business_reservations SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=(SELECT reservation_id FROM wpay_auth.gateway_orders WHERE id=$1)",[late.id]);
   await call('gateway/admin/approve',{...payload,orderId:late.id,requestId:randomUUID()});assert.equal((await ledger.summary(runtime,ids.user)).commission,'100');
   assert.equal((await require('../lib/wpay/business/bank-volume').volume(runtime,bank.id,1)).used,'20000');
   assert.equal((await owner.query("SELECT count(*)::int n FROM wpay_auth.gateway_outbox WHERE order_id=$1 AND event_type='payment.recovered'",[late.id])).rows[0].n,1);
