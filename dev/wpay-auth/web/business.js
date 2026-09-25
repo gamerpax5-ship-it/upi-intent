@@ -38,8 +38,9 @@
    const draw=()=>{list.replaceChildren();const selected=data.banks.filter(b=>filter.value==='all'||filter.value==='pendingReviews'&&['submitted','review','verification_pending'].includes(b.status)||filter.value==='approved'&&['approved','verified','enabled','running'].includes(b.status)||filter.value==='rejectedFrozen'&&(b.status==='rejected'||b.frozen));
     if(!selected.length)list.append(el('p',t('empty')));
     for(const bank of selected){const item=el('article',undefined,'business-row');facts(item,{bankName:bank.details.bankName,upiId:bank.details.upiId,accountNumber:admin?bank.details.accountNumber:'•••• '+bank.details.accountNumber.slice(-4),status:t(bank.deactivated?'deactivated':bank.frozen?'frozen':bank.status==='review'?'reviewState':bank.status),version:String(bank.version)});if(bank.reason)item.append(el('p',bank.reason));
-     const detail=el('details'),summary=el('summary',t('details'));detail.append(summary);facts(detail,{holderName:bank.details.holderName,ifsc:bank.details.ifsc,...(admin?{mobile:bank.details.mobile,providerName:bank.details.providerName||'—',notes:bank.details.notes||'—'}:{}),bankLimit:format(bank.details.bankLimitMinor),accountType:t(bank.details.accountType)});item.append(detail);
+     const detail=el('details'),summary=el('summary',t('details'));detail.append(summary);facts(detail,{holderName:bank.details.holderName,ifsc:bank.details.ifsc,...(admin?{mobile:bank.details.mobile,providerName:bank.details.providerName||'—',notes:bank.details.notes||'—'}:{}),bankLimit:format(bank.daily_limit_minor||bank.details.bankLimitMinor),accountType:t(bank.details.accountType)});item.append(detail);
      if(admin){const status=el('section');status.append(el('h3','Onboarding status'));const dl=el('dl',undefined,'facts');for(const [key,value]of Object.entries({'Approval':bank.approved_version===bank.version?'Approved':'Required','Verification':bank.verified_version===bank.version?'Verified':'Required','Statement':bank.statement_accepted?'Accepted':'Required','Latest import':bank.statement?bank.statement.status+' · '+new Date(bank.statement.createdAt).toLocaleString(locale):'None','Evidence source':bank.verification?.source||'None','Evidence digest':bank.verification?.digest||'None'}))dl.append(el('dt',key),el('dd',value));status.append(dl,el('p','Statement acceptance is onboarding only. It never posts a financial credit.','notice'));if(bank.verification?.synthetic)status.append(el('p','SYNTHETIC TEST evidence','notice'));item.append(status);}
+     if(!admin&&!bank.deactivated&&data.actions.includes('update')){const form=el('form'),limit=field(form,'bankLimit',{value:format(bank.daily_limit_minor||bank.details.bankLimitMinor).slice(1)}),save=el('button','Update daily limit');save.type='submit';form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post('business/banks/daily-limit',{bankId:bank.id,limitMinor:amount(limit.value)});await reload();});};item.append(form);}
      if(!bank.deactivated){if(!admin&&data.actions.includes('update'))item.append(btn('edit',()=>editor(bank)));
       const allowed=admin?data.actions.filter(a=>a==='review'&&bank.status==='submitted'||['approve','reject'].includes(a)&&['submitted','review'].includes(bank.status)||a==='freeze'&&!bank.frozen||a==='release'&&bank.frozen||a==='stop'&&['enabled','running'].includes(bank.status)).map(a=>a==='release'?'release_freeze':a):[
        ...(['draft','rejected'].includes(bank.status)?['submit']:[]),...(['verified','stopped'].includes(bank.status)&&bank.verified_version===bank.version&&!bank.frozen?['enable']:[]),...(['enabled','stopped'].includes(bank.status)?['run']:[]),...(['enabled','running'].includes(bank.status)?['stop']:[]),...(!bank.frozen?['freeze']:[]),'deactivate'];
@@ -73,5 +74,16 @@
   if(page==='holds'){const data=await request('business/holds');showEmpty(data.holds);for(const h of data.holds){const item=el('article',undefined,'business-row');facts(item,{amount:format(h.amount_minor,h.currency),status:t(h.state),reason:h.reason,reference:h.reference,created:new Date(h.created_at).toLocaleString(locale)});card.append(item);}return true;}
   return false;
  }
- root.WPayBusinessPage={render,pages};
+ async function renderAccess({request,post,action,el,container,title}){
+  title.textContent='User Collection Access';container.replaceChildren();
+  const data=await request('business/user-access');
+  container.append(el('p','Free setup allows APK and Bank / UPI setup without funded capacity. Unlimited collection bypasses only the capacity balance; approval, verification, device health and UPI limits still apply.','notice'));
+  if(!data.users.length)container.append(el('p','No users available.'));
+  for(const user of data.users){const form=el('form',undefined,'card business-card');form.append(el('h2',user.name));
+   const toggle=(label,value)=>{const wrap=el('label',label),node=el('input');node.type='checkbox';node.checked=value;wrap.append(node);form.append(wrap);return node;};
+   const free=toggle('Free setup',user.free_setup),unlimited=toggle('Unlimited collection',user.unlimited_collection),label=el('label','Reason'),reason=el('input');reason.required=true;reason.maxLength=300;label.append(reason);form.append(label);if(user.reason)form.append(el('p',user.reason));
+   const save=el('button','Save access');save.type='submit';form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post('business/user-access/update',{userId:user.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});await renderAccess({request,post,action,el,container,title});});};container.append(form);
+  }
+ }
+ root.WPayBusinessPage={render,pages,renderAccess};
 })(globalThis);
