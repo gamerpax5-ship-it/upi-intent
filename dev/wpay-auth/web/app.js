@@ -107,10 +107,12 @@ async function adminAccountSettings(){
  const input=(form,label,type,autocomplete)=>{const wrap=el('label',label),i=el('input');i.type=type;i.required=true;i.autocomplete=autocomplete;wrap.append(i);form.append(wrap);return i;};
  for(const kind of ['email','password','reauth']){
   const form=el('form');form.append(el('h3',kind==='reauth'?'Confirm password for sensitive actions':`Change ${kind}`));
-  const current=input(form,'Current password','password','current-password');let next,confirm;
+  const current=input(form,'Current password','password','current-password');current.name='currentPassword';let next,confirm;
+  const identity=el('input');identity.type='hidden';identity.name='username';identity.autocomplete='username';identity.value=account.email;form.prepend(identity);
   if(kind!=='reauth'){
    next=input(form,kind==='email'?'New email':'New password',kind==='email'?'email':'password',kind==='email'?'email':'new-password');
    confirm=input(form,kind==='email'?'Confirm new email':'Confirm new password',kind==='email'?'email':'password',kind==='email'?'email':'new-password');
+   next.name=kind==='email'?'newEmail':'newPassword';confirm.name=kind==='email'?'confirmEmail':'confirmPassword';
    if(kind==='password'){next.minLength=15;next.maxLength=128;form.append(el('p','Use at least 15 characters.','hint'));}
    confirm.oninput=()=>confirm.setCustomValidity('');next.oninput=()=>confirm.setCustomValidity('');
   }
@@ -120,7 +122,7 @@ async function adminAccountSettings(){
    if(!form.reportValidity())return;
    const body={password:current.value,...(next?{[kind==='email'?'newEmail':'newPassword']:next.value}:{})};
    current.value='';if(next)next.value=confirm.value='';
-   try{const result=await post('security/admin-'+kind,body);if(result.stage)await handleStage(result);await load('security');message('decisionSaved');}finally{for(const key of Object.keys(body))body[key]='';}
+   try{const result=await post('security/admin-'+kind,body);if(result.stage)await handleStage(result);await load('security');$('message').textContent=kind==='email'?'Email updated. Sign in with '+account.email+' and your current password.':kind==='password'?'Password updated. Use your new password with '+account.email+'.':'Password confirmed.';}finally{for(const key of Object.keys(body))body[key]='';}
   });};root.append(form);
  }
  root.append(el('h3','Active sessions'));for(const s of value.sessions)root.append(el('p',`${s.current?'This session · ':''}Created: ${s.createdAt} · Expires: ${s.expiresAt}`));
