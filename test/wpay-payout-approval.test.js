@@ -4,7 +4,7 @@ const {Payouts}=require('../lib/wpay/payouts/core'),input=require('../lib/wpay/p
 const {migrate,validateMigrations,transaction}=require('../lib/wpay/db/migrations');
 const base={reference:'test-payout',idempotencyKey:'test-key',beneficiaryName:'Test Receiver',amountMinor:'10000',durationMinutes:30,transferMode:'upi',upiId:'receiver@test'};
 test('independent bank/UPI destinations and 15 minute routing boundary',()=>{
- assert.equal(input.order(base).accountNumber,'');assert.equal(input.order({...base,transferMode:'bank',upiId:'',accountNumber:'1234567890',ifsc:'TEST0000001'}).upiId,'');
+ assert.equal(input.order(base).accountNumber,'');assert.deepEqual(input.order(input.order(base)),input.order(base));assert.equal(input.order({...base,transferMode:'bank',upiId:'',accountNumber:'1234567890',ifsc:'TEST0000001'}).upiId,'');
  for(const b of [{...base,accountNumber:'1234567890'},{...base,bankName:'Test Bank'},{...base,upiId:''},{...base,durationMinutes:14},{...base,durationMinutes:30.5},{...base,transferMode:'cash'}])assert.throws(()=>input.order(b));
  const now=new Date();assert.equal(approval.routable(new Date(+now+20*60000),now),true);assert.equal(approval.routable(new Date(+now+10*60000),now),false);assert.equal(approval.routable(new Date(+now+15*60000),now),true);assert.equal(approval.routable(new Date(+now+15*60000-1),now),false);
 });
@@ -30,7 +30,7 @@ test('PostgreSQL: 50-order approval, deadlines, financial replay and USDT availa
  await pool.query('INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)',[randomUUID(),merchant,{payinFee:'2',payoutFee:'1',fixedPayoutFee:'6',fixedFeeCurrency:'INR',inrPerUsdt:'109'},admin]);
  const {Gateway}=require('../lib/wpay/gateway/core'),{MfaCrypto}=require('../lib/wpay/auth/runtime/mfa'),crypto=new MfaCrypto(randomBytes(32)),gateway=new Gateway({pool,crypto}),core=new Payouts({gateway,crypto}),tx=fn=>transaction(pool,fn);
  await tx(c=>ledger.post(c,{key:'test-funding',referenceType:'test',referenceId:'test',entries:ledger.pair(merchant,'merchant_gross','10000000')}));
- const request={idempotencyKey:'fifty-batch'},prepared={errors:[],orders:Array.from({length:50},(_,i)=>({...base,reference:'row-'+i,idempotencyKey:'row-'+i}))};
+ const request={idempotencyKey:'fifty-batch'},prepared={errors:[],orders:Array.from({length:50},(_,i)=>input.order({...base,reference:'row-'+i,idempotencyKey:'row-'+i}))};
  const result=await tx(c=>core.bulk(c,merchant,request,prepared));assert.equal(result.orders.length,50);assert.ok(result.orders.every(r=>r.status==='pending_admin'));
  assert.equal((await ledger.summary(pool,merchant)).merchantPayoutReserved,'535000');
  const pending=await approval.list(pool,['a']);assert.equal(pending.requests.length,1);assert.equal(pending.requests[0].order_count,50);assert.equal((await approval.list(pool,['b'])).requests.length,0);
