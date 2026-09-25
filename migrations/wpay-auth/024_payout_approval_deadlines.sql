@@ -18,3 +18,29 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION wpay_auth.payout_deadline_guard() TO wpay_runtime;
  END IF;
 END $$;
+
+-- PostgreSQL resolves record fields before boolean short-circuiting. The previous
+-- shared trigger referenced revoked_at/released_at on payout rows lacking them.
+-- Keep every immutability rule and access table-specific fields only in branches.
+CREATE OR REPLACE FUNCTION wpay_auth.payout_binding_guard() RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog AS $$
+DECLARE mutable text[];
+BEGIN
+ IF TG_OP<>'UPDATE' THEN RAISE EXCEPTION 'immutable payout records'; END IF;
+ mutable=CASE TG_TABLE_NAME
+ WHEN 'payout_orders' THEN ARRAY['state','completed_at']
+ WHEN 'payout_claims' THEN ARRAY['state','closed_at','cooldown_until']
+ WHEN 'commission_withdrawals' THEN ARRAY['state','completed_at','completion_digest','encrypted_completion']
+ WHEN 'payout_capabilities' THEN ARRAY['revoked_at']
+ WHEN 'commission_holds' THEN ARRAY['released_at'] END;
+ IF mutable IS NULL OR (to_jsonb(NEW)-mutable) IS DISTINCT FROM (to_jsonb(OLD)-mutable) THEN RAISE EXCEPTION 'immutable payout binding'; END IF;
+ IF TG_TABLE_NAME IN('payout_orders','payout_claims','commission_withdrawals') THEN
+  IF OLD.state IN('successful','cancelled','not_paid','consumed','released','expired','completed','rejected','failed') THEN RAISE EXCEPTION 'terminal payout record'; END IF;
+ END IF;
+ IF TG_TABLE_NAME='payout_capabilities' THEN
+  IF OLD.revoked_at IS NOT NULL THEN RAISE EXCEPTION 'terminal hold record'; END IF;
+ END IF;
+ IF TG_TABLE_NAME='commission_holds' THEN
+  IF OLD.released_at IS NOT NULL THEN RAISE EXCEPTION 'terminal hold record'; END IF;
+ END IF;
+ RETURN NEW;
+END $$;

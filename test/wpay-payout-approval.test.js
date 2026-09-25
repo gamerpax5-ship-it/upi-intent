@@ -39,6 +39,25 @@ test('PostgreSQL: 50-order approval, deadlines, financial replay and USDT availa
  await assert.rejects(decide(pending.requests[0].id,'approve',{...context,adminScope:{tenantIds:['b'],platform:false}}),{code:'FORBIDDEN'});
  const approved=await decide(pending.requests[0].id);assert.equal(approved.approved,50);assert.equal((await decide(pending.requests[0].id)).approved,50);assert.equal((await ledger.summary(pool,merchant)).merchantPayoutReserved,'535000');
  assert.equal((await tx(c=>core.bulk(c,merchant,request,prepared))).orders.length,50);
+ // An approved bulk upload becomes 50 independent jobs, never one bulk job.
+ const user=randomUUID(),bank=randomUUID();
+ await pool.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,user_id) VALUES($1,$2,'a','Test User',$3,'user','active',$1)",[user,randomUUID(),user+'@example.invalid']);
+ await pool.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status,initial_deposit_satisfied) VALUES($1,'approved',true)",[user]);await pool.query('INSERT INTO wpay_auth.account_security(account_id,enabled) VALUES($1,false)',[user]);
+ await pool.query('INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)',[randomUUID(),user,{payinCommission:'1',payoutCommission:'1',inrPerUsdt:'107'},admin]);
+ await pool.query('UPDATE wpay_auth.bank_onboarding_policy SET statement_required=false');
+ await pool.query("INSERT INTO wpay_auth.business_bank_accounts(id,owner_id,version,status,approved_version,verified_version) VALUES($1,$2,1,'running',1,1)",[bank,user]);
+ await pool.query('INSERT INTO wpay_auth.business_bank_versions(bank_id,version,details,limit_minor,actor_id) VALUES($1,1,$2,2000000,$3)',[bank,{holderName:'Test User',accountNumber:'1234567890',ifsc:'TEST0000001'},admin]);
+ await pool.query("INSERT INTO wpay_auth.business_bank_identities(bank_id,version,account_key) VALUES($1,1,'test-bank-key')",[bank]);
+ await pool.query("INSERT INTO wpay_auth.payout_capabilities(id,bank_id,bank_version,actor_id,reason) VALUES($1,$2,1,$3,'Test capability')",[randomUUID(),bank,admin]);
+ await tx(c=>ledger.post(c,{key:'test-user-capacity',referenceType:'test',referenceId:'user',entries:[...ledger.pair(user,'capacity_allocated','2000000'),...ledger.pair(user,'capacity_consumed','1000000')]}));
+ const jobs=await tx(c=>core.queue(c,user));assert.equal(jobs.orders.length,50);assert.equal(new Set(jobs.orders.map(r=>r.id)).size,50);
+ const job=jobs.orders[0];const claim=await tx(c=>core.claim(c,user,{id:job.id,bankId:bank}));assert.equal(claim.status,'claimed');
+ const detail=await tx(async c=>core.detail(c,(await c.query('SELECT * FROM wpay_auth.payout_orders WHERE id=$1',[job.id])).rows[0],'user'));assert.equal(detail.beneficiary.upiId,'receiver@test');assert.equal(detail.beneficiary.accountNumber,'');
+ const proof=await uploads.proof({name:'test-proof.pdf',data:Buffer.from('%PDF-1.4\nTest proof\n%%EOF').toString('base64')});
+ await tx(async c=>core.submit(c,(await c.query('SELECT * FROM wpay_auth.payout_orders WHERE id=$1',[job.id])).rows[0],user,{amountMinor:'10000',utr:'123456789012',note:''},proof));
+ assert.equal((await pool.query('SELECT state FROM wpay_auth.payout_orders WHERE id=$1',[job.id])).rows[0].state,'submitted');
+ const approvePayment=()=>tx(async c=>core.settle(c,(await c.query('SELECT * FROM wpay_auth.payout_orders WHERE id=$1',[job.id])).rows[0],merchant,'Merchant reviewed proof',false));
+ assert.equal((await approvePayment()).status,'successful');await approvePayment();assert.equal((await ledger.summary(pool,merchant)).merchantPayoutPrincipal,'10000');assert.equal((await ledger.summary(pool,merchant)).payoutFees,'700');assert.equal((await ledger.summary(pool,user)).consumed,'990000');
  // Insert a synthetic already-aged request through the real schema; immutable production deadlines are never rewritten.
  async function aged(reference,remaining,state='pending_admin'){
   const original=(await pool.query('SELECT * FROM wpay_auth.payout_orders WHERE id=$1',[result.orders[0].id])).rows[0],id=randomUUID();
