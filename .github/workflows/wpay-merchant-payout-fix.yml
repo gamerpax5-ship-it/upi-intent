@@ -37,5 +37,6 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/checkout-status" linkedom@0.18.13 --ignore-scripts --package-lock=false --registry=https://registry.npmjs.org
           WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-checkout-status.js
           WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-merchant-ui.js
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-merchant-payout-ui.js
           WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-utr-review-ui.js
           WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-utr-approval-ui.js
