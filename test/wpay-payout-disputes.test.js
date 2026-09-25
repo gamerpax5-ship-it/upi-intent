@@ -36,7 +36,7 @@ test('PostgreSQL: post-approval dispute holds, responses, exact reversals and im
  assert.equal((await ledger.summary(pool,user)).available,'10000');
  const open=()=>tx(c=>disputes.open(core,c,p,merchant,s.body,s.proof));
  const duplicate=await Promise.all([open(),open()]);assert.equal(duplicate[0].id,duplicate[1].id);
- assert.equal((await ledger.summary(pool,user)).held,'10000');assert.equal((await entitlement(pool,user)).held,'100');
+ assert.equal((await ledger.summary(pool,user)).held,'10000');assert.equal((await entitlement(pool,user)).held,'100');assert.equal((await disputes.holds(pool,{ids:[user],tenants:null}))[0].state,'active');assert.equal((await disputes.holds(pool,{ids:[merchant],tenants:null})).length,0);
  await assert.rejects(tx(c=>disputes.open(core,c,p,user,s.body,s.proof)),{code:'FORBIDDEN'});
  await assert.rejects(tx(c=>disputes.open(core,c,p,merchant,{...s.body,reason:'Another dispute'},s.proof)),{code:'CONFLICT'});
  const reply={id:p.id,reason:'Synthetic recipient payment explanation'},replyProof=await proof('extra proof');
@@ -44,7 +44,7 @@ test('PostgreSQL: post-approval dispute holds, responses, exact reversals and im
  assert.equal((await disputes.detail(pool,p.id)).responses.length,1);
  const valid={id:p.id,action:'payment_valid',reason:'Reviewed statement and confirmed receipt'};
  await tx(c=>disputes.resolve(core,c,p,admin,valid));await tx(c=>disputes.resolve(core,c,p,admin,valid));
- assert.equal((await ledger.summary(pool,user)).available,'10000');assert.equal((await ledger.summary(pool,user)).held,'0');assert.equal((await entitlement(pool,user)).held,'0');assert.equal((await ledger.summary(pool,merchant)).merchantAvailable,m0.merchantAvailable);
+ assert.equal((await ledger.summary(pool,user)).available,'10000');assert.equal((await ledger.summary(pool,user)).held,'0');assert.equal((await entitlement(pool,user)).held,'0');assert.equal((await ledger.summary(pool,merchant)).merchantAvailable,m0.merchantAvailable);assert.equal((await disputes.holds(pool,{ids:[user],tenants:null}))[0].state,'released');
  await assert.rejects(tx(c=>disputes.resolve(core,c,p,admin,{...valid,action:'payment_invalid'})),{code:'CONFLICT'});
  await assert.rejects(pool.query('DELETE FROM wpay_auth.payout_dispute_resolutions'),/WPAY_APPEND_ONLY/);
  const second=await paid(),s2=await opening(second,'two');
