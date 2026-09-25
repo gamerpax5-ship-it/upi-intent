@@ -1,6 +1,7 @@
 "use strict";
 (function(root){
  const words={
+ disputes:['Post-approval Disputes','Споры после подтверждения','批准后争议'],reversed:['Reversed','Отменено','已撤销'],
  transactionReference:['Transaction reference','Номер операции','交易参考号'],credit:['Credit','Начисление','贷记'],debit:['Debit','Списание','借记'],released:['Released','Разблокировано','已解除'],active:['Active','Активно','有效'],
  merchantId:['Merchant account ID','ID продавца','商户账号 ID'],claimExpiresAt:['Claim expiry','Истечение задания','领取有效期'],
  group:['Payouts & Commission','Выплаты и вознаграждение','付款与佣金'],claimedAt:['Claimed at','Время назначения','领取时间'],submittedAt:['Submitted at','Время отправки','提交时间'],completedAtLabel:['Completed at','Время завершения','完成时间'],
