@@ -3,6 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID
 const {migrate,transaction}=require('../lib/wpay/db/migrations'),ledger=require('../lib/wpay/business/ledger');
 const disputes=require('../lib/wpay/payouts/disputes'),{Payouts}=require('../lib/wpay/payouts/core'),{MfaCrypto}=require('../lib/wpay/auth/runtime/mfa');
 const {entitlement}=require('../lib/wpay/payouts/accounting'),uploads=require('../lib/wpay/payouts/uploads');
+test('48-hour dispute deadline includes only the period after approval and before the exact boundary',()=>{const approved=new Date('2026-09-25T12:00:00Z');assert.equal(disputes.withinWindow(approved,new Date(+approved+48*3600000-1)),true);for(const at of [new Date(+approved-1),new Date(+approved+48*3600000),'invalid'])assert.equal(disputes.withinWindow(approved,at),false);});
 test('dispute statement coverage rejects missing payment interval, stale and future dates',()=>{
  const now=new Date('2026-09-25T12:00:00Z'),paid=new Date('2026-09-25T11:00:00Z');
  assert.doesNotThrow(()=>disputes.coverage({coverageFrom:paid.toISOString(),coverageThrough:now.toISOString()},paid,now));
