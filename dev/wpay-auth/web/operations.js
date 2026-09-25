@@ -12,10 +12,18 @@
   if(page==='transactions'){
    title.textContent=account.accountType==='user'?'Pay-in Transactions':'UTR Center';
    const data=await post('operations/transactions',{offset:state.offset||0});card.append(el('p',data.note,'notice'));
+   card.append(button('Refresh verification status',()=>reload(state)));
    if(!data.records.length)card.append(el('p','No transactions'));
    for(const r of data.records){const box=el('article',undefined,'card');facts(box,{'Order':r.orderId,'Merchant reference':r.reference,'Amount (INR paise)':r.amountMinor,'Status':r.status,'Created':r.createdAt,'Paid':r.paidAt,'Evidence':r.evidenceState,'Accounting':r.accountingState,'Bank reference':r.bankId,'Bank version':r.bankVersion,'Recovered':r.recovered,...(r.userId?{'User':r.userId,'Merchant':r.merchantId,'Callback':r.callbackState}:{})});
     if(!r.observations.length)box.append(el('p','No UTR observed'));
     for(const o of r.observations)facts(box,{'UTR':o.utr,'Source':o.source,'Captured':o.capturedAt,'Independently verified':o.verified});card.append(box);
+    if(account.accountType!=='user'&&!['successful','cancelled'].includes(r.status)){
+     const form=el('form'),utr=field(form,'UTR to verify',r.observations.at(-1)?.utr||''),reason=field(form,'Review reason');
+     utr.inputMode='numeric';utr.pattern='[0-9]{12}';utr.maxLength=12;utr.required=true;reason.required=true;reason.minLength=3;reason.maxLength=500;
+     const submit=el('button','Verify UTR');submit.type='submit';form.append(submit);
+     form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;action(async()=>{submit.disabled=true;try{const result=await post('operations/utr/verify',{orderId:r.orderId,utr:utr.value,reason:reason.value});await reload(state);container.prepend(el('p',result.message,'notice'));}finally{submit.disabled=false;}});};
+     box.append(form);
+    }
    }
    if(data.offset)card.append(button('Previous page',()=>reload({...state,offset:Math.max(0,data.offset-50)})));
    if(data.hasMore)card.append(button('Next page',()=>reload({...state,offset:data.offset+50})));
