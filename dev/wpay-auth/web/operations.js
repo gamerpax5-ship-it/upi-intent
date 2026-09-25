@@ -3,6 +3,7 @@
  const titles={devices:'Linked Devices',otp:'OTP Events',employees:'Employees'};
  async function render(options,state={}){
   const {destination,account,request,post,action,el,container,title}=options,page=destination.split('.').at(-1);
+  if(account.accountType!=='user'&&['transactions','pending-utrs'].includes(page))return root.WPayAdminUtr.render(options,state);
   title.textContent=titles[page]||'Operational access';container.replaceChildren();
   const card=el('section',undefined,'card');container.append(card);
   const button=(label,fn)=>{const b=el('button',label);b.type='button';b.onclick=()=>action(fn);return b;};

@@ -15,6 +15,7 @@
    else if(/^employee/.test(id)||p.destinationId==='operations.admins')index=4;
    else if(/^(reports|ledger|commissions|holds)/.test(id))index=6;
    else if(/^(settings|profile|account_security)/.test(id))index=8;
+   if(p.destinationId==='operations.pending-utrs')index=7;
    if(p.destinationId.startsWith('admin-finance.')){b.textContent=p.label;index=p.destinationId.endsWith('.audit')?7:5;}
    if(p.destinationId==='administration.admin-upi'){b.textContent='UPI Directory & Routing';index=2;}
    if(id==='users.view')b.textContent='Users & approvals';
