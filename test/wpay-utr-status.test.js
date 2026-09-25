@@ -31,12 +31,12 @@ test('claim expiry, admin verification isolation and trusted recovery on real Po
  const tx=fn=>transaction(pool,fn),create=reference=>tx(c=>gateway.create(c,ids.m1,{reference,idempotencyKey:reference,amountMinor:'100',currency:'INR'},'manual','https://test.invalid'));
  const noClaim=await create('no-utr'),claimed=await create('with-utr');
  assert.equal((await tx(c=>gateway.customer(c,claimed.paymentUrl.split('/').at(-1),'123456789012'))).status,'verification_pending');
- const expire=async()=>{await pool.query("UPDATE wpay_auth.gateway_orders SET expires_at=CURRENT_TIMESTAMP-interval '1 second'");await pool.query("UPDATE wpay_auth.business_reservations SET expires_at=CURRENT_TIMESTAMP-interval '1 second'");await tx(c=>gateway.expire(c));};
+ const expire=async()=>{await pool.query("UPDATE wpay_auth.gateway_orders SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second'");await pool.query("UPDATE wpay_auth.business_reservations SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second'");await tx(c=>gateway.expire(c));};
  await expire();await tx(c=>gateway.expire(c));
  assert.equal((await gateway.get(pool,ids.m1,noClaim.id)).status,'expired');assert.equal((await gateway.get(pool,ids.m1,claimed.id)).status,'failed');
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.gateway_outbox')).rows[0].n,2);
- const now=new Date(),row={id:ids.admin,account_type:'super_admin',auth_method:'password',password_at:now,database_now:now},body={orderId:noClaim.id,utr:'123456789013',reason:'Review submitted receipt'};
+ const now=new Date(),row={id:ids.admin,account_type:'super_admin',auth_method:'password',password_at:now,created_at:now,mfa_at:null,database_now:now,status:'active',approval_status:'approved',security_version:1,session_security_version:1,factor_version:0,session_factor_version:0},body={orderId:noClaim.id,utr:'123456789013',reason:'Review submitted receipt'};
  assert.equal((await tx(c=>queue(c,row,context,body,crypto))).queued,true);
  await tx(c=>gateway.expire(c));
  assert.equal((await gateway.get(pool,ids.m1,noClaim.id)).status,'failed');
