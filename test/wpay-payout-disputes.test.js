@@ -45,7 +45,7 @@ test('PostgreSQL: post-approval dispute holds, responses, exact reversals and im
  await tx(c=>disputes.resolve(core,c,p,admin,valid));await tx(c=>disputes.resolve(core,c,p,admin,valid));
  assert.equal((await ledger.summary(pool,user)).available,'10000');assert.equal((await ledger.summary(pool,user)).held,'0');assert.equal((await entitlement(pool,user)).held,'0');assert.equal((await ledger.summary(pool,merchant)).merchantAvailable,m0.merchantAvailable);
  await assert.rejects(tx(c=>disputes.resolve(core,c,p,admin,{...valid,action:'payment_invalid'})),{code:'CONFLICT'});
- await assert.rejects(pool.query('DELETE FROM wpay_auth.payout_dispute_resolutions'),/immutable/);
+ await assert.rejects(pool.query('DELETE FROM wpay_auth.payout_dispute_resolutions'),/WPAY_APPEND_ONLY/);
  const second=await paid(),s2=await opening(second,'two');
  await tx(c=>ledger.post(c,{key:'synthetic-used-capacity',referenceType:'test',referenceId:'test',entries:[...ledger.pair(user,'capacity_consumed','20000'),...ledger.pair(user,'user_commission_withdrawn','200')]}));
  await tx(c=>disputes.open(core,c,second,merchant,s2.body,s2.proof));
