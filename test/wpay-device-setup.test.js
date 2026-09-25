@@ -34,7 +34,7 @@ test('PostgreSQL: independent pairing permissions, ownership, tenant scope, hist
  const noCreate={...actors.get(employee).context,grants:['devices.view']};await assert.rejects(call(employee,'create',{requestId:randomUUID()},noCreate),{code:'FORBIDDEN'});
  await assert.rejects(call(other,'revoke',{id:linked.id}),{code:'FORBIDDEN'});
  await assert.rejects(call(employee,'revoke',{id:linked.id},{...actors.get(employee).context,adminScope:{tenantIds:['b'],platform:false}}),{code:'FORBIDDEN'});
- await call(admin,'revoke',{id:linked.id});await call(admin,'revoke',{id:linked.id});assert.equal((await call(user,'list')).devices.length,0);assert.ok((await call(user,'history')).requests[0].revoked_at);
+ await Promise.all([call(admin,'revoke',{id:linked.id}),call(admin,'revoke',{id:linked.id})]);assert.equal((await call(user,'list')).devices.length,0);assert.ok((await call(user,'history')).requests[0].revoked_at);
  await assert.rejects(call(user,'poll',{requestId:first.id}),{code:'CONFLICT'});
  await assert.rejects(call(user,'create',{requestId:first.id}),{code:'CONFLICT'});
 });
