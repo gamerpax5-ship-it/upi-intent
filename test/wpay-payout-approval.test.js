@@ -25,7 +25,7 @@ test('PostgreSQL: 50-order approval, deadlines, financial replay and USDT availa
  const admin=randomUUID(),merchant=randomUUID(),foreign=randomUUID();
  for(const [id,type,tenant]of [[admin,'super_admin','a'],[merchant,'merchant','a'],[foreign,'merchant','b']]){
   await pool.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,merchant_id) VALUES($1,$2,$3,$4,$5,$6,'active',$7)",[id,randomUUID(),tenant,type,id+'@example.invalid',type,type==='merchant'?id:null]);
-  await pool.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status) VALUES($1,'approved')",[id]);await pool.query('INSERT INTO wpay_auth.account_security(account_id,enabled) VALUES($1,false)',[id]);await pool.query("INSERT INTO wpay_auth.grants(account_id,permissions) VALUES($1,ARRAY['merchant.payout.create'])",[id]);
+  await pool.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status) VALUES($1,'approved')",[id]);await pool.query('INSERT INTO wpay_auth.account_security(account_id,enabled) VALUES($1,false)',[id]);await pool.query("INSERT INTO wpay_auth.grants(account_id,permissions,permission_version) VALUES($1,ARRAY['merchant.payout.create'],1)",[id]);
  }
  await pool.query('INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)',[randomUUID(),merchant,{payinFee:'2',payoutFee:'1',fixedPayoutFee:'6',fixedFeeCurrency:'INR',inrPerUsdt:'109'},admin]);
  const {Gateway}=require('../lib/wpay/gateway/core'),{MfaCrypto}=require('../lib/wpay/auth/runtime/mfa'),crypto=new MfaCrypto(randomBytes(32)),gateway=new Gateway({pool,crypto}),core=new Payouts({gateway,crypto}),tx=fn=>transaction(pool,fn);
