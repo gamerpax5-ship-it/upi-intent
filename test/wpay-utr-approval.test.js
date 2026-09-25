@@ -62,7 +62,8 @@ test('Manual UTR approval without evidence, automatic matching and financial ide
  await tx(c=>review.prepare(c,actor,context,decision(rejected,'reject'),crypto,gateway));
  await assert.rejects(approve(rejected),{code:'CONFLICT'});
  const late=await add('late-manual','123456789213');
- await pool.query("UPDATE wpay_auth.gateway_orders SET expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[late.id]);
+ await pool.query("UPDATE wpay_auth.gateway_orders SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[late.id]);
+ await pool.query("UPDATE wpay_auth.business_reservations SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=(SELECT reservation_id FROM wpay_auth.gateway_orders WHERE id=$1)",[late.id]);
  await tx(c=>gateway.expire(c));
  assert.equal((await gateway.get(pool,ids.m1,late.id)).status,'failed');
  await approve(late);assert.equal((await ledger.summary(pool,ids.user)).commission,'1');
