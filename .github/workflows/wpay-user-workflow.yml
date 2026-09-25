@@ -1,0 +1,42 @@
+name: User workflow isolated regression
+on:
+  push:
+    branches: [wpay/user-workflow]
+permissions:
+  contents: read
+jobs:
+  admin-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-admin-upi
+          POSTGRES_DB: postgres
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm ci --prefix lib/wpay/auth/runtime/dependencies --registry=https://registry.npmjs.org
+      - run: node scripts/check-protected-legacy.js
+      - run: npm run check
+      - name: Real disposable database and existing regression checks
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:isolated-admin-upi@127.0.0.1:5432/postgres
+        run: node --test test/wpay-user-workflow-policy.test.js test/wpay-payout-rate-history.test.js test/wpay-payout-approval.test.js test/wpay-payout.test.js test/wpay-merchant-premium.test.js test/wpay-admin-password-database.test.js test/wpay-role-session-isolation.test.js test/wpay-hosted-transport.test.js test/wpay-public-role.test.js test/wpay-utr-approval.test.js test/wpay-utr-review.test.js test/wpay-utr-status.test.js test/wpay-gateway.test.js test/wpay-admin-managed-collections.test.js test/wpay-business.test.js
+      - name: Checkout status DOM regression
+        run: |
+          npm install --prefix "$RUNNER_TEMP/checkout-status" linkedom@0.18.13 --ignore-scripts --package-lock=false --registry=https://registry.npmjs.org
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-checkout-status.js
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-merchant-ui.js
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-merchant-payout-ui.js
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-utr-review-ui.js
+          WPAY_TEST_DOM_MODULE="$RUNNER_TEMP/checkout-status/node_modules/linkedom" node scripts/test-utr-approval-ui.js
