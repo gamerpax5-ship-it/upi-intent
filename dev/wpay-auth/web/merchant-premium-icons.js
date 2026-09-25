@@ -32,7 +32,7 @@ const ICONS={
  device:'<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M9 20h6m-3-4v4"/>'
 };
 const NAV={dashboard:'dashboard',analytics:'chart',links:'link',orders:'orders',transactions:'transactions',payouts:'payout','payout-review':'review',api:'api',webhooks:'webhook',logs:'logs',docs:'docs',fees:'fees',ledger:'ledger',holds:'lock',settlement:'settlement',reports:'reports',notifications:'bell',support:'support',security:'shield',profile:'user'};
-function icon(n){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||ICONS.dashboard}</svg>`}
+function icon(n){return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||ICONS.dashboard}</svg>`}
 function hydrateIcons(){
   $$('.nav-item').forEach(n=>n.querySelector('.nav-icon').innerHTML=icon(NAV[n.dataset.page]||'dashboard'));
   $$('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
