@@ -110,3 +110,11 @@ Recorded 2026-09-25 from the current implementation conversation. This is a requ
 - Concurrent reservations, retries, duplicate UTRs, duplicate callbacks, permission revocation, boundary times and delayed workers need meaningful isolated tests.
 - Use real backend data and explicit empty/unavailable states. Do not ship demo balance mutations, simulated verification, invented parsed statement rows or browser-generated activation codes.
 - Preserve immutable old financial records and locked terms; additive migrations, explicit new-policy provenance and no retroactive auto-approval of historical records without a recorded policy.
+
+## Follow-up: Bank route forms and device UI compatibility
+
+- Added reference-themed Business UPI / Merchant QR (Bank) forms with separate required identities, real save + approval submission, daily-limit editor and route actions. Login details accepts non-secret notes only.
+- Business UPI last-four identity digest binds UPI and bank; legacy full-account digests are unchanged. No payment-evidence validation bypass.
+- New device frontend is loaded by User/Admin pages; original activation API remains the fallback for legacy frontend consumers. Existing activation tests pass unchanged.
+- Added DOM coverage for both forms, submission, new device API delegation, code hiding/polling and ownership-related action rendering. Backend route validation/evidence tests pass locally.
+- OTP code/config and production deployment remain unchanged. Remaining work listed above is not claimed complete.

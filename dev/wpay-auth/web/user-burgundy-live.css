@@ -17,3 +17,6 @@
 
 .user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
 .user-burgundy .action-rail button.action{color:inherit;text-align:left;font:inherit}
+
+.user-burgundy .route-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.user-burgundy dialog.modal{width:min(690px,94vw);max-height:91vh;overflow:auto}

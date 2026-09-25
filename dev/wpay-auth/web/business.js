@@ -5,7 +5,7 @@
  function amount(value){if(!/^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/.test(value))throw Error('error.INVALID_INPUT');const [w,f='']=value.split('.');return (BigInt(w)*100n+BigInt(f.padEnd(2,'0'))).toString();}
  const pages={'overview.view':'dashboard','user.overview.view':'dashboard','merchant.overview.view':'dashboard','user.bank_upi.submit':'bank','user.bank_upi.view':'bank','bank_upi.view':'bank','assignments.view':'assignments','routing.view':'routing','ledger.view':'ledger','merchant.ledger.view':'ledger','merchant.fees.view':'ledger','user.payin_commission.view':'ledger','user.holds.view':'holds','merchant.holds.view':'holds','holds.view':'holds'};
  async function render({permission,account,locale,request,post,action,el,container,title}){
-  const page=pages[permission];if(!page)return false;const t=key=>root.WPayBusinessLocales.translate(locale,key);
+  const page=pages[permission];if(!page)return false;if(page==='bank'&&account.accountType==='user'&&root.WPayUserBurgundyBanks){await root.WPayUserBurgundyBanks.render({permission,account,locale,request,post,action,el,container,title});return true;}const t=key=>root.WPayBusinessLocales.translate(locale,key);
   const admin=!['user','merchant'].includes(account.accountType);title.textContent=t(page);container.replaceChildren();
   const card=el('section',undefined,'card business-card');container.append(card);
   const btn=(key,fn)=>{const b=el('button',t(key));b.type='button';b.onclick=()=>action(fn);return b;};
