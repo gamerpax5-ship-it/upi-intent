@@ -45,3 +45,162 @@ function hydrateIcons(){
 }
 
 globalThis.WPayReferenceIcons={hydrate(scope){scope.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=svgIcon(el.dataset.icon));}};hydrateIcons();})();
+
+/* User-only navigation ergonomics. No requests, account data or permission changes. */
+(function () {
+  'use strict';
+  if (!document.body.classList.contains('user-workspace')) return;
+  const sidebar = document.getElementById('sidebar');
+  const search = document.getElementById('globalSearch');
+  const menu = document.getElementById('menuBtn');
+  const overlay = document.getElementById('overlay');
+  const workspace = document.getElementById('workspace') || document.getElementById('appView');
+  if (!sidebar || !search || !workspace) return;
+  const buttons = [...sidebar.querySelectorAll('.nav-item[data-page]')];
+  const available = button => !button.disabled && button.getAttribute('aria-disabled') !== 'true' && !button.hidden;
+  const label = button => button.textContent.trim().replace(/\s+/g, ' ');
+  const group = button => button.closest('.nav-group')?.querySelector('.nav-title')?.textContent.trim() || 'Workspace';
+  const visible = () => !workspace.hidden && !workspace.classList.contains('hidden');
+  let matches = [], selected = -1;
+
+  const results = document.createElement('div');
+  results.id = 'user-section-results';
+  results.className = 'search-results';
+  results.setAttribute('role', 'listbox');
+  results.setAttribute('aria-label', 'Available workspace sections');
+  results.hidden = true;
+  search.parentElement.append(results);
+  const shortcut = document.createElement('kbd');
+  shortcut.className = 'search-shortcut';
+  shortcut.textContent = 'Ctrl K';
+  shortcut.setAttribute('aria-hidden', 'true');
+  search.parentElement.append(shortcut);
+  search.setAttribute('role', 'combobox');
+  search.setAttribute('aria-autocomplete', 'list');
+  search.setAttribute('aria-controls', results.id);
+  search.setAttribute('aria-expanded', 'false');
+  search.setAttribute('aria-label', 'Find a workspace section');
+  search.autocomplete = 'off';
+  search.placeholder = 'Find a section…';
+
+  function closeSearch() {
+    results.hidden = true;
+    search.setAttribute('aria-expanded', 'false');
+    search.removeAttribute('aria-activedescendant');
+    selected = -1;
+  }
+  function selectMatch(index) {
+    selected = index;
+    [...results.querySelectorAll('[role=option]')].forEach((option, i) => option.setAttribute('aria-selected', String(i === index)));
+    if (index >= 0) search.setAttribute('aria-activedescendant', 'user-section-option-' + index);
+    else search.removeAttribute('aria-activedescendant');
+  }
+  function openMatch(index) {
+    const button = matches[index];
+    if (!button || !available(button) || !visible()) return closeSearch();
+    closeSearch();
+    search.value = '';
+    button.click(); // Existing controller remains responsible for authorization and navigation.
+    const heading = document.getElementById('page-title') || document.querySelector('.page.active h1');
+    if (heading) { heading.tabIndex = -1; heading.focus({preventScroll: true}); }
+  }
+  function showSearch() {
+    if (!visible()) return closeSearch();
+    const query = search.value.trim().toLocaleLowerCase();
+    matches = buttons.filter(button => available(button) && (label(button) + ' ' + group(button)).toLocaleLowerCase().includes(query)).slice(0, 8);
+    results.replaceChildren();
+    matches.forEach((button, i) => {
+      const option = document.createElement('div');
+      option.id = 'user-section-option-' + i;
+      option.className = 'search-result';
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', 'false');
+      const name = document.createElement('span'), category = document.createElement('small');
+      name.textContent = label(button); category.textContent = group(button);
+      option.append(name, category);
+      option.addEventListener('pointerdown', event => event.preventDefault());
+      option.addEventListener('click', () => openMatch(i));
+      results.append(option);
+    });
+    if (!matches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'search-empty';
+      empty.textContent = query ? 'No available sections match. Try a section name such as Bank or Support.' : 'Your available sections will appear here after sign-in.';
+      results.append(empty);
+    }
+    results.hidden = false;
+    search.setAttribute('aria-expanded', 'true');
+    selectMatch(matches.length ? 0 : -1);
+  }
+  search.addEventListener('focus', showSearch);
+  search.addEventListener('input', showSearch);
+  search.addEventListener('blur', closeSearch);
+  search.addEventListener('keydown', event => {
+    if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (event.key === 'Escape') { closeSearch(); return; }
+    if (results.hidden) showSearch();
+    if (event.key === 'Enter') { openMatch(selected); return; }
+    if (!matches.length) return;
+    selectMatch((selected + (event.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length);
+    results.children[selected]?.scrollIntoView({block: 'nearest'});
+  }, true);
+  document.addEventListener('pointerdown', event => {
+    if (!search.parentElement.contains(event.target)) closeSearch();
+  });
+  document.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && visible() && !sidebar.classList.contains('open')) {
+      event.preventDefault(); search.focus(); search.select(); showSearch();
+    }
+  });
+  // Permission changes invalidate open suggestions without changing any original grant.
+  new MutationObserver(() => { if (!results.hidden) showSearch(); }).observe(sidebar, {subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-disabled']});
+  new MutationObserver(() => { if (!visible()) closeSearch(); }).observe(workspace, {attributes: true, attributeFilter: ['hidden', 'class']});
+
+  const close = document.createElement('button');
+  close.type = 'button'; close.className = 'nav-close'; close.textContent = '×';
+  close.setAttribute('aria-label', 'Close navigation');
+  sidebar.prepend(close);
+  const mobile = matchMedia('(max-width: 920px)');
+  const main = workspace.querySelector('.main');
+  let drawerOpen = false, returnFocus;
+  function closeDrawer() {
+    sidebar.classList.remove('open');
+    overlay?.classList.remove('show');
+    menu?.setAttribute('aria-expanded', 'false');
+  }
+  close.addEventListener('click', closeDrawer);
+  function syncDrawer() {
+    const open = mobile.matches && visible() && sidebar.classList.contains('open');
+    sidebar.inert = mobile.matches && !open;
+    if (main) main.inert = open;
+    document.body.classList.toggle('user-menu-open', open);
+    if (open && !drawerOpen) { returnFocus = document.activeElement; close.focus(); closeSearch(); }
+    if (!open && drawerOpen && sidebar.contains(document.activeElement)) {
+      const target = returnFocus?.isConnected && !returnFocus.closest('[hidden],.hidden') ? returnFocus : menu;
+      if (visible()) target?.focus();
+    }
+    drawerOpen = open;
+  }
+  new MutationObserver(syncDrawer).observe(sidebar, {attributes: true, attributeFilter: ['class']});
+  new MutationObserver(syncDrawer).observe(workspace, {attributes: true, attributeFilter: ['hidden', 'class']});
+  mobile.addEventListener('change', () => { if (!mobile.matches) closeDrawer(); syncDrawer(); });
+  document.addEventListener('keydown', event => {
+    if (!drawerOpen) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeDrawer(); return; }
+    if (event.key !== 'Tab') return;
+    const focusable = [...sidebar.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(node => node.getClientRects().length && !node.hidden);
+    const first = focusable[0], last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
+  syncDrawer();
+
+  const title = document.getElementById('page-title');
+  const location = document.getElementById('workspaceLocation');
+  if (title && location) {
+    const syncTitle = () => { location.textContent = title.textContent || 'Overview'; };
+    new MutationObserver(syncTitle).observe(title, {childList: true, characterData: true, subtree: true});
+    syncTitle();
+  }
+})();
