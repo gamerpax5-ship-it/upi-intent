@@ -1008,3 +1008,10 @@ textarea.control{height:auto!important;padding:11px!important}
 .field label,.fact label,th,.metric-foot,.item-main small{font-size:14px;line-height:1.55;color:var(--muted)}
 td,.control,.btn{font-size:15px}input::placeholder,textarea::placeholder{color:#b9a9b1;opacity:1}
 [hidden]{display:none!important}.table-scroll{overflow-x:auto}.fact strong{overflow-wrap:anywhere}
+/* Final accessibility layer overrides inherited prototype density rules. */
+body{font-size:15px!important}
+.nav-item{font-size:15px!important;line-height:1.5!important;min-height:40px!important}
+.nav-title,.eyebrow,.page:not(#page-dashboard)>.page-head .eyebrow,.centered,.login-foot,.login-foot small{font-size:12px!important;color:#b9c7bf!important;line-height:1.55!important}
+.field label,.login-field label,.fact label,th,.metric-foot,.item-main small,.login-card>p{font-size:14px!important;line-height:1.55!important;color:#bdcdc2!important}
+td,.control,.btn{font-size:15px!important;line-height:1.5!important}
+td small{font-size:13px!important;color:#bdcdc2!important}
