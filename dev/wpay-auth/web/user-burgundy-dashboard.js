@@ -14,9 +14,10 @@
   }).join('')}</svg>`;
  }
  async function render(args){
-  const {container,title,request,account,el}=args;title.textContent='Dashboard';container.replaceChildren(el('p','Loading your account…','notice'));
+  const {container,title,request,account,el}=args;title.textContent='Dashboard';const loading=el('p','Loading your account…','notice');container.replaceChildren(loading);
   const data=await request('business/user-dashboard'),c=data.capacity,b=data.commission,p=data.payins,o=data.payouts;
   const capacityLabel=data.collectionAccess?.unlimited_collection?'Unlimited':money(c.available);
+  if(!loading.isConnected)return;
   const running=data.banks.filter(x=>x.status==='running'&&!x.frozen&&!x.deactivated).length;
   const page=el('div');page.innerHTML=`<div class="page-hero"><div><div class="eyebrow">User dashboard</div><h1>Welcome, ${esc(account.name)}.</h1><p>Collections, payout work, UPI capacity, earnings and balances.</p></div><div class="hero-stat"><small>Available collection capacity</small><strong>${capacityLabel}</strong></div></div>
   <div class="dashboard-primary-grid">${primary('Available Capacity',capacityLabel,'Shared by all your UPI routes',true)}${primary('Total Volume',money(data.totalVolumeMinor),'Successful collections, payouts and Parking')}${primary('Today Collection',money(p.today_volume),'Today in India')}${primary('USDT Balance',money(b?.usdtEquivalentMinor,'USDT'),'Available commission equivalent')}</div>
@@ -30,7 +31,7 @@
  async function payins(args,state={}){
   const {container,title,post,action,el}=args;title.textContent='Pay-in History';
   const status=state.status||'',offset=state.offset||0;
-  const result=await post('operations/transactions',{offset,status});
+  const loading=el('p','Loading payments…','notice');container.replaceChildren(loading);const result=await post('operations/transactions',{offset,status});if(!loading.isConnected)return;
   const page=el('div');page.innerHTML=`<div class="page-hero"><div><div class="eyebrow">Payments</div><h1>Pay-in History</h1><p>Payment activity for your UPI routes · India dates.</p></div></div><form class="filterbar" style="margin:11px 0"><select class="control" aria-label="Payment status">${[['','All statuses'],['successful','Successful'],['pending_payment','Pending payment'],['verification_pending','Verification pending'],['failed','Failed'],['expired','Expired']].map(([v,label])=>`<option value="${v}" ${v===status?'selected':''}>${label}</option>`).join('')}</select><button class="btn primary" type="submit">Apply filter</button></form><div class="card table-card"><div class="table-scroll"><table><thead><tr><th>WPay reference</th><th>UPI ID</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody>${result.records.map(r=>`<tr><td>${esc(r.orderId)}</td><td>${esc(r.upiId)}</td><td>${money(r.amountMinor)}</td><td>${esc(new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',dateStyle:'medium'}).format(new Date(r.paidAt||r.createdAt)))}</td><td><span class="pill">${esc(r.status.replaceAll('_',' '))}</span></td></tr>`).join('')||'<tr><td colspan="5">No payments in this view.</td></tr>'}</tbody></table></div></div>`;
   const form=page.querySelector('form');form.onsubmit=e=>{e.preventDefault();action(()=>payins(args,{status:form.querySelector('select').value,offset:0}));};
   for(const [show,label,next] of [[offset>0,'Previous',Math.max(0,offset-50)],[result.hasMore,'Next',offset+50]])if(show){const button=el('button',label,'btn ghost');button.type='button';button.onclick=()=>action(()=>payins(args,{status,offset:next}));page.append(button);}

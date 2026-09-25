@@ -14,3 +14,6 @@
 .user-burgundy dialog{background:#211019;color:#f4e7ed;border:1px solid var(--line2);border-radius:14px;max-width:min(720px,94vw)}
 .user-burgundy dialog::backdrop{background:#0009}.user-burgundy button:focus-visible,.user-burgundy [role=button]:focus-visible{outline:2px solid #e8ca7d;outline-offset:3px}
 @media(max-width:700px){.user-burgundy .page-head{flex-wrap:wrap}.user-burgundy .page-head h1{font-size:29px}.user-burgundy #language{max-width:85px}.user-burgundy .top-user small{display:none}}
+
+.user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
+.user-burgundy .action-rail button.action{color:inherit;text-align:left;font:inherit}
