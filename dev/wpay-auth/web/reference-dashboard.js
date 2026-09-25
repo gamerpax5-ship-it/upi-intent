@@ -11,6 +11,7 @@
   points.forEach(([day,value],i)=>{const x=35+i*690/points.length,w=Math.max(3,Math.min(45,620/points.length)),height=Number(value*200n/max),bar=document.createElementNS(ns,'rect');bar.setAttribute('x',String(x));bar.setAttribute('y',String(230-height));bar.setAttribute('width',String(w));bar.setAttribute('height',String(height));bar.setAttribute('rx','5');bar.setAttribute('fill','var(--burg3,var(--violet))');const tip=document.createElementNS(ns,'title');tip.textContent=day+' · '+money(value);bar.append(tip);svg.append(bar);});box.append(svg);
  }
  async function render(args){
+  if(args.account.accountType==='user'&&root.WPayUserBurgundyDashboard)return root.WPayUserBurgundyDashboard.render(args);
   const {account,request,post,el,container,title,groups=[]}=args,merchant=account.accountType==='merchant',role=merchant?'merchant':'user';
   const template=document.createElement('template');template.innerHTML=root.WPayReferenceLayouts.dashboards[role];const page=template.content.firstElementChild.cloneNode(true);page.classList.add('reference-dashboard');container.replaceChildren(page);title.textContent=merchant?'Merchant Dashboard':'Dashboard';root.WPayReferencePresentation.bind(page);
   const metrics=[...page.querySelectorAll('.metric-value')],setMetric=(i,value)=>{metrics[i].textContent=value;},query=s=>page.querySelector(s),granted=new Set(groups.flatMap(g=>g.children||[]).map(p=>p.destinationId));
