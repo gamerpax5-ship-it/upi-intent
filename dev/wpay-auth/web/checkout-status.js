@@ -16,7 +16,7 @@
   try{
    const response=await fetch('/api/payments/'+match[1]+'/verification-status',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(10000)});
    if(!response.ok)throw Error('Status unavailable');const data=await response.json();
-   const key=data.status==='success'&&data.verified!==true?'pending':data.status;
+   const key=data.status==='success'&&data.verified!==true&&data.approved!==true?'pending':data.status;
    const state=states[key];if(!state)throw Error('Status unavailable');
    legacy.hidden=true;
    panel.textContent=state[0]+' — '+state[1];panel.className='warn '+(key==='success'?'ok':['failed','expired','cancelled'].includes(key)?'err':'pending');

@@ -1,0 +1,20 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {parseHTML}=require(process.env.WPAY_TEST_DOM_MODULE||'linkedom');
+(async()=>{
+ const {document}=parseHTML('<html><head></head><body><div id="verificationState"></div><main id="admin"></main></body></html>');
+ let state={status:'success',verified:false,approved:true,approvalMethod:'admin_manual'},poll;
+ vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/checkout-status.js','utf8'),{document,location:{pathname:'/pay/WP1234abcd'},fetch:async()=>({ok:true,json:async()=>state}),AbortSignal,setInterval:f=>poll=f});
+ await new Promise(r=>setImmediate(r));assert.equal(document.getElementById('gatewayFinalStatus').textContent,'Successful');
+ state={status:'success',verified:false,approved:false};await poll();assert.match(document.getElementById('gatewayPaymentStatus').textContent,/Pending/);
+ const sandbox={globalThis:{},document};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/admin-utr.js','utf8'),sandbox);
+ const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;if(tag==='dialog'){n.showModal=()=>{};n.close=()=>n.remove();}if(tag==='form')n.reportValidity=()=>true;return n;};
+ const container=document.getElementById('admin'),title=el('h1'),calls=[];let settled=false;
+ const post=async(path,body)=>{calls.push({path,body});if(path==='operations/utr/decision'){settled=true;return {status:'successful',message:'Admin approved — payment Successful.'};}assert.equal(body.status,'pending');return {offset:0,hasMore:false,records:settled?[]:[{claimId:'c',orderId:'o',utr:'123456789012',reference:'test',merchant:'M',user:'U',amountMinor:'100',submittedAt:new Date().toISOString(),status:'pending',paymentStatus:'verification_pending',canReview:true,canApprove:true}]};};
+ const opts={post,action:f=>f(),el,container,title,destination:'operations.pending-utrs'};
+ await sandbox.globalThis.WPayAdminUtr.render(opts,{status:'all'});assert.equal(container.querySelector('select'),null);
+ const approve=[...container.querySelectorAll('button')].find(n=>n.textContent==='Approve');assert.ok(approve);await approve.onclick();
+ container.querySelector('textarea').value='Reviewed by administrator';container.querySelector('form').onsubmit({preventDefault(){}});await new Promise(r=>setImmediate(r));
+ assert.equal(calls.find(c=>c.path==='operations/utr/decision').body.action,'approve');assert.equal(container.querySelectorAll('tbody tr').length,0);assert.match(container.textContent,/Admin approved/);
+ console.log('PASS manual approval dialog, pending-only page, removal after approval and checkout success without bank-verification claim');
+})();
