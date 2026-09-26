@@ -89,6 +89,60 @@
     container.append(list);
   }
 
+
+  async function bankUpi(o){
+    const {post,action,el,container,title,navigate}=o;
+    title.textContent="Bank & UPI";container.replaceChildren();
+    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search:""}),post("business/banks",{})]);
+    const genericById=new Map(generic.banks.map(x=>[x.id,x]));
+    const toolbar=el("div",undefined,"admin-toolbar");
+    toolbar.append(el("p","Admin-approved UPI creation, standard review/freeze controls, shared daily limits and Merchant routes in one live V5 page.","notice"));
+    if(directory.canCreate)toolbar.append(button(el,"+ Add Admin-approved UPI",()=>createUpi(),"primary"));
+    container.append(toolbar);
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(
+      metric(el,"Total UPI",directory.banks.length,"Scoped bank/UPI accounts"),
+      metric(el,"Running",directory.banks.filter(x=>x.status==="running"&&!x.frozen).length,"Operational"),
+      metric(el,"Needs review",generic.banks.filter(x=>["submitted","review"].includes(x.status)).length,"Submitted/review"),
+      metric(el,"Frozen",directory.banks.filter(x=>x.frozen).length,"Operational hold"),
+      metric(el,"Active routes",directory.routes.filter(x=>x.status==="active").length,"Merchant assignments"),
+      metric(el,"Admin-approved",directory.banks.filter(x=>x.admin_approved_by).length,"Challenge bypass provenance")
+    );container.append(metrics);
+    const rows=directory.banks.map(b=>{
+      const g=genericById.get(b.id)||b,limit=BigInt(b.sharedLimit||g.daily_limit_minor||0),used=BigInt(b.used||0),routeCount=directory.routes.filter(r=>r.bank_id===b.id&&r.status==="active").length;
+      const actions=el("div",undefined,"admin-row-actions");
+      actions.append(button(el,"Details",()=>showDetails(b,g)));
+      if(["submitted","review"].includes(g.status)){
+        if(generic.actions.includes("approve"))actions.append(button(el,"Approve",()=>review(g,"approve"),"primary"));
+        if(generic.actions.includes("reject"))actions.append(button(el,"Reject",()=>review(g,"reject"),"danger"));
+      }
+      if(g.frozen&&generic.actions.includes("release"))actions.append(button(el,"Release freeze",()=>review(g,"release_freeze")));
+      else if(!g.frozen&&generic.actions.includes("freeze"))actions.append(button(el,"Freeze",()=>review(g,"freeze"),"danger"));
+      if(["enabled","running"].includes(g.status)&&generic.actions.includes("stop"))actions.append(button(el,"Stop",()=>review(g,"stop")));
+      return [b.details?.upiId||b.id,(b.owner_name||b.owner_id)+" · "+(b.details?.bankName||"—"),b.admin_approved_by?"Admin approved":g.verified_version===g.version?"Payment verified":"Verification pending",money(used)+" / "+money(limit),g.statement?.status||"—",g.frozen?"frozen":g.status,routeCount,actions];
+    });
+    container.append(table(el,["UPI","Owner / bank","Approval","Daily limit usage","Statement","State","Routes","Actions"],rows));
+
+    function field(form,label,value=""){const l=el("label",label),i=el("input");i.required=true;i.value=value;l.append(i);form.append(l);return i;}
+    function createUpi(){
+      const d=document.createElement("dialog"),form=document.createElement("form"),users=directory.accounts.filter(x=>x.account_type==="user"),ownerLabel=el("label","Account owner"),owner=el("select");
+      for(const u of users){const op=el("option",u.name);op.value=u.id;owner.append(op);}ownerLabel.append(owner);form.append(ownerLabel);
+      const upi=field(form,"UPI ID"),holder=field(form,"Account holder"),bank=field(form,"Bank name"),account=field(form,"Account number"),ifsc=field(form,"IFSC"),mobile=field(form,"Registered mobile"),limit=field(form,"Shared daily bank limit (INR)","100000.00"),provider=field(form,"UPI provider",""),notes=field(form,"Notes",""),reason=field(form,"Approval reason");
+      const save=el("button","Create approved UPI","primary");save.type="submit";form.append(el("p",(directory.adminManagedCollections?"Admin-managed collection enabled. ":"Funded User capacity remains required. ")+"Admin approval replaces the UPI payment challenge for this entry. Shared bank and route limits still apply.","notice"),save,button(el,"Cancel",()=>d.close()));
+      form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,dec=""]=limit.value.split("."),bankLimitMinor=(BigInt(w)*100n+BigInt(dec.padEnd(2,"0"))).toString();await post("business/admin-upi/create",{ownerId:owner.value,details:{upiId:upi.value,holderName:holder.value,bankName:bank.value,accountNumber:account.value,ifsc:ifsc.value.toUpperCase(),mobile:mobile.value,providerName:provider.value,notes:notes.value,accountType:"business",bankLimitMinor},reason:reason.value,requestId:crypto.randomUUID()});d.close();await bankUpi(o);});};d.append(el("h2","Add Admin-approved UPI"),form);container.append(d);d.showModal();
+    }
+    function review(bank,command){
+      const d=document.createElement("dialog"),form=document.createElement("form"),reason=field(form,"Reason"),save=el("button",command.replaceAll("_"," "),command==="reject"||command==="freeze"?"danger":"primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));
+      form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/banks/review",{bankId:bank.id,version:bank.version,action:command,reason:reason.value});d.close();await bankUpi(o);});};d.append(el("h2","UPI "+command.replaceAll("_"," ")),form);container.append(d);d.showModal();
+    }
+    function showDetails(bank,g){
+      const old=container.querySelector(".v5-upi-detail");if(old)old.remove();const card=el("section",undefined,"card admin-record-detail v5-upi-detail"),top=el("div",undefined,"admin-toolbar");top.append(el("h2",bank.details?.upiId||bank.id),button(el,"Close",()=>card.remove()));card.append(top);
+      const facts=el("div",undefined,"kv-grid");
+      for(const [label,value] of [["Owner",bank.owner_name||bank.owner_id],["Bank",bank.details?.bankName],["Account",bank.details?.accountNumber],["IFSC",bank.details?.ifsc],["Mobile",bank.details?.mobile],["Version",bank.version],["Verification",g.verification?.status||"—"],["Statement",g.statement?.status||"—"],["Routes",directory.routes.filter(r=>r.bank_id===bank.id).length]])facts.append((()=>{const x=el("div",undefined,"v5-fact");x.append(el("small",label),el("strong",String(value??"—")));return x;})());
+      card.append(facts,button(el,"Open routing",()=>navigate("administration.routing"),"primary"));container.append(card);card.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
+  }
+
   async function upiAnalytics(o){
     const {request,el,container,title}=o;
     title.textContent="UPI Analytics";
@@ -250,6 +304,7 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.bank-upi")return bankUpi(o);
     if(destination==="v5.approvals")return approvals(o);
     if(destination==="v5.upi-analytics")return upiAnalytics(o);
     if(destination==="v5.upi-limits")return upiLimits(o);
