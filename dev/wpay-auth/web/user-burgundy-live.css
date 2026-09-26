@@ -35,3 +35,10 @@
 .user-burgundy .live-content .notice{margin:12px 0;padding:13px 15px;border-radius:10px;line-height:1.6}
 .user-burgundy .live-content .table-wrap,.user-burgundy .live-content .table-scroll{max-width:100%;overflow-x:auto}
 @media(max-width:650px){.user-burgundy .live-content .workflow-form{grid-template-columns:1fr;padding:12px}.user-burgundy .live-content .facts{grid-template-columns:1fr}.user-burgundy .live-content .page-hero{align-items:flex-start}.user-burgundy .live-content .hero-stat{max-width:42%;overflow-wrap:anywhere}}
+/* Keep the decorative brand orbit clear of the login headline. */
+.login-visual{display:grid;grid-template-rows:auto 210px auto auto;gap:24px;align-content:space-between}
+.login-visual .visual-top{grid-row:1}.login-visual .visual-copy{grid-row:3}
+.login-visual .orbit-stage{position:relative;grid-row:2;justify-self:end;right:auto;top:auto;width:210px;height:210px}
+.login-visual .core{width:108px;height:108px}.login-visual .core strong{font-size:25px}
+.login-visual .visual-foot{grid-row:4}
+@media(max-width:600px){.login-visual{grid-template-rows:auto auto auto;min-height:520px}.login-visual .visual-copy{grid-row:2}.login-visual .visual-foot{grid-row:3}}
