@@ -33,10 +33,12 @@
    ['COLLECTIONS & ROUTING','route',[
     ['Bank & UPI',dest('bank_upi.view','administration.admin-upi','administration.bank-upi')],
     ['UPI Analytics',can('bank_upi.view')?'v5.upi-analytics':null],
-    ['User assignments',dest('assignments.view','administration.business-assignments')],
+    ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
     ['Assignments & routing',dest('routing.view','administration.routing')],
+    ['User assignments',dest('assignments.view','administration.business-assignments')],
     ['Transactions',dest('transactions.view','administration.transactions')],
-    ['Statements',dest('statement_reconciliation.view','operations.statements')]
+    ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
+    ['Statements & reconciliation',dest('statement_reconciliation.view','operations.statements')]
    ]],
    ['PARKING','bank',[
     ['Beneficiaries',can('parking.view')?'v5.parking-beneficiaries':null],
@@ -44,13 +46,14 @@
     ['Review queue',can('parking.view')?'v5.parking-review':null]
    ]],
    ['PAYOUTS & TREASURY','finance',[
-    ['Payout approval',dest('payout_operations.view','payout.orders')],
+    ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null],
     ['Payout review',dest('payout_operations.view','payout.orders')],
+    ['Payout bank capabilities',byDest('payout.capabilities')?.destinationId],
     ['Post-approval disputes',byDest('payout.disputes')?.destinationId],
     ['Late payment reviews',byDest('payout.late-reviews')?.destinationId],
-    ['Payout bank capabilities',byDest('payout.capabilities')?.destinationId],
     ['Merchant USDT',byDest('payout.merchant-usdt-admin')?.destinationId],
     ['Commission withdrawals',byDest('payout.withdrawals')?.destinationId],
+    ['User commissions',can('reports.view')?'v5.user-commissions':null],
     ['Commission holds',byDest('payout.holds')?.destinationId],
     ['Holds / frozen',dest('holds.view','administration.holds')]
    ]],
@@ -59,7 +62,7 @@
     ['Devices',dest('devices.view','operations.devices')],
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
-    ['UTR Center',dest('utr_center.view','operations.transactions')],
+    ['UTR Capture',dest('utr_center.view','operations.transactions')],
     ['APK / Agent',dest('apk.view','administration.apk')]
    ]],
    ['TEAM & ACCESS','employee',[
@@ -75,6 +78,7 @@
     ['USDT exchange',byDest('admin-finance.usdt')?.destinationId],
     ['Salary management',byDest('admin-finance.salary')?.destinationId],
     ['Expense management',byDest('admin-finance.expenses')?.destinationId],
+    ['Profit & expenses',can('reports.view')?'v5.profit-expenses':null],
     ['Reports',dest('reports.view','administration.reports')],
     ['Audit log',byDest('admin-finance.audit')?.destinationId]
    ]],
@@ -86,7 +90,7 @@
    ['SUPPORT & PLATFORM','settings',[
     ['Support',dest('support_admin.view','administration.support')],
     ['Notifications',dest('notifications.view','completion.notifications')],
-    ['Account settings',dest('account_security.view','administration.account-security')],
+    ['Security',dest('account_security.view','administration.account-security')],
     ['Settings',dest('settings.view','administration.settings')],
     ['Profile',dest('profile.view','completion.profile')]
    ]]
