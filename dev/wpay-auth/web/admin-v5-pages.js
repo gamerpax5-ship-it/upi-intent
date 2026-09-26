@@ -207,23 +207,21 @@
     const {post,action,el,container,title}=o;
     title.textContent="Payout approval";container.replaceChildren();
     const data=await post("payout/approval/search",{offset:o.state?.offset||0,limit:25});
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Pending batches",data.requests.length,"Awaiting Admin routing approval"),metric(el,"Orders",data.requests.reduce((n,r)=>n+Number(r.order_count||0),0),"Orders inside pending requests"),metric(el,"Principal volume",money(data.requests.reduce((n,r)=>n+BigInt(r.volume_minor||0),0n)),"Payout principal"),metric(el,"Reserved",money(data.requests.reduce((n,r)=>n+BigInt(r.reserve_minor||0),0n)),"Principal + fees"));
-    container.append(metrics,el("p","Merchant balance is reserved before this queue. Approval opens the payout for User claiming only when enough routing time remains; rejection releases the reservation.","notice"));
+    container.append(el("p","At create time, Merchant balance reserves principal + percentage fee + fixed payout fee. Admin approval moves an eligible request from pending_admin to open for User claiming.","notice"));
     const rows=data.requests.map(r=>{
-      const actions=el("div",undefined,"admin-row-actions");
+      const principal=BigInt(r.volume_minor||0),reserve=BigInt(r.reserve_minor||0),fees=reserve>principal?reserve-principal:0n,actions=el("div",undefined,"admin-row-actions");
       actions.append(button(el,"Approve routing",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));
-      return [r.id,r.merchant_name,r.order_count,money(r.volume_minor),money(r.reserve_minor),money(r.available_minor),new Date(r.earliest_deadline).toLocaleString("en-IN"),actions];
+      const ref=el("div");ref.append(el("strong",r.id),el("div",(r.merchant_name||"—")+" · "+Number(r.order_count||0)+" order"+(Number(r.order_count||0)===1?"":"s"),"small muted"));
+      return [ref,money(principal),money(fees),money(reserve),r.earliest_deadline?new Date(r.earliest_deadline).toLocaleString("en-IN"):"—",pill(el,"pending_admin"),actions];
     });
-    container.append(table(el,["Request / batch","Merchant","Orders","Principal","Reserved","Merchant available","Earliest deadline","Action"],rows));
+    container.append(table(el,["Reference / Merchant","Principal","Fees","Total reserved","Deadline","State","Action"],rows));
     function decide(r,decision){
-      const d=document.createElement("dialog"),f=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);f.append(l);
-      const save=el("button",decision==="approve"?"Approve routing":"Reject payout",decision==="approve"?"primary":"danger");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
-      f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/approval/decide",{id:r.id,action:decision,reason:reason.value});d.close();await payoutApproval(o);});};
-      d.append(el("h2",decision==="approve"?"Approve payout routing":"Reject payout"),f);container.append(d);d.showModal();
+      dialog(el,container,decision==="approve"?"Approve payout routing":"Reject payout",(body,d)=>{
+        const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin routing approval":"Payout rejected"),save=el("button",decision==="approve"?"Approve routing":"Reject",decision==="approve"?"primary":"danger");save.type="submit";
+        form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/approval/decide",{id:r.id,action:decision,reason:reason.value});d.close();await payoutApproval(o);});};
+      });
     }
   }
-
   async function userCommissions(o){
     const {post,el,container,title}=o;
     title.textContent="User commissions";container.replaceChildren();
