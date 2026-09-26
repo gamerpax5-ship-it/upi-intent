@@ -35,14 +35,19 @@
 
   if(page==='admin'){
    const data=await request('parking/admin');card.append(el('p','Create tenant-scoped Parking beneficiaries and orders. User payment completion restores capacity only after accepted review evidence.','notice'));
-   const beneficiaryForm=el('form'),tenant=field(beneficiaryForm,'Tenant ID'),name=field(beneficiaryForm,'Beneficiary name'),bank=field(beneficiaryForm,'Bank name'),accountNumber=field(beneficiaryForm,'Account number'),ifsc=field(beneficiaryForm,'IFSC'),upi=field(beneficiaryForm,'UPI ID','text',false);
+   const choose=(form,label,items)=>{const l=el('label',label),n=el('select');n.required=true;n.setAttribute('aria-label',label);for(const [value,text] of items){const o=el('option',text);o.value=value;n.append(o);}l.append(n);form.append(l);return n;};
+   const spaces=(data.tenants||[]).map((id,i)=>[id,(data.tenants.length===1?'Current workspace':'Workspace '+(i+1))+' · '+id]);
+   const beneficiaryForm=el('form'),tenant=choose(beneficiaryForm,'Workspace',spaces),name=field(beneficiaryForm,'Beneficiary name'),bank=field(beneficiaryForm,'Bank name'),accountNumber=field(beneficiaryForm,'Account number'),ifsc=field(beneficiaryForm,'IFSC'),upi=field(beneficiaryForm,'UPI ID','text',false);
    submit(beneficiaryForm,'Create beneficiary',async()=>{await post('parking/beneficiary/create',{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryName:name.value,bankName:bank.value,accountNumber:accountNumber.value,ifsc:ifsc.value.toUpperCase(),upiId:upi.value});await render(args);});
    card.append(el('h2','Create Parking Beneficiary'),beneficiaryForm);
 
-   const orderForm=el('form'),otenant=field(orderForm,'Tenant ID'),beneficiary=field(orderForm,'Beneficiary ID'),reference=field(orderForm,'Reference'),total=field(orderForm,'Total amount INR'),min=field(orderForm,'Minimum per transaction INR'),max=field(orderForm,'Maximum per transaction INR');
+   const orderForm=el('form'),otenant=choose(orderForm,'Workspace',spaces),beneficiary=choose(orderForm,'Beneficiary',[]),reference=field(orderForm,'Reference'),total=field(orderForm,'Total amount INR'),min=field(orderForm,'Minimum per transaction INR'),max=field(orderForm,'Maximum per transaction INR');
    const minor=value=>{if(!/^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/.test(value))throw new Error('error.INVALID_INPUT');const [w,f='']=value.split('.');return (BigInt(w)*100n+BigInt(f.padEnd(2,'0'))).toString();};
    submit(orderForm,'Create Parking Order',async()=>{await post('parking/order/create',{requestId:crypto.randomUUID(),tenantId:otenant.value,beneficiaryId:beneficiary.value,reference:reference.value,totalMinor:minor(total.value),minMinor:minor(min.value),maxMinor:minor(max.value)});await render(args);});
+   const refreshBeneficiaries=()=>{beneficiary.replaceChildren();for(const b of data.beneficiaries.filter(b=>b.tenantId===otenant.value)){const o=el('option',b.details.beneficiaryName+' · '+b.details.bankName+' · '+b.details.accountNumber.slice(-4));o.value=b.id;beneficiary.append(o);}orderForm.querySelector('button[type=submit]').disabled=!beneficiary.options.length;};otenant.onchange=refreshBeneficiaries;refreshBeneficiaries();
+   if(data.canCreate===false){beneficiaryForm.hidden=true;orderForm.hidden=true;}
    card.append(el('h2','Create Parking Order'),orderForm,el('h2','Beneficiaries'));
+   if(!data.beneficiaries.length)card.append(el('p','Create a beneficiary before creating a Parking order.'));
    for(const b of data.beneficiaries){const row=el('article',undefined,'business-row');facts(row,{ID:b.id,Tenant:b.tenantId,Name:b.details.beneficiaryName,Bank:b.details.bankName,Account:b.details.accountNumber,IFSC:b.details.ifsc});card.append(row);}
    card.append(el('h2','Orders'));for(const o of data.orders){const row=el('article',undefined,'business-row');facts(row,{ID:o.id,Tenant:o.tenantId,Reference:o.reference,Total:'INR '+money(o.totalMinor),Minimum:'INR '+money(o.minMinor),Maximum:'INR '+money(o.maxMinor||o.totalMinor),State:o.state});card.append(row);}
    card.append(el('h2','Review Queue'));for(const r of data.reviews){const row=el('article',undefined,'business-row'),form=el('form'),reason=field(form,'Reason');facts(row,{ID:r.id,Order:r.orderId,Reference:r.reference,User:r.userName,Amount:'INR '+money(r.amountMinor),State:r.state,Scan:r.scanState||'unscanned'});
