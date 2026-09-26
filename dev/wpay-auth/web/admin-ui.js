@@ -31,7 +31,7 @@
     ['User deposits',dest('deposits.view','administration.deposits')]
    ]],
    ['COLLECTIONS & ROUTING','route',[
-    ['Bank & UPI',dest('bank_upi.view','administration.admin-upi','administration.bank-upi')],
+    ['Bank & UPI',can('bank_upi.view')?'v5.bank-upi':null],
     ['UPI Analytics',can('bank_upi.view')?'v5.upi-analytics':null],
     ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
     ['Assignments & routing',dest('routing.view','administration.routing')],
