@@ -47,15 +47,15 @@
    ]],
    ['PAYOUTS & TREASURY','finance',[
     ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null],
-    ['Payout review',dest('payout_operations.view','payout.orders')],
-    ['Payout bank capabilities',byDest('payout.capabilities')?.destinationId],
+    ['Payout review',can('payout_operations.view')?'v5.payout-review':null],
+    ['Payout bank capabilities',can('payout_operations.view')?'v5.payout-capabilities':null],
     ['Post-approval disputes',byDest('payout.disputes')?.destinationId],
     ['Late payment reviews',byDest('payout.late-reviews')?.destinationId],
-    ['Merchant USDT',byDest('payout.merchant-usdt-admin')?.destinationId],
-    ['Commission withdrawals',byDest('payout.withdrawals')?.destinationId],
+    ['Merchant USDT',can('payout_operations.view')?'v5.merchant-usdt':null],
+    ['Commission withdrawals',can('commission_withdrawal.view')?'v5.withdrawals':null],
     ['User commissions',can('reports.view')?'v5.user-commissions':null],
-    ['Commission holds',byDest('payout.holds')?.destinationId],
-    ['Holds / frozen',dest('holds.view','administration.holds')]
+    ['Commission holds',can('commission_hold.view')?'v5.commission-holds':null],
+    ['Holds / frozen',can('holds.view')?'v5.holds':null]
    ]],
    ['APK SETUP','apk',[
     ['Activation codes',can('devices.view')?'v5.activation':null],
