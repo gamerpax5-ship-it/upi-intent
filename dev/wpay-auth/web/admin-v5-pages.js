@@ -592,48 +592,109 @@
     container.append(table(el,["Created","Owner","State","Device","Expires","Action"],rows));
   }
 
+
+  async function collectionAccess(o){
+    return root.WPayBusinessPage.renderAccess(o);
+  }
+  async function deposits(o){
+    return root.WPayFundingPage.render({...o,permission:"deposits.view"});
+  }
+  async function bankUpi(o){
+    return root.WPayAdminUpi.render(o,o.state||{});
+  }
+  async function upiLimits(o){
+    const {request,el,container,title}=o;title.textContent="UPI daily limits";
+    const data=await request("business/banks");container.replaceChildren(el("p","Per-UPI daily limits use India-day collection volume. Admin view is read-only; the owning User controls the daily limit.","notice"));
+    const rows=data.banks.map(b=>{
+      const limit=BigInt(b.daily_limit_minor||0),used=BigInt(b.used_minor||b.used||0),remaining=limit>used?limit-used:0n;
+      return [b.details?.upiId||b.id,b.owner_id,b.details?.bankName||"—",money(limit),money(used),money(remaining),b.frozen?"frozen":b.status];
+    });
+    container.append(table(el,["UPI","Owner","Bank","Daily limit","Used today","Remaining","State"],rows));
+  }
+  async function routing(o){return root.WPayBusinessPage.render({...o,permission:"routing.view"});}
+  async function assignments(o){return root.WPayBusinessPage.render({...o,permission:"assignments.view"});}
+  async function transactions(o){return root.WPayGatewayPage.render({...o,view:"transactions"});}
+  async function payinDisputes(o){return root.WPayAdminUtr.render({...o,destination:"operations.pending-utrs"},o.state||{});}
+  async function statements(o){return root.WPayOperationsPage.render({...o,destination:"operations.statements"},o.state||{});}
+  async function payout(o,destination,view){return root.WPayPayoutPage.render({...o,destination,view});}
+  async function userCommissions(o){
+    const {post,el,container,title}=o;title.textContent="User commissions";
+    const data=await post("panel/admin-finance",{offset:0});container.replaceChildren(el("p","Posted User pay-in and payout commission entries for the selected Admin scope. Holds and withdrawals are managed on their dedicated pages.","notice"));
+    const map=new Map();
+    for(const r of data.rows||[]){
+      if(r.account_type!=="user"||!["user_commission","user_payout_commission"].includes(r.ledger_type))continue;
+      const x=map.get(r.id)||{name:r.name,payin:0n,payout:0n};
+      if(r.ledger_type==="user_commission")x.payin+=BigInt(r.amount||0);else x.payout+=BigInt(r.amount||0);map.set(r.id,x);
+    }
+    const rows=[...map.entries()].map(([id,x])=>[x.name,id,money(x.payin),money(x.payout),money(x.payin+x.payout)]);
+    container.append(table(el,["User","Account","Pay-in commission","Payout commission","Gross posted"],rows));
+  }
+  async function holds(o){return root.WPayBusinessPage.render({...o,permission:"holds.view"});}
+  async function activation(o){return root.WPayOperationsPage.render({...o,destination:"operations.activation"},o.state||{});}
+  async function devices(o){return root.WPayOperationsPage.render({...o,destination:"operations.devices"},o.state||{});}
+  async function utr(o){return root.WPayAdminUtr.render({...o,destination:"operations.transactions"},o.state||{});}
+  async function apk(o){
+    const {request,el,container,title}=o;title.textContent="APK / Agent";const data=await request("apk");container.replaceChildren();
+    const hero=el("section",undefined,"card admin-panel");hero.append(el("h2","WPay Agent"),el("p","Verified APK artifact metadata from the live hosted service.","notice"));
+    const dl=el("dl",undefined,"admin-details");
+    for(const [k,v] of [["Version",data.version+" / "+data.build],["Package",data.package],["Minimum Android API",data.minimumAndroidApi],["File size",data.bytes],["SHA-256",data.sha256],["Signer",data.signing?.identity],["Refreshed",data.refreshedAt]]){dl.append(el("dt",k),el("dd",String(v??"—")));}
+    const a=el("a","Download latest APK","primary");a.href="/wpay-auth/roles/admin/apk/download";a.download="WPAY-Agent.apk";hero.append(dl,a);container.append(hero);
+  }
+  async function finance(o,mode,label){
+    return root.WPayAdminFinance.render({...o,page:{destinationId:"admin-finance."+mode,label}});
+  }
+  async function reports(o){
+    return root.WPayAdminPages.render({...o,permission:"reports.view",review:()=>{},navigate:o.navigate});
+  }
+  async function credentials(o){return root.WPayCompletionPage.render({...o,permission:"api_credentials.view",destination:"administration.api-credentials"});}
+  async function webhooks(o){return root.WPayCompletionPage.render({...o,permission:"webhooks.view",destination:"administration.webhooks"});}
+  async function apiLogs(o){return root.WPayCompletionPage.render({...o,permission:"api_logs.view",destination:"administration.api-logs"});}
+  async function support(o){return root.WPayCompletionPage.render({...o,permission:"support_admin.view",destination:"administration.support"});}
+  async function notifications(o){return root.WPayCompletionPage.render({...o,permission:"notifications.view",destination:"completion.notifications"});}
+  async function settings(o){return root.WPayCompletionPage.render({...o,permission:"settings.view",destination:"administration.settings"});}
+  async function profile(o){return root.WPayCompletionPage.render({...o,permission:"profile.view",destination:"completion.profile"});}
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
-    if(destination==="v5.collection-access")return collectionAccessPage(o);
-    if(destination==="v5.transactions")return transactionsPage(o);
-    if(destination==="v5.payout-disputes")return payoutDisputes(o);
-    if(destination==="v5.late-reviews")return lateReviews(o);
-    if(destination==="v5.ledger")return ledgerPage(o);
-    if(destination==="v5.reports")return reportsPage(o);
-    if(destination==="v5.audit")return auditPage(o);
-    if(destination==="v5.support")return supportPage(o);
-    if(destination==="v5.apk")return apkPage(o);
-    if(destination==="v5.credentials")return credentialsPage(o);
-    if(destination==="v5.webhooks")return webhooksPage(o);
-    if(destination==="v5.api-logs")return apiLogsPage(o);
-    if(destination==="v5.notifications")return notificationsPage(o);
-    if(destination==="v5.profile")return profilePage(o);
-    if(destination==="v5.settings")return settingsPage(o);
-    if(destination==="v5.payout-review")return payoutReview(o);
-    if(destination==="v5.payout-capabilities")return payoutCapabilities(o);
-    if(destination==="v5.merchant-usdt")return merchantUsdt(o);
-    if(destination==="v5.withdrawals")return withdrawals(o);
-    if(destination==="v5.commission-holds")return commissionHolds(o);
-    if(destination==="v5.holds")return businessHolds(o);
-    if(destination==="v5.utr")return utrCapture(o);
-    if(destination==="v5.statements")return statementsPage(o);
-    if(destination==="v5.deposits")return deposits(o);
-    if(destination==="v5.routing")return routingPage(o);
-    if(destination==="v5.assignments")return assignmentsPage(o);
-    if(destination==="v5.devices")return devicesPage(o);
-    if(destination==="v5.activation")return activationPage(o);
-    if(destination==="v5.bank-upi")return bankUpi(o);
     if(destination==="v5.approvals")return approvals(o);
+    if(destination==="v5.collection-access")return collectionAccess(o);
+    if(destination==="v5.deposits")return deposits(o);
+    if(destination==="v5.bank-upi")return bankUpi(o);
     if(destination==="v5.upi-analytics")return upiAnalytics(o);
     if(destination==="v5.upi-limits")return upiLimits(o);
+    if(destination==="v5.routing")return routing(o);
+    if(destination==="v5.assignments")return assignments(o);
+    if(destination==="v5.transactions")return transactions(o);
     if(destination==="v5.payin-disputes")return payinDisputes(o);
-    if(destination==="v5.payout-approval")return payoutApproval(o);
-    if(destination==="v5.user-commissions")return userCommissions(o);
-    if(destination==="v5.profit-expenses")return profitExpenses(o);
+    if(destination==="v5.statements")return statements(o);
     if(destination==="v5.parking-beneficiaries")return parkingView(o,"beneficiaries");
     if(destination==="v5.parking-orders")return parkingView(o,"orders");
     if(destination==="v5.parking-review")return parkingView(o,"review");
+    if(destination==="v5.payout-approval")return payout(o,"payout.orders","payout-approval");
+    if(destination==="v5.payout-review")return payout(o,"payout.orders","payout-review");
+    if(destination==="v5.payout-capabilities")return payout(o,"payout.capabilities");
+    if(destination==="v5.payout-disputes")return payout(o,"payout.disputes");
+    if(destination==="v5.late-reviews")return payout(o,"payout.late-reviews");
+    if(destination==="v5.merchant-usdt")return payout(o,"payout.merchant-usdt-admin");
+    if(destination==="v5.withdrawals")return payout(o,"payout.withdrawals");
+    if(destination==="v5.user-commissions")return userCommissions(o);
+    if(destination==="v5.commission-holds")return payout(o,"payout.holds");
+    if(destination==="v5.holds")return holds(o);
+    if(destination==="v5.activation")return activation(o);
+    if(destination==="v5.devices")return devices(o);
     if(destination==="v5.pairing-history")return pairingHistory(o);
+    if(destination==="v5.utr")return utr(o);
+    if(destination==="v5.apk")return apk(o);
+    if(destination==="v5.ledger")return root.WPayBusinessPage.render({...o,permission:"ledger.view"});
+    if(destination==="v5.profit-expenses")return finance(o,"overview","Profit & expenses");
+    if(destination==="v5.reports")return reports(o);
+    if(destination==="v5.audit")return finance(o,"audit","Audit log");
+    if(destination==="v5.credentials")return credentials(o);
+    if(destination==="v5.webhooks")return webhooks(o);
+    if(destination==="v5.api-logs")return apiLogs(o);
+    if(destination==="v5.support")return support(o);
+    if(destination==="v5.notifications")return notifications(o);
+    if(destination==="v5.settings")return settings(o);
+    if(destination==="v5.profile")return profile(o);
     throw new Error("error.NOT_FOUND");
   }
   root.WPayAdminV5Pages={render};
