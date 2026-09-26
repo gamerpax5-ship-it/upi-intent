@@ -1,1 +1,6 @@
-{"version":"0.10.5","commit":"f488effdf3fb2f758dcdec14ba745bc6898da72d","builtAt":"2026-09-14T12:16:44Z"}
+{
+  "version": "0.10.5+build.21",
+  "versionCode": 21,
+  "commit": "cde39a9f94130f53e79db0f907d0866defb2f1e1",
+  "builtAt": "2026-09-26T06:34:00.898828Z"
+}
