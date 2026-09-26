@@ -23,3 +23,6 @@ DO $$ BEGIN
   CREATE POLICY backend_only ON wpay_auth.admin_commercial_defaults TO wpay_runtime USING(true) WITH CHECK(true);
  END IF;
 END $$;
+
+-- In-app Admin notification read watermark for V5 notification parity.
+ALTER TABLE wpay_auth.preferences ADD COLUMN notifications_read_at timestamptz;
