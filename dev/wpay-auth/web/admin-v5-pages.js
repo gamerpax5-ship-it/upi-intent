@@ -593,6 +593,137 @@
   }
 
 
+
+  const tone=value=>{
+    const s=String(value||"").toLowerCase();
+    if(/approved|active|running|successful|completed|verified|accepted|open/.test(s))return "green";
+    if(/pending|review|processing|submitted|claimed|requested|verification/.test(s))return "amber";
+    if(/reject|failed|frozen|suspended|disabled|cancel|expired|not_paid/.test(s))return "red";
+    if(/manual|admin/.test(s))return "purple";
+    return "gray";
+  };
+  const pill=(el,value)=>el("span",String(value||"—").replaceAll("_"," "),"pill "+tone(value));
+  const dialog=(el,container,title,build)=>{
+    const d=document.createElement("dialog"),head=el("div",undefined,"split-head"),body=el("div"),close=button(el,"Close",()=>d.close(),"ghost");
+    head.append(el("h2",title),close);d.append(head,body);container.append(d);d.addEventListener("close",()=>d.remove());build(body,d);d.showModal();return d;
+  };
+  const field=(el,form,name,label,value="",type="text")=>{
+    const wrap=el("label",label),input=el("input");input.name=name;input.value=value??"";input.type=type;input.required=true;wrap.append(input);form.append(wrap);return input;
+  };
+  const selectField=(el,form,name,label,items,value)=>{
+    const wrap=el("label",label),node=el("select");node.name=name;for(const [v,t]of items){const op=el("option",t);op.value=v;node.append(op);}node.value=value??"";wrap.append(node);form.append(wrap);return node;
+  };
+
+  async function directory(o,type){
+    const {post,request,action,el,container,title}=o,isUser=type==="user",state=o.state||{},status=state.status||"",search=state.search||"";
+    title.textContent=isUser?"Users":"Merchants";
+    const [data,access]=await Promise.all([
+      post("panel/directory",{type,status:status||"all",search,offset:0}),
+      isUser?request("business/user-access").catch(()=>({users:[]})):Promise.resolve({users:[]})
+    ]);
+    const accessMap=new Map((access.users||[]).map(x=>[x.id,x]));
+    container.replaceChildren();
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create "+(isUser?"User":"Merchant"),()=>createAccount(),"primary"));}
+    const filters=el("div",undefined,"toolbar"),q=el("input"),st=el("select");
+    q.className="control grow";q.placeholder="Search name, email or ID…";q.value=search;
+    for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"],["disabled","Disabled"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
+    const apply=button(el,"Apply",()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value}},type)),"primary");filters.append(q,st,apply);container.append(filters);
+    const grid=el("div",undefined,"account-card-grid");container.append(grid);
+    for(const a of data.rows){
+      const accessRow=accessMap.get(a.id)||{},settings=a.settings||{},cardNode=el("article",undefined,"card account-card"),top=el("div",undefined,"account-card-top"),identity=el("div",undefined,"account-identity"),avatar=el("div",(a.name||"?").split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase(),"avatar"),copy=el("div");
+      copy.append(el("h3",a.name),el("p",a.email+" · "+a.id));identity.append(avatar,copy);top.append(identity,pill(el,a.status==="active"?a.approvalStatus:a.status));cardNode.append(top);
+      const stats=el("div",undefined,"account-card-stats");
+      const stat=(label,value)=>{const x=el("div",undefined,"fact");x.append(el("label",label),el("strong",value));return x;};
+      stats.append(stat(isUser?"Available capacity":"Available balance",money(a.availableMinor||0)),stat(isUser?"UPI accounts":"Active routes",a.routeCount||0),stat("Transactions",a.transactionCount||0));cardNode.append(stats);
+      const terms=el("div",undefined,"summary-row");terms.append(el("span","Current terms"),el("strong",isUser?`Pay-in ${settings.payinCommission??"—"}% · Payout ${settings.payoutCommission??"—"}% · USDT ₹${settings.inrPerUsdt??"—"}`:`Pay-in ${settings.payinFee??"—"}% · Payout ${settings.payoutFee??"—"}% · Fixed ₹${settings.fixedPayoutFee??"—"} · USDT ₹${settings.inrPerUsdt??"—"}`));cardNode.append(terms);
+      if(isUser){const badges=el("div",undefined,"access-badges");const f=el("span","Free setup "+(accessRow.free_setup?"ON":"OFF"),"access-pill"+(accessRow.free_setup?"":" off")),u=el("span","Unlimited collection "+(accessRow.unlimited_collection?"ON":"OFF"),"access-pill"+(accessRow.unlimited_collection?"":" off"));badges.append(f,u);cardNode.append(badges);}
+      const actions=el("div",undefined,"account-card-actions");actions.append(button(el,"View / manage",()=>manage(a,accessRow)));
+      if(a.approvalStatus==="pending"){if(data.actions.includes("approve"))actions.append(button(el,"Approve",()=>approve(a,true),"primary"));if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>approve(a,false),"danger"));}
+      if(a.approvalStatus==="approved"&&data.actions.includes("commercial.update"))actions.append(button(el,"Edit rates",()=>editTerms(a)));
+      if(isUser&&data.actions.includes("commercial.update"))actions.append(button(el,"Collection access",()=>editAccess(a,accessRow)));
+      if(a.status==="active"&&data.actions.includes("suspend"))actions.append(button(el,"Suspend",()=>suspend(a),"danger"));
+      cardNode.append(actions);grid.append(cardNode);
+    }
+    if(!data.rows.length)grid.append(el("div","No matching accounts.","card admin-empty"));
+
+    async function createAccount(){
+      const opts=await request("approval-options");
+      dialog(el,container,"Create "+(isUser?"User":"Merchant"),(body,d)=>{
+        const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name"),email=field(el,form,"email","Email","","email"),password=field(el,form,"password","Set login password","","password"),approveNow=selectField(el,form,"approveNow","Account approval",[["yes","Create & approve now"],["no","Create as pending"]],"yes");
+        const controls={};
+        if(isUser){
+          controls.payin=field(el,form,"payin","Pay-in commission %","0.45");controls.payout=field(el,form,"payout","Payout commission %","0.30");controls.rate=field(el,form,"rate","INR per USDT","107.00");controls.address=field(el,form,"address","USDT address");controls.free=selectField(el,form,"freeSetup","Free setup",[["false","Require deposit for setup"],["true","Allow setup without deposit"]],"false");controls.unlimited=selectField(el,form,"unlimited","Collection capacity policy",[["false","Capacity backed"],["true","Unlimited collection (capacity exempt)"]],"false");
+        }else{
+          controls.payin=field(el,form,"payin","Pay-in fee %","1.20");controls.payout=field(el,form,"payout","Payout fee %","0.80");controls.fixed=field(el,form,"fixed","Fixed payout fee INR","6");controls.rate=field(el,form,"rate","INR per USDT","107.00");
+        }
+        form.append(el("p","Admin sets the initial password. Approval is a separate server state.","notice"));
+        const save=el("button","Create account","primary");save.type="submit";form.append(save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{const requestId=crypto.randomUUID(),created=await post("panel/directory/create",{requestId,type,name:name.value,email:email.value,password:password.value});password.value="";if(approveNow.value==="yes"){const settings=isUser?{payinCommission:controls.payin.value,payoutCommission:controls.payout.value,inrPerUsdt:controls.rate.value,depositNetwork:opts.depositNetworks?.[0]||"TRON-TRC20",depositAddress:controls.address.value}:{payinFee:controls.payin.value,payoutFee:controls.payout.value,fixedPayoutFee:controls.fixed.value,fixedFeeCurrency:opts.fixedFeeCurrency||"INR",paymentLinkTtlSeconds:"300",inrPerUsdt:controls.rate.value};await post("approval",{requestId:crypto.randomUUID(),accountId:created.id,decision:"approve",settings,reason:""});if(isUser)await post("business/user-access/update",{userId:created.id,freeSetup:controls.free.value==="true",unlimitedCollection:controls.unlimited.value==="true",reason:"Configured during Admin account creation"});}d.close();await directory(o,type);});};
+      });
+    }
+    function manage(a,accessRow){
+      dialog(el,container,(isUser?"User":"Merchant")+" · "+a.name,(body)=>{
+        const layout=el("div",undefined,"admin-columns"),left=el("section",undefined,"card admin-panel"),right=el("section",undefined,"card admin-panel"),dl=el("dl",undefined,"admin-details"),settings=a.settings||{};
+        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
+        left.append(dl);right.append(el("h3","Operational links"));for(const [l,v]of [[isUser?"UPI accounts":"Active routes",a.routeCount||0],["Transactions",a.transactionCount||0]])right.append(metric(el,l,v,"Live account scope"));layout.append(left,right);body.append(layout,el("h3","Recent transactions"));
+        body.append(table(el,["Reference","Type","Amount","Status"],(a.recentActivity||[]).map(x=>[x.reference,x.type,money(x.amountMinor),pill(el,x.status)])));
+      });
+    }
+    async function approve(a,ok){
+      const opts=await request("approval-options"),settings=a.settings||{};
+      dialog(el,container,(ok?"Approve ":"Reject ")+a.name,(body,d)=>{
+        const form=el("form",undefined,"form-grid"),reason=field(el,form,"reason","Reason",ok?"KYC and profile reviewed":"Unable to approve"),controls={};
+        if(isUser){controls.payin=field(el,form,"payin","Pay-in commission %",settings.payinCommission||"0.45");controls.payout=field(el,form,"payout","Payout commission %",settings.payoutCommission||"0.30");controls.rate=field(el,form,"rate","INR per USDT",settings.inrPerUsdt||"107.00");controls.address=field(el,form,"address","USDT address",settings.depositAddress||"");controls.free=selectField(el,form,"freeSetup","Free setup",[["false","Require deposit"],["true","Allow setup without deposit"]],String(!!accessMap.get(a.id)?.free_setup));controls.unlimited=selectField(el,form,"unlimited","Collection capacity",[["false","Capacity backed"],["true","Unlimited collection"]],String(!!accessMap.get(a.id)?.unlimited_collection));}
+        else{controls.payin=field(el,form,"payin","Pay-in fee %",settings.payinFee||"1.20");controls.payout=field(el,form,"payout","Payout fee %",settings.payoutFee||"0.80");controls.fixed=field(el,form,"fixed","Fixed payout fee INR",settings.fixedPayoutFee||"6");controls.rate=field(el,form,"rate","INR per USDT",settings.inrPerUsdt||"107.00");}
+        const save=el("button",ok?"Approve":"Reject",ok?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const commercial=ok?(isUser?{payinCommission:controls.payin.value,payoutCommission:controls.payout.value,inrPerUsdt:controls.rate.value,depositNetwork:opts.depositNetworks?.[0]||"TRON-TRC20",depositAddress:controls.address.value}:{payinFee:controls.payin.value,payoutFee:controls.payout.value,fixedPayoutFee:controls.fixed.value,fixedFeeCurrency:opts.fixedFeeCurrency||"INR",paymentLinkTtlSeconds:"300",inrPerUsdt:controls.rate.value}):null;await post("approval",{requestId:crypto.randomUUID(),accountId:a.id,decision:ok?"approve":"reject",settings:commercial,reason:ok?"":reason.value});if(ok&&isUser)await post("business/user-access/update",{userId:a.id,freeSetup:controls.free.value==="true",unlimitedCollection:controls.unlimited.value==="true",reason:"Configured during Admin approval"});d.close();await directory(o,type);});};
+      });
+    }
+    function editTerms(a){
+      const settings=a.settings||{};
+      dialog(el,container,"Update commercials · "+a.name,(body,d)=>{
+        const form=el("form",undefined,"form-grid"),controls={};
+        if(isUser){controls.payin=field(el,form,"payin","Pay-in commission %",settings.payinCommission||"0.45");controls.payout=field(el,form,"payout","Payout commission %",settings.payoutCommission||"0.30");controls.rate=field(el,form,"rate","INR per USDT",settings.inrPerUsdt||"107.00");controls.address=field(el,form,"address","USDT address",settings.depositAddress||"");}
+        else{controls.payin=field(el,form,"payin","Pay-in fee %",settings.payinFee||"1.20");controls.payout=field(el,form,"payout","Payout fee %",settings.payoutFee||"0.80");controls.fixed=field(el,form,"fixed","Fixed payout fee INR",settings.fixedPayoutFee||"6");controls.rate=field(el,form,"rate","INR per USDT",settings.inrPerUsdt||"107.00");}
+        const reason=field(el,form,"reason","Change reason","Commercial terms updated"),save=el("button","Save terms","primary");save.type="submit";form.append(save);body.append(el("p","Saving creates a new versioned commercial snapshot and invalidates affected sessions.","notice"),form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{const next=isUser?{payinCommission:controls.payin.value,payoutCommission:controls.payout.value,inrPerUsdt:controls.rate.value,depositNetwork:settings.depositNetwork||"TRON-TRC20",depositAddress:controls.address.value}:{payinFee:controls.payin.value,payoutFee:controls.payout.value,fixedPayoutFee:controls.fixed.value,fixedFeeCurrency:settings.fixedFeeCurrency||"INR",paymentLinkTtlSeconds:settings.paymentLinkTtlSeconds||"300",inrPerUsdt:controls.rate.value};await post("panel/directory/update",{requestId:crypto.randomUUID(),id:a.id,action:"commercial.update",reason:reason.value,settings:next,expectedVersion:a.commercialVersion||0});d.close();await directory(o,type);});};
+      });
+    }
+    function editAccess(a,accessRow){
+      dialog(el,container,"Collection access · "+a.name,(body,d)=>{
+        const form=el("form",undefined,"form-grid"),free=selectField(el,form,"free","Free setup",[["false","Require deposit for setup"],["true","Allow setup without deposit"]],String(!!accessRow.free_setup)),unlimited=selectField(el,form,"unlimited","Collection capacity policy",[["false","Capacity backed"],["true","Unlimited collection (capacity exempt)"]],String(!!accessRow.unlimited_collection)),reason=field(el,form,"reason","Reason",accessRow.reason||"Admin collection access update"),save=el("button","Save access","primary");save.type="submit";form.append(save);body.append(el("p","Unlimited Collection bypasses only capacity-insufficient routing. Account, device, UPI and daily-limit checks still apply.","notice"),form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:a.id,freeSetup:free.value==="true",unlimitedCollection:unlimited.value==="true",reason:reason.value});d.close();await directory(o,type);});};
+      });
+    }
+    function suspend(a){
+      dialog(el,container,"Suspend "+a.name,(body,d)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Operational suspension"),save=el("button","Suspend","danger");save.type="submit";form.append(save);body.append(el("p","Suspension blocks operational use and invalidates sessions.","notice"),form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/directory/update",{requestId:crypto.randomUUID(),id:a.id,action:"suspend",reason:reason.value,settings:null,expectedVersion:a.commercialVersion||0});d.close();await directory(o,type);});};});
+    }
+  }
+
+  async function employees(o){
+    const {post,action,el,container,title}=o;title.textContent="Employees";const data=await post("operations/employees",{offset:0,limit:100});container.replaceChildren(el("p","All delegable Admin permissions are grouped by module. Restricted actions remain visible but disabled.","notice"));const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Create employee",()=>editor(null),"primary"));}
+    const rows=data.employees.map(e=>[e.name,e.email,pill(el,e.status),(e.admin_scope?.tenantIds||[]).join(", "),String(e.permissions.length)+" permissions",e.permission_version,button(el,"Edit",()=>editor(e))]);container.append(table(el,["Name","Email","Status","Tenants","Permissions","Version","Action"],rows));
+    function editor(emp){
+      dialog(el,container,emp?"Edit Employee · "+emp.name:"Create Employee",(body,d)=>{
+        const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",emp?.name||""),email=field(el,form,"email","Email",emp?.email||"","email"),password=field(el,form,"password",emp?"Reset / set login password":"Set login password","","password"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],emp?.status||"active");
+        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenantChecks=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=(emp?.admin_scope?.tenantIds||data.tenantIds).includes(t);l.append(i,el("span",t));tenantWrap.append(l);tenantChecks.push([t,i]);}form.append(tenantWrap);
+        const matrix=el("div",undefined,"permission-matrix full"),permissionChecks=[];for(const g of data.permissionGroups||[]){const group=el("section",undefined,"permission-group"),h=el("h4",g.label);group.append(h);for(const p of g.permissions){const l=el("label",undefined,"permission-option"+(!p.selectable?" restricted":"")),i=el("input"),span=el("span");i.type="checkbox";i.checked=(emp?.permissions||data.requiredPermissions).includes(p.id);i.disabled=!p.selectable||data.requiredPermissions.includes(p.id);span.append(document.createTextNode(p.label),el("small",p.restricted?"Restricted":p.selectable?"Delegable":"Not delegable from this Admin"));l.append(i,span);group.append(l);permissionChecks.push([p.id,i]);}matrix.append(group);}form.append(matrix,el("p","Saving permission/status/password changes invalidates existing Employee sessions. MFA enrollment remains required.","notice"));
+        const save=el("button",emp?"Save access":"Create Employee","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const permissions=[...new Set(permissionChecks.filter(([,i])=>i.checked).map(([id])=>id))],tenantIds=tenantChecks.filter(([,i])=>i.checked).map(([id])=>id),payload={name:name.value,email:email.value,permissions,tenantIds,...(emp?{id:emp.id,status:status.value}:{}),...(password.value?{password:password.value}:{})};await post(emp?"operations/employee/update":"operations/employee/create",payload);password.value="";d.close();await employees(o);});};
+      });
+    }
+  }
+
+  async function admins(o){
+    const {post,action,el,container,title}=o;title.textContent="Admin authority";const data=await post("operations/admins",{offset:0,limit:100});container.replaceChildren(el("p","Only Super Admin platform authority can create or modify scoped Admin authority.","notice"));const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Create admin",()=>editor(null),"primary"));}
+    const rows=data.admins.map(a=>[a.name,a.email,pill(el,a.status),(a.admin_scope?.tenantIds||[]).join(", "),String(a.permissions.length)+" permissions",a.permission_version,button(el,"Edit",()=>editor(a))]);container.append(table(el,["Name","Email","Status","Tenants","Permissions","Version","Action"],rows));
+    function editor(admin){
+      dialog(el,container,admin?"Edit Admin authority · "+admin.name:"Create tenant-scoped Admin",(body,d)=>{
+        const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",admin?.name||""),email=field(el,form,"email","Email",admin?.email||"","email"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],admin?.status||"active");if(admin){name.disabled=true;email.disabled=true;}
+        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenants=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=(admin?.admin_scope?.tenantIds||[]).includes(t);l.append(i,el("span",t));tenantWrap.append(l);tenants.push([t,i]);}form.append(tenantWrap);
+        const group=el("div",undefined,"permission-group full"),checks=[];group.append(el("h4","Explicit permissions"));for(const p of data.permissions){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=(admin?.permissions||data.requiredPermissions).includes(p.id);i.disabled=data.requiredPermissions.includes(p.id);l.append(i,el("span",p.label));group.append(l);checks.push([p.id,i]);}form.append(group,el("p","Platform authority is never implied. New Admins receive a one-time temporary credential and must complete reset + MFA.","notice"));
+        const save=el("button","Save Admin authority","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const payload={requestId:crypto.randomUUID(),permissions:checks.filter(([,i])=>i.checked).map(([id])=>id),tenantIds:tenants.filter(([,i])=>i.checked).map(([id])=>id),...(admin?{id:admin.id,status:status.value,expectedVersion:admin.permission_version}:{name:name.value,email:email.value})},result=await post(admin?"operations/admin/update":"operations/admin/create",payload);if(!admin&&result.oneTimePassword){body.replaceChildren(el("h3","Admin created"),el("p","Save this one-time password privately.","notice"),el("code",result.oneTimePassword));}else{d.close();await admins(o);}});};
+      });
+    }
+  }
+
   async function collectionAccess(o){
     return root.WPayBusinessPage.renderAccess(o);
   }
@@ -654,6 +785,10 @@
   async function settings(o){return root.WPayCompletionPage.render({...o,permission:"settings.view",destination:"administration.settings"});}
   async function profile(o){return root.WPayCompletionPage.render({...o,permission:"profile.view",destination:"completion.profile"});}
   async function render(destination,o){
+    if(destination==="v5.users")return directory(o,"user");
+    if(destination==="v5.merchants")return directory(o,"merchant");
+    if(destination==="v5.employees")return employees(o);
+    if(destination==="v5.admins")return admins(o);
     if(destination==="v5.analytics")return analytics(o);
     if(destination==="v5.approvals")return approvals(o);
     if(destination==="v5.collection-access")return collectionAccess(o);
