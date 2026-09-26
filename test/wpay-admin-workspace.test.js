@@ -72,6 +72,17 @@ test('Admin Parking and Treasury preserve final V5 density and panel hierarchy',
  assert.doesNotMatch(ui,/metric\(el,"Requests"[\s\S]*Commission withdrawals/);
  assert.doesNotMatch(ui,/metric\(el,"Holds"[\s\S]*Commission hold history/);
 });
+test('Admin APK Setup and Team pages preserve final V5 flow without changing OTP renderer',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8'),nav=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),ops=fs.readFileSync(require.resolve('../dev/wpay-auth/web/operations.js'),'utf8');
+ assert.ok(ui.includes('Generate account-owned code'));
+ assert.ok(ui.includes('panelTable(el,["Code","Owning session actor","Created","Expires","State","Device","Action"]'));
+ assert.ok(ui.includes('panelTable(el,["Code / request","Owner / actor","Created","Expires","State","Device","Action"]'));
+ assert.ok(ui.includes('const grid=el("div",undefined,"device-grid")'));
+ assert.ok(ui.includes('panelTable(el,["Employee","Status","Tenant","Page / permission access","Version","Action"]'));
+ assert.ok(ui.includes('panelTable(el,["Admin","Status","Tenant","Delegated permissions","Version","Action"]'));
+ assert.ok(nav.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp')]"));
+ assert.ok(ops.includes("if(page==='otp')"));
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
