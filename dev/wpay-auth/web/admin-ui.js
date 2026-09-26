@@ -71,13 +71,13 @@
    ]],
    ['FINANCE & REPORTS','report',[
     ['Ledger',can('ledger.view')?'v5.ledger':null],
-    ['Profit overview',byDest('admin-finance.overview')?.destinationId],
-    ['Pay-in fees & commissions',byDest('admin-finance.payin')?.destinationId],
-    ['Payout fees & commissions',byDest('admin-finance.payout')?.destinationId],
-    ['Fixed payout revenue',byDest('admin-finance.fixed')?.destinationId],
-    ['USDT exchange',byDest('admin-finance.usdt')?.destinationId],
-    ['Salary management',byDest('admin-finance.salary')?.destinationId],
-    ['Expense management',byDest('admin-finance.expenses')?.destinationId],
+    ['Profit overview',can('reports.view')?'v5.profit-overview':null],
+    ['Pay-in fees & commissions',can('reports.view')?'v5.finance-payin':null],
+    ['Payout fees & commissions',can('reports.view')?'v5.finance-payout':null],
+    ['Fixed payout revenue',can('reports.view')?'v5.finance-fixed':null],
+    ['USDT exchange',can('reports.view')?'v5.finance-usdt':null],
+    ['Salary management',can('reports.view')?'v5.finance-salary':null],
+    ['Expense management',can('reports.view')?'v5.finance-expenses':null],
     ['Profit & expenses',can('reports.view')?'v5.profit-expenses':null],
     ['Reports',can('reports.view')?'v5.reports':null],
     ['Audit log',can('settings.view')?'v5.audit':null]
@@ -90,7 +90,7 @@
    ['SUPPORT & PLATFORM','settings',[
     ['Support',can('support_admin.view')?'v5.support':null],
     ['Notifications',can('notifications.view')?'v5.notifications':null],
-    ['Security',dest('account_security.view','administration.account-security')],
+    ['Security',can('account_security.view')?'v5.security':null],
     ['Settings',can('settings.view')?'v5.settings':null],
     ['Profile',can('profile.view')?'v5.profile':null]
    ]]
