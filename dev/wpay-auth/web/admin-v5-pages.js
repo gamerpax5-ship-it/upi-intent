@@ -171,14 +171,19 @@
   }
 
   async function payinDisputes(o){
-    const {post,el,container,title}=o;
-    title.textContent="Pay-in disputes";container.replaceChildren();
-    const data=await post("operations/transactions",{offset:0,status:"recovery_review"});
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Recovery review",data.records.length,"Pay-ins requiring evidence review"),metric(el,"Verified observations",data.records.reduce((n,r)=>n+r.observations.filter(x=>x.verified).length,0),"Independent evidence"),metric(el,"Unposted accounting",data.records.filter(r=>r.accountingState!=="posted").length,"No final journal yet"),metric(el,"Recovered",data.records.filter(r=>r.recovered).length,"Statement-recovered pay-ins"));
-    container.append(metrics,el("p",data.note||"Submitted UTR is an observation until independent evidence or explicit Admin decision establishes accounting.","notice"));
-    const rows=data.records.map(r=>[r.reference,r.userId||"—",r.merchantId||"—",money(r.amountMinor),r.status,r.evidenceState,r.accountingState,r.observations.map(x=>x.utr+" · "+x.source+(x.verified?" · verified":"")).join(" | ")||"—"]);
-    container.append(table(el,["Reference","User","Merchant","Amount","Status","Evidence","Accounting","UTR observations"],rows));
+    const {post,action,el,container,title}=o;title.textContent="Pay-in disputes";container.replaceChildren();
+    const data=await post("payin-dispute/search",{offset:0,status:""}),records=data.records||[],metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(metric(el,"Disputes",records.length,"48-hour successful pay-in disputes"),metric(el,"Pending",records.filter(x=>x.status==="pending").length,"Awaiting Admin resolution"),metric(el,"Payment valid",records.filter(x=>x.status==="payment_valid").length,"Original accounting retained"),metric(el,"Payment invalid",records.filter(x=>x.status==="payment_invalid").length,"Exact original path reversed"));
+    container.append(metrics,el("p","Merchant opens a dispute within 48 hours with fresh statement proof. While pending, User capacity + User commission + Merchant net exposure are held. Admin resolution is append-only; a payment_invalid decision exact-reverses the original pay-in economic journal without reactivating the consumed reservation.","notice"));
+    const rows=records.map(d=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Review details",()=>detail(d),"primary"));return [d.createdAt?new Date(d.createdAt).toLocaleString("en-IN"):"—",d.reference+" · "+d.orderId,d.merchantName+" / "+d.userName,money(d.amountMinor),d.reason,"User "+money(d.amountMinor)+" · Merchant "+money(d.merchantNetMinor)+" · Commission "+money(d.commissionMinor),d.status,actions];});
+    container.append(table(el,["Opened","Reference","Merchant / User","Amount","Reason","Frozen exposure","Status","Action"],rows));
+    function detail(row){action(async()=>{const d=await post("payin-dispute/get",{id:row.orderId}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"—")));facts.append(x);};add("Reference",d.reference);add("Merchant",d.merchantName);add("User",d.userName);add("Amount",money(d.amountMinor));add("Status",d.status);add("Coverage from",new Date(d.coverageFrom).toLocaleString("en-IN"));add("Coverage through",new Date(d.coverageThrough).toLocaleString("en-IN"));add("User capacity hold",d.status==="pending"?money(d.amountMinor):money(0));add("User commission hold",d.status==="pending"?money(d.commissionMinor):money(0));add("Merchant net hold",d.status==="pending"?money(d.merchantNetMinor):money(0));wrap.append(facts,el("p",d.reason,"notice"));
+      const proofs=el("div",undefined,"admin-row-actions"),statement=button(el,"Download Merchant statement",()=>downloadProof(d.orderId,d.statementId),"primary");proofs.append(statement);for(const r of d.responses||[]){if(r.proofId)proofs.append(button(el,"User response proof",()=>downloadProof(d.orderId,r.proofId)));}wrap.append(proofs);
+      if(d.responses?.length){wrap.append(el("h3","User responses"),table(el,["Time","Reason"],d.responses.map(r=>[new Date(r.createdAt).toLocaleString("en-IN"),r.reason])));}
+      if(d.status==="pending"){const form=document.createElement("form"),reason=field(el,form,"reason","Resolution reason","Reviewed statement and response evidence"),actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Payment valid",()=>resolve("payment_valid"),"primary"),button(el,"Payment invalid",()=>resolve("payment_invalid"),"danger"));form.append(actions);wrap.append(form);async function resolve(decision){if(!reason.value.trim())return;await post("payin-dispute/resolve",{id:d.orderId,action:decision,reason:reason.value});dlg.close();await payinDisputes(o);}}
+      dlg.append(el("h2","Pay-in dispute review"),wrap,button(el,"Close",()=>dlg.close()));container.append(dlg);dlg.showModal();
+      async function downloadProof(orderId,proofId){const p=await post("payin-dispute/proof",{id:orderId,proofId}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:p.contentType||"application/octet-stream"})),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    });}
   }
 
   async function payoutApproval(o){
