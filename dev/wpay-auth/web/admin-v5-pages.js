@@ -176,10 +176,6 @@
     let data;
     try{data=await post("business/admin-upi",{offset:0,search:""});}
     catch{const plain=await request("business/banks");data={banks:plain.banks.map(b=>({...b,owner_name:b.owner_id,used:"0",sharedLimit:b.daily_limit_minor}))};}
-    const total=data.banks.reduce((n,b)=>n+BigInt(b.sharedLimit||b.daily_limit_minor||0),0n),used=data.banks.reduce((n,b)=>n+BigInt(b.used||0),0n);
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Configured UPI",data.banks.length,"Current bank versions"),metric(el,"Combined daily limit",money(total),"All scoped UPIs"),metric(el,"Used today",money(used),"Active reservations + successful collection volume"),metric(el,"Remaining",money(total-used>0n?total-used:0n),"Combined remaining"));
-    container.append(metrics);
     const rows=data.banks.map(b=>{
       const limit=BigInt(b.sharedLimit||b.daily_limit_minor||0),spent=BigInt(b.used||0),remaining=limit-spent,p=limit?Number(spent*10000n/limit)/100:0;
       return [b.details?.upiId||b.id,b.owner_name||b.owner_id,money(limit),money(spent),money(remaining>0n?remaining:0n),p.toFixed(1)+"%",b.frozen?"frozen":b.status];
@@ -250,11 +246,8 @@
 
   async function deposits(o){
     const {post,action,el,container,title}=o;title.textContent="User deposits";container.replaceChildren();
-    const data=await post("funding/list",{state:"",offset:0}),confirmed=data.requests.filter(r=>r.state==="confirmed"),pending=data.requests.filter(r=>["review","detected","confirming","requested"].includes(r.state));
-    const sum=(rows,key)=>rows.reduce((n,r)=>n+BigInt(key==="credit"?r.credit_minor||0:r.snapshot?.amountMinor||0),0n);
-    const metrics=el("div",undefined,"grid analytics-metrics");
-    metrics.append(metric(el,"Confirmed deposit",money(sum(confirmed,"credit")),"Credited User capacity"),metric(el,"Needs review",pending.length,"Evidence / provider review"),metric(el,"USDT requested",(sum(data.requests,"usdt")/1000000n).toLocaleString("en-IN")+" USDT","Funding request total"),metric(el,"Funded users",new Set(confirmed.map(r=>r.owner_id)).size,"Users with confirmed funding"));
-    container.append(metrics,el("p","Funding workflow independently verifies TRC20/ERC20 transfers. 2,000 USDT minimum applies to the first confirmed deposit only. After confirmed history, later top-ups may be smaller. A submitted transaction hash is never confirmation.","notice"));
+    const data=await post("funding/list",{state:"",offset:0});
+    container.append(el("p","First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller. Admin may use manual review without a transaction hash when evidence is reviewed, while manual approval remains explicitly non-blockchain-verified.","notice"));
     const quoteInr=r=>{
       if(r.credit_minor)return money(r.credit_minor);
       const raw=String(r.snapshot?.rate??"0"),[w,f=""]=raw.split("."),ratePaise=BigInt(w||0)*100n+BigInt(f.padEnd(2,"0").slice(0,2)||0),minor=BigInt(r.snapshot?.amountMinor||0);
