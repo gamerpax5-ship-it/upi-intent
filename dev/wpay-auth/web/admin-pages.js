@@ -55,15 +55,27 @@
     form.onsubmit=e=>{e.preventDefault();action(async()=>{if(!form.reportValidity())return;const body={id:r.id,action:mode,reason:reason.value,settings:mode==='suspend'?null:Object.fromEntries(Object.entries(fields).map(([k,i])=>[k,i.value])),expectedVersion:r.commercialVersion||0};const fingerprint=JSON.stringify(body);if(previous&&previous!==fingerprint)requestId=crypto.randomUUID();previous=fingerprint;await post('panel/directory/update',{requestId,...body});await reload();});};drawer.append(form);drawer.scrollIntoView({block:'nearest',behavior:'smooth'});
    }
    if(!data.rows.length)card.append(el('div','No accounts match these filters.','admin-empty'));
-   else table(['Account','Status','Commercial terms','Joined','Actions'],data.rows.map(r=>{
-    const identity=el('div',undefined,'admin-identity');identity.append(el('strong',r.name),el('small',r.email));
-    const terms=el('div');if(r.settings)for(const k of user?['payinCommission','payoutCommission','inrPerUsdt']:['payinFee','payoutFee','fixedPayoutFee','inrPerUsdt'])terms.append(el('div',words(k)+': '+(r.settings[k]??'Not set')));else terms.textContent='Approval required';
-    const actions=el('div',undefined,'admin-row-actions');actions.append(button('Details',async()=>inspect(r)));
-    if(r.status==='active'&&r.approvalStatus==='pending'&&(data.actions.includes('approve')||data.actions.includes('reject')))actions.append(button('Review',()=>o.review(r),'primary'));
-    if(r.status==='active'&&r.approvalStatus==='approved'&&data.actions.includes('commercial.update')){actions.append(button('Edit terms',async()=>inspect(r,'commercial.update')));if(user)actions.append(button('Collection access',async()=>inspect(r,'collection.access')));}
-    if(r.status==='active'&&data.actions.includes('suspend'))actions.append(button('Suspend',async()=>inspect(r,'suspend'),'danger'));
-    return [identity,badge(r.status==='active'?r.approvalStatus:r.status),terms,new Date(r.created_at).toLocaleDateString('en-IN'),actions];
-   }));paging(data);card.append(drawer);return;
+   else{
+    const grid=el('div',undefined,'account-card-grid');
+    for(const r of data.rows){
+     const article=el('article',undefined,'card account-card'),top=el('div',undefined,'account-card-top'),identity=el('div',undefined,'account-identity'),avatar=el('div',undefined,'avatar');
+     avatar.textContent=r.name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();const copy=el('div');copy.append(el('h3',r.name),el('p',r.email+' · '+r.id));identity.append(avatar,copy);top.append(identity,badge(r.status==='active'?r.approvalStatus:r.status));article.append(top);
+     const stats=el('div',undefined,'account-card-stats');
+     const commercial=r.settings||{},fact=(label,value)=>{const x=el('div',undefined,'fact');x.append(el('label',label),el('strong',String(value??'—')));return x;};
+     stats.append(fact('Joined',new Date(r.created_at).toLocaleDateString('en-IN')),fact('Terms version',r.commercialVersion||0),fact('Account status',words(r.status)));article.append(stats);
+     const summary=el('div',undefined,'summary-row'),terms=user
+      ?('Pay-in '+(commercial.payinCommission??'—')+' · Payout '+(commercial.payoutCommission??'—')+' · USDT ₹'+(commercial.inrPerUsdt??'—'))
+      :('Pay-in '+(commercial.payinFee??'—')+' · Payout '+(commercial.payoutFee??'—')+' · Fixed ₹'+(commercial.fixedPayoutFee??'—')+' · USDT ₹'+(commercial.inrPerUsdt??'—'));
+     summary.append(el('span','Current terms'),el('strong',r.settings?terms:'Approval required'));article.append(summary);
+     if(user){const a=accessByUser.get(r.id)||{},badges=el('div',undefined,'access-badges');for(const [label,on]of [['Free setup',!!a.free_setup],['Unlimited collection',!!a.unlimited_collection]]){const b=el('span',label+' '+(on?'ON':'OFF'),'access-pill'+(on?'':' off'));badges.append(b);}article.append(badges);}
+     const actions=el('div',undefined,'account-card-actions');actions.append(button('View / manage',async()=>inspect(r)));
+     if(r.status==='active'&&r.approvalStatus==='pending'&&(data.actions.includes('approve')||data.actions.includes('reject')))actions.append(button('Approve / reject',()=>o.review(r),'primary'));
+     if(r.status==='active'&&r.approvalStatus==='approved'&&data.actions.includes('commercial.update')){actions.append(button('Edit rates / fees',async()=>inspect(r,'commercial.update')));if(user)actions.append(button('Collection access',async()=>inspect(r,'collection.access')));}
+     if(r.status==='active'&&data.actions.includes('suspend'))actions.append(button('Suspend',async()=>inspect(r,'suspend'),'danger'));article.append(actions);grid.append(article);
+    }
+    card.append(grid);
+   }
+   paging(data);card.append(drawer);return;
   }
   const data=await post('panel/reports',{offset:state.offset||0,...(state.from?{from:state.from,to:state.to}:{})});
   card.append(el('p','Posted ledger entries · filter up to 62 days. Amounts below are totals for the visible page, not total business profit.','admin-subtitle'));
