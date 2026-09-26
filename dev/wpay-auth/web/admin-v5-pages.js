@@ -336,21 +336,43 @@
   async function statementsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="Statements & reconciliation";container.replaceChildren();
     const [data,recovery]=await Promise.all([request("operations/statements"),post("operations/transactions",{offset:0,status:"recovery_review"})]);
-    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p",data.message||"Statement import is onboarding/reconciliation evidence and never posts credit by upload alone.","notice"));container.append(toolbar);
-    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Authorized banks",data.banks.length,"Scoped receiving accounts"),metric(el,"Statement imports",data.imports.length,"Uploaded/parser records"),metric(el,"Accepted imports",data.imports.filter(x=>x.status==="accepted").length,"Parser accepted"),metric(el,"Recovery review",recovery.records.length,"Pay-ins under reconciliation"));container.append(metrics);
-    const bankRows=data.banks.map(b=>{
-      const actions=el("div",undefined,"admin-row-actions"),upload=button(el,"Upload statement",()=>uploadFor(b),"primary");actions.append(upload);return [b.ownerName,b.id,b.version,b.status,data.imports.filter(x=>x.bank_id===b.id).length,actions];
-    });container.append(el("h2","Statement sources"),table(el,["User","Bank reference","Version","State","Imports","Action"],bankRows));
-    container.append(el("h2","Import history"),table(el,["Import","Owner","Bank","Version","Rows","Credits","State","Reason"],data.imports.map(i=>[i.id,i.owner_id,i.bank_id,i.bank_version,i.rows_scanned,i.credit_count,i.status,i.reason||"—"])));
-    container.append(el("h2","Reconciliation review"),table(el,["Reference","User / Merchant","UTR","Source","Evidence","Accounting","Action"],recovery.records.map(r=>{const observation=(r.observations||[]).find(x=>!x.verified&&x.claimId)||(r.observations||[])[0],actions=el("div",undefined,"admin-row-actions");if(observation?.claimId&&r.accountingState!=="posted"){actions.append(button(el,"Accept evidence",()=>reconcile(r,observation,"approve"),"primary"),button(el,"Reject",()=>reconcile(r,observation,"reject"),"danger"));}return [r.reference,(r.userId||"—")+" / "+(r.merchantId||"—"),observation?.utr||"—",observation?.source||"—",r.evidenceState,r.accountingState,actions];})));
-    function reconcile(row,observation,decision){dialog(el,container,(decision==="approve"?"Accept evidence":"Reject claim")+" · "+row.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Accept evidence":"Reject",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"This records an explicit Admin-approved payment decision. It is not labeled as bank-verified evidence.":"This rejects the submitted claim and closes the payment as failed when allowed by current state.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:observation.claimId,action:decision,reason:reason.value});d.close();await statementsPage(o);});};});}
-    function uploadFor(bank){
-      const d=document.createElement("dialog"),form=document.createElement("form"),label=el("label","Statement file"),input=el("input");input.type="file";input.accept=".csv,.xls,.xlsx";input.required=true;label.append(input);form.append(label);const save=el("button","Upload targeted statement","primary");save.type="submit";form.append(el("p","The existing statement parser runs server-side. Upload alone does not establish ownership or financial credit.","notice"),save,button(el,"Cancel",()=>d.close()));
-      form.onsubmit=e=>{e.preventDefault();action(async()=>{const chosen=input.files[0];if(!chosen||chosen.size>1048576)throw Error("Choose a statement up to 1 MiB");const bytes=new Uint8Array(await chosen.arrayBuffer());let raw="";for(const byte of bytes)raw+=String.fromCharCode(byte);await post("operations/statement/upload",{ownerId:bank.ownerId,bankId:bank.id,version:bank.version,requestId:crypto.randomUUID(),format:chosen.name.split(".").at(-1).toLowerCase(),base64:btoa(raw)});d.close();await statementsPage(o);});};d.append(el("h2","Upload statement · "+bank.ownerName),form);container.append(d);d.showModal();
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Upload statement",()=>uploadStatement(),"primary"));}
+    container.append(el("p","Statement upload uses the existing parser and creates trusted-source review metadata. An uploaded file alone does not prove account ownership and does not itself post financial credit.","notice"));
+    const grid=el("div",undefined,"admin-columns"),imports=el("section",undefined,"card admin-panel"),recon=el("section",undefined,"card admin-panel");
+    const ih=el("div",undefined,"panel-head"),ihc=el("div");ihc.append(el("h2","Statement imports"),el("p","Targeted bank/version imports"));ih.append(ihc);imports.append(ih);
+    imports.append(table(el,["Import","Owner / bank","Version","Rows","Credits","Status","Reason"],data.imports.map(i=>[
+      i.id+" · "+new Date(i.created_at).toLocaleString("en-IN"),
+      (data.banks.find(b=>b.id===i.bank_id)?.ownerName||i.owner_id)+" · "+(data.banks.find(b=>b.id===i.bank_id)?.id||i.bank_id),
+      i.bank_version,i.rows_scanned,i.credit_count,i.status,i.reason||"—"
+    ])));
+    const rh=el("div",undefined,"panel-head"),rhc=el("div");rhc.append(el("h2","Reconciliation review"),el("p","UTR observation vs accounting state"));rh.append(rhc);recon.append(rh);
+    const rows=recovery.records.map(r=>{
+      const observation=(r.observations||[]).find(x=>!x.verified)||(r.observations||[])[0],actions=el("div",undefined,"admin-row-actions");
+      if(observation?.claimId&&r.accountingState!=="posted"){
+        actions.append(button(el,"Accept evidence",()=>reconcile(r,observation,"approve"),"primary"),button(el,"Reject",()=>reconcile(r,observation,"reject"),"danger"));
+      }
+      return [r.orderId,(r.userId||"—")+" · "+(r.merchantId||"—"),observation?.utr||"—",observation?.source||"—",r.evidenceState,r.accountingState,actions];
+    });
+    recon.append(table(el,["Order","User / Merchant","UTR","Source","Evidence","Accounting","Action"],rows));
+    grid.append(imports,recon);container.append(grid);
+
+    function uploadStatement(){
+      dialog(el,container,"Upload statement",(body,d)=>{
+        const form=el("form",undefined,"form-grid"),owners=[...new Map(data.banks.map(b=>[b.ownerId,b.ownerName])).entries()],owner=selectField(el,form,"owner","Owner",owners),bank=selectField(el,form,"bank","Bank / UPI",[]),format=selectField(el,form,"format","Format",[["csv","CSV"],["xls","XLS"],["xlsx","XLSX"]],"csv"),fileLabel=el("label","Statement file"),file=el("input");file.type="file";file.accept=".csv,.xls,.xlsx";file.required=true;fileLabel.append(file);form.append(fileLabel);
+        const refreshBanks=()=>{bank.replaceChildren();for(const b of data.banks.filter(x=>x.ownerId===owner.value)){const op=el("option",(b.ownerName||b.ownerId)+" · "+b.id);op.value=b.id;bank.append(op);}};owner.onchange=refreshBanks;refreshBanks();
+        form.append(el("p","The existing statement parser runs server-side. Upload alone does not establish ownership or financial credit.","notice"));
+        const save=el("button","Upload","primary");save.type="submit";form.append(save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{const selected=data.banks.find(x=>x.id===bank.value),chosen=file.files[0];if(!selected||!chosen||chosen.size>1048576)throw Error("Choose a statement up to 1 MiB");const bytes=new Uint8Array(await chosen.arrayBuffer());let raw="";for(const byte of bytes)raw+=String.fromCharCode(byte);await post("operations/statement/upload",{ownerId:selected.ownerId,bankId:selected.id,version:selected.version,requestId:crypto.randomUUID(),format:format.value,base64:btoa(raw)});d.close();await statementsPage(o);});};
+      });
+    }
+    function reconcile(row,observation,decision){
+      dialog(el,container,(decision==="approve"?"Accept evidence":"Reject claim")+" · "+row.reference,(body,d)=>{
+        const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Accept evidence":"Reject",decision==="approve"?"primary":"danger");save.type="submit";
+        form.append(el("p",decision==="approve"?"This records an explicit Admin-approved payment decision. It is not labeled as bank-verified evidence.":"This rejects the submitted claim and closes the payment as failed when allowed by current state.","notice"),save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:observation.claimId,action:decision,reason:reason.value});d.close();await statementsPage(o);});};
+      });
     }
   }
-
-
   async function payoutReview(o){
     const {post,action,el,container,title}=o;title.textContent="Payout review";container.replaceChildren();
     const data=await post("payout/search",{offset:0,limit:25});
