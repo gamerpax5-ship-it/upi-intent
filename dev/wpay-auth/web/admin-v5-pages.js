@@ -160,6 +160,80 @@
     }
   }
 
+
+  async function upiLimits(o){
+    const {request,post,el,container,title}=o;
+    title.textContent="UPI daily limits";container.replaceChildren();
+    let data;
+    try{data=await post("business/admin-upi",{offset:0,search:""});}
+    catch{const plain=await request("business/banks");data={banks:plain.banks.map(b=>({...b,owner_name:b.owner_id,used:"0",sharedLimit:b.daily_limit_minor}))};}
+    const total=data.banks.reduce((n,b)=>n+BigInt(b.sharedLimit||b.daily_limit_minor||0),0n),used=data.banks.reduce((n,b)=>n+BigInt(b.used||0),0n);
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Configured UPI",data.banks.length,"Current bank versions"),metric(el,"Combined daily limit",money(total),"All scoped UPIs"),metric(el,"Used today",money(used),"Active reservations + successful collection volume"),metric(el,"Remaining",money(total-used>0n?total-used:0n),"Combined remaining"));
+    container.append(metrics);
+    const rows=data.banks.map(b=>{
+      const limit=BigInt(b.sharedLimit||b.daily_limit_minor||0),spent=BigInt(b.used||0),remaining=limit-spent,p=limit?Number(spent*10000n/limit)/100:0;
+      return [b.details?.upiId||b.id,b.owner_name||b.owner_id,money(limit),money(spent),money(remaining>0n?remaining:0n),p.toFixed(1)+"%",b.frozen?"frozen":b.status];
+    });
+    container.append(el("p","Per-UPI daily limit is owner-managed in the latest backend. Admin can review utilization here; account approval, UPI verification, route min/max and freeze/state checks remain separate.","notice"),table(el,["UPI","Owner","Daily limit","Used today","Remaining","Utilization","State"],rows));
+  }
+
+  async function payinDisputes(o){
+    const {post,el,container,title}=o;
+    title.textContent="Pay-in disputes";container.replaceChildren();
+    const data=await post("operations/transactions",{offset:0,status:"recovery_review"});
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Recovery review",data.records.length,"Pay-ins requiring evidence review"),metric(el,"Verified observations",data.records.reduce((n,r)=>n+r.observations.filter(x=>x.verified).length,0),"Independent evidence"),metric(el,"Unposted accounting",data.records.filter(r=>r.accountingState!=="posted").length,"No final journal yet"),metric(el,"Recovered",data.records.filter(r=>r.recovered).length,"Statement-recovered pay-ins"));
+    container.append(metrics,el("p",data.note||"Submitted UTR is an observation until independent evidence or explicit Admin decision establishes accounting.","notice"));
+    const rows=data.records.map(r=>[r.reference,r.userId||"—",r.merchantId||"—",money(r.amountMinor),r.status,r.evidenceState,r.accountingState,r.observations.map(x=>x.utr+" · "+x.source+(x.verified?" · verified":"")).join(" | ")||"—"]);
+    container.append(table(el,["Reference","User","Merchant","Amount","Status","Evidence","Accounting","UTR observations"],rows));
+  }
+
+  async function payoutApproval(o){
+    const {post,action,el,container,title}=o;
+    title.textContent="Payout approval";container.replaceChildren();
+    const data=await post("payout/approval/search",{offset:o.state?.offset||0,limit:25});
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Pending batches",data.requests.length,"Awaiting Admin routing approval"),metric(el,"Orders",data.requests.reduce((n,r)=>n+Number(r.order_count||0),0),"Orders inside pending requests"),metric(el,"Principal volume",money(data.requests.reduce((n,r)=>n+BigInt(r.volume_minor||0),0n)),"Payout principal"),metric(el,"Reserved",money(data.requests.reduce((n,r)=>n+BigInt(r.reserve_minor||0),0n)),"Principal + fees"));
+    container.append(metrics,el("p","Merchant balance is reserved before this queue. Approval opens the payout for User claiming only when enough routing time remains; rejection releases the reservation.","notice"));
+    const rows=data.requests.map(r=>{
+      const actions=el("div",undefined,"admin-row-actions");
+      actions.append(button(el,"Approve routing",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));
+      return [r.id,r.merchant_name,r.order_count,money(r.volume_minor),money(r.reserve_minor),money(r.available_minor),new Date(r.earliest_deadline).toLocaleString("en-IN"),actions];
+    });
+    container.append(table(el,["Request / batch","Merchant","Orders","Principal","Reserved","Merchant available","Earliest deadline","Action"],rows));
+    function decide(r,decision){
+      const d=document.createElement("dialog"),f=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);f.append(l);
+      const save=el("button",decision==="approve"?"Approve routing":"Reject payout",decision==="approve"?"primary":"danger");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
+      f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/approval/decide",{id:r.id,action:decision,reason:reason.value});d.close();await payoutApproval(o);});};
+      d.append(el("h2",decision==="approve"?"Approve payout routing":"Reject payout"),f);container.append(d);d.showModal();
+    }
+  }
+
+  async function userCommissions(o){
+    const {post,el,container,title}=o;
+    title.textContent="User commissions";container.replaceChildren();
+    const data=await post("panel/admin-finance",{offset:0});
+    const rows=data.rows.filter(r=>r.account_type==="user"&&["user_commission","user_payout_commission"].includes(r.ledger_type));
+    const byUser=new Map();
+    for(const r of rows){const v=byUser.get(r.id)||{name:r.name,payin:0n,payout:0n};if(r.ledger_type==="user_commission")v.payin+=BigInt(r.amount);else v.payout+=BigInt(r.amount);byUser.set(r.id,v);}
+    const payin=BigInt(data.fees.user_commission||0),payout=BigInt(data.fees.user_payout_commission||0),gross=payin+payout;
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Gross commission",money(gross),"Pay-in + payout commission"),metric(el,"Pay-in commission",money(payin),"Successful collections"),metric(el,"Payout commission",money(payout),"Successful payouts"),metric(el,"Users with earnings",byUser.size,"Selected finance period"));
+    container.append(metrics,el("p","This page is a live Admin ledger aggregation. Commission holds, reserved withdrawals and completed withdrawals remain separate treasury domains.","notice"));
+    container.append(table(el,["User","Pay-in commission","Payout commission","Gross"],[...byUser.entries()].map(([id,v])=>[v.name+" · "+id,money(v.payin),money(v.payout),money(v.payin+v.payout)])));
+  }
+
+  async function profitExpenses(o){
+    const {post,el,container,title}=o;
+    title.textContent="Profit & expenses";container.replaceChildren();
+    const data=await post("panel/admin-finance",{offset:0}),fee=data.fees,n=k=>BigInt(fee[k]||0),fees=n("merchant_platform_fee")+n("merchant_payout_fee"),comm=n("user_commission")+n("user_payout_commission"),costs=BigInt(data.totalCosts||0),margin=BigInt(data.operatingMargin||0);
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Merchant fees",money(fees),"Pay-in + payout posted fees"),metric(el,"User commissions",money(comm),"Pay-in + payout earnings"),metric(el,"Salary & expenses",money(costs),"Recorded operating costs"),metric(el,"Operating margin",money(margin),"Fees − commissions − costs"));
+    container.append(metrics,el("p","USDT exchange profit is excluded until acquisition-cost matching exists. Saving salary/expense records never transfers money.","notice"));
+    container.append(table(el,["Date","Category","Payee","Amount","Reference","State"],data.expenses.map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded"])));
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -178,6 +252,11 @@
     if(destination==="v5.analytics")return analytics(o);
     if(destination==="v5.approvals")return approvals(o);
     if(destination==="v5.upi-analytics")return upiAnalytics(o);
+    if(destination==="v5.upi-limits")return upiLimits(o);
+    if(destination==="v5.payin-disputes")return payinDisputes(o);
+    if(destination==="v5.payout-approval")return payoutApproval(o);
+    if(destination==="v5.user-commissions")return userCommissions(o);
+    if(destination==="v5.profit-expenses")return profitExpenses(o);
     if(destination==="v5.parking-beneficiaries")return parkingView(o,"beneficiaries");
     if(destination==="v5.parking-orders")return parkingView(o,"orders");
     if(destination==="v5.parking-review")return parkingView(o,"review");
