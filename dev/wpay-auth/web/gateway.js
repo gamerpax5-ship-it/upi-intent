@@ -14,7 +14,7 @@
   const merchant=account.accountType==='merchant',view=args.view,split=merchant&&['links','orders','transactions','api','webhooks','logs'].includes(view);
   if(split)title.textContent=view==='links'?t('entry'):view==='api'?t('keys'):view==='logs'?'API logs':view==='webhooks'?t('webhooks'):view==='transactions'?'Transactions':t('orders');
   const collection=!split||['links','orders','transactions'].includes(view);
-  const disputeState=merchant?await post('payin-dispute/search',{offset:0,status:''}).catch(()=>({records:[]})):{records:[]},disputeByOrder=new Map((disputeState.records||[]).map(d=>[d.orderId,d]));
+  const disputeState=merchant&&['orders','transactions'].includes(view)?await post('payin-dispute/search',{offset:0,status:''}).catch(()=>({records:[]})):{records:[]},disputeByOrder=new Map((disputeState.records||[]).map(d=>[d.orderId,d]));
   if(collection){
   if(merchant&&(!split||view==='links')){const summary=await request('gateway/summary');card.append(el('p',summary.synthetic?t('notice'):summary.verificationConnected?'':t('unavailable'),'notice'));
    const facts=el('dl',undefined,'facts');for(const [key,value]of Object.entries({total:summary.total,volume:summary.successfulVolumeMinor,rate:summary.successRate===null?'—':(summary.successRate*100).toFixed(2)+'%',gross:summary.gross,fees:summary.fees,held:summary.held,available:summary.available})){facts.append(el('dt',t(key)),el('dd',String(value)));}facts.append(el('dt','Payment-link expiry'),el('dd',String(summary.linkTtlSeconds??300)+' seconds · Admin controlled'));card.append(facts,el('p',t('formula'),'hint'));
