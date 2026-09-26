@@ -22,6 +22,13 @@ test('Admin V5 Employee page requires explicit tenant selection and respects cre
  assert.match(ui,/i\.checked=emp\?\(emp\.admin_scope\?\.tenantIds\|\|\[\]\)\.includes\(t\):false/);
  assert.doesNotMatch(ui,/emp\?\.admin_scope\?\.tenantIds\|\|data\.tenantIds/);
 });
+test('Admin V5 Parking actions match backend review state transitions',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.match(ui,/if\(r\.state==="submitted"\)actions\.append\(button\(el,"Review"/);
+ assert.match(ui,/if\(\["submitted","review"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Dispute"/);
+ assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Approve paid"/);
+ assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Not paid"/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
