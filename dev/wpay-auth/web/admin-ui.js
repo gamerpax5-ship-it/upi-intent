@@ -38,7 +38,7 @@
     ['User assignments',can('assignments.view')?'v5.assignments':null],
     ['Transactions',dest('transactions.view','administration.transactions')],
     ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
-    ['Statements & reconciliation',dest('statement_reconciliation.view','operations.statements')]
+    ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null]
    ]],
    ['PARKING','bank',[
     ['Beneficiaries',can('parking.view')?'v5.parking-beneficiaries':null],
@@ -62,7 +62,7 @@
     ['Devices',can('devices.view')?'v5.devices':null],
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
-    ['UTR Capture',dest('utr_center.view','operations.transactions')],
+    ['UTR Capture',can('utr_center.view')?'v5.utr':null],
     ['APK / Agent',dest('apk.view','administration.apk')]
    ]],
    ['TEAM & ACCESS','employee',[
