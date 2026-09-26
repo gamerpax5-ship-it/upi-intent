@@ -83,6 +83,18 @@ test('Admin APK Setup and Team pages preserve final V5 flow without changing OTP
  assert.ok(nav.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp')]"));
  assert.ok(ops.includes("if(page==='otp')"));
 });
+test('Admin Finance Developer and Support pages follow final V5 hierarchy with live owner context',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8'),backend=fs.readFileSync(require.resolve('../lib/wpay/panels/api.js'),'utf8');
+ assert.ok(ui.includes('panelTable(el,["Time","Owner","Ledger type","Direction","Amount","Reference type","Reference","Payout state"]'));
+ assert.ok(ui.includes('panelTable(el,["Date","Owner","Ledger","Direction","Amount","Currency","Reference"]'));
+ assert.ok(ui.includes('panelTable(el,["Time","Source","Action","Actor","Target"]'));
+ assert.ok(ui.includes('panelTable(el,["Time","Merchant","Operation","Log ID"]'));
+ assert.ok(ui.includes('panelTable(el,["Prefix","Merchant","Label","Scopes","Status","Last used","Action"]'));
+ assert.ok(ui.includes('panelTable(el,["Created","Owner","Subject","Message","Status","Latest reply","Action"]'));
+ assert.ok(backend.includes('a.name AS owner_name'));
+ assert.doesNotMatch(ui,/metric\(el,"Entries"[\s\S]*Current ledger page/);
+ assert.doesNotMatch(ui,/metric\(el,"Tickets"[\s\S]*Visible support queue/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
