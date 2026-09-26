@@ -26,3 +26,19 @@ END $$;
 
 -- In-app Admin notification read watermark for V5 notification parity.
 ALTER TABLE wpay_auth.preferences ADD COLUMN notifications_read_at timestamptz;
+
+-- Mutable current-state control kept separate from immutable webhook endpoint versions.
+CREATE TABLE wpay_auth.gateway_endpoint_controls(
+ merchant_id uuid PRIMARY KEY REFERENCES wpay_auth.accounts(id),
+ enabled boolean NOT NULL DEFAULT true,
+ actor_id uuid REFERENCES wpay_auth.accounts(id),
+ updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE wpay_auth.gateway_endpoint_controls ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON wpay_auth.gateway_endpoint_controls FROM PUBLIC;
+DO $$ BEGIN
+ IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='wpay_runtime') THEN
+  GRANT SELECT,INSERT,UPDATE ON wpay_auth.gateway_endpoint_controls TO wpay_runtime;
+  CREATE POLICY backend_only ON wpay_auth.gateway_endpoint_controls TO wpay_runtime USING(true) WITH CHECK(true);
+ END IF;
+END $$;
