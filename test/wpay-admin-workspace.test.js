@@ -29,6 +29,15 @@ test('Admin V5 Parking actions match backend review state transitions',()=>{
  assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Approve paid"/);
  assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Not paid"/);
 });
+test('Admin live shell keeps the V5 login and a single Overview navigation entry',()=>{
+ const fs=require('node:fs'),app=fs.readFileSync(require.resolve('../dev/wpay-auth/web/app.js'),'utf8'),css=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.css'),'utf8'),html=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin.html'),'utf8');
+ assert.match(app,/function renderAdminLogin\(root\)/);
+ assert.match(app,/Sign in to workspace/);
+ assert.match(app,/Open Admin Workspace/);
+ assert.match(app,/entryRole==='admin'&&mode==='login'\)return renderAdminLogin\(root\)/);
+ assert.match(css,/\.wpay-admin #account-home\{display:none!important\}/);
+ assert.match(html,/id="account-home"/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
