@@ -223,19 +223,15 @@
     }
   }
   async function userCommissions(o){
-    const {post,el,container,title}=o;
-    title.textContent="User commissions";container.replaceChildren();
-    const data=await post("panel/admin-finance",{offset:0});
-    const rows=data.rows.filter(r=>r.account_type==="user"&&["user_commission","user_payout_commission"].includes(r.ledger_type));
-    const byUser=new Map();
-    for(const r of rows){const v=byUser.get(r.id)||{name:r.name,payin:0n,payout:0n};if(r.ledger_type==="user_commission")v.payin+=BigInt(r.amount);else v.payout+=BigInt(r.amount);byUser.set(r.id,v);}
-    const payin=BigInt(data.fees.user_commission||0),payout=BigInt(data.fees.user_payout_commission||0),gross=payin+payout;
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Gross commission",money(gross),"Pay-in + payout commission"),metric(el,"Pay-in commission",money(payin),"Successful collections"),metric(el,"Payout commission",money(payout),"Successful payouts"),metric(el,"Users with earnings",byUser.size,"Selected finance period"));
-    container.append(metrics,el("p","This page is a live Admin ledger aggregation. Commission holds, reserved withdrawals and completed withdrawals remain separate treasury domains.","notice"));
-    container.append(table(el,["User","Pay-in commission","Payout commission","Gross"],[...byUser.entries()].map(([id,v])=>[v.name+" · "+id,money(v.payin),money(v.payout),money(v.payin+v.payout)])));
+    const {post,el,container,title}=o;title.textContent="User commissions";container.replaceChildren();
+    const data=await post("panel/admin-finance",{offset:0}),rows=data.commissionSummary||[],gross=rows.reduce((n,x)=>n+BigInt(x.gross||0),0n),held=rows.reduce((n,x)=>n+BigInt(x.held||0),0n),withdrawn=rows.reduce((n,x)=>n+BigInt(x.withdrawn||0),0n),available=rows.reduce((n,x)=>n+BigInt(x.available||0),0n);
+    const metrics=el("div",undefined,"grid metrics");metrics.append(metric(el,"Gross commission",money(gross),"Pay-in + payout commission"),metric(el,"Commission holds",money(held),"Active hold ledger"),metric(el,"Completed withdrawals",money(withdrawn),"Withdrawn entitlement"),metric(el,"Available commission",money(available),"Gross − holds − withdrawn"));
+    container.append(metrics,el("p","Commission holds, completed withdrawals and current rates are shown from full scoped ledger and latest commercial terms.","notice"));
+    container.append(table(el,["User","Pay-in commission","Payout commission","Gross","Hold","Withdrawn","Available","Current rates"],rows.map(r=>[
+      r.name+" · "+r.id,money(r.payin),money(r.payout),money(r.gross),money(r.held),money(r.withdrawn),money(r.available),
+      "Pay-in "+(r.settings?.payinCommission??"—")+"% · Payout "+(r.settings?.payoutCommission??"—")+"%"
+    ])));
   }
-
   async function profitExpenses(o){
     const {post,el,container,title}=o;
     title.textContent="Profit & expenses";container.replaceChildren();
@@ -445,24 +441,24 @@
 
   async function commissionHolds(o){
     const {post,action,el,container,title}=o;title.textContent="Commission holds";container.replaceChildren();
-    const data=await post("payout/hold/search",{offset:0,limit:50}),holds=data.holds||[],metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Holds",holds.length,"Commission hold history"),metric(el,"Active",holds.filter(x=>!x.released_at).length,"Currently reducing entitlement"),metric(el,"Held value",money(holds.filter(x=>!x.released_at).reduce((n,x)=>n+BigInt(x.amount_minor||0),0n)),"Active commission holds"));container.append(metrics);
-    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Commission holds are separate from business/capacity holds and reduce withdrawable User commission.","notice"),button(el,"+ Place commission hold",()=>create(),"primary"));container.append(toolbar);
-    const rows=holds.map(h=>{const actions=el("div",undefined,"admin-row-actions");if(!h.released_at)actions.append(button(el,"Release",()=>release(h),"primary"));return [h.user_id,money(h.amount_minor),h.reference,h.reason,new Date(h.created_at).toLocaleString("en-IN"),h.released_at?"released":"active",actions];});container.append(table(el,["User","Amount","Reference","Reason","Created","State","Action"],rows));
-    function formBase(titleText,submitText,submitFn,seed={}){const d=document.createElement("dialog"),form=document.createElement("form"),field=(label,value="")=>{const l=el("label",label),i=el("input");i.value=value;i.required=true;l.append(i);form.append(l);return i;},user=field("User ID",seed.user||""),amount=field("Amount minor",seed.amount||""),reference=field("Reference",seed.reference||""),reason=field("Reason",seed.reason||"");const save=el("button",submitText,"primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await submitFn({user:user.value,amount:amount.value,reference:reference.value,reason:reason.value});d.close();await commissionHolds(o);});};d.append(el("h2",titleText),form);container.append(d);d.showModal();}
-    function create(){formBase("Place commission hold","Place hold",async v=>post("payout/hold/manage",{id:crypto.randomUUID(),userId:v.user,amountMinor:v.amount,reference:v.reference,reason:v.reason,release:false}));}
-    function release(h){formBase("Release commission hold","Release",async v=>post("payout/hold/manage",{id:h.id,userId:h.user_id,amountMinor:h.amount_minor,reference:h.reference,reason:v.reason,release:true}),{user:h.user_id,amount:h.amount_minor,reference:h.reference,reason:"Commission review completed"});}
+    const [data,users]=await Promise.all([post("payout/hold/search",{offset:0,limit:50}),post("panel/directory",{type:"user",status:"approved",search:"",offset:0,limit:100})]),holds=data.holds||[],userName=id=>users.rows.find(x=>x.id===id)?.name||id;
+    const metrics=el("div",undefined,"grid metrics");metrics.append(metric(el,"Holds",holds.length,"Commission hold history"),metric(el,"Active",holds.filter(x=>!x.released_at).length,"Currently reducing entitlement"),metric(el,"Held value",money(holds.filter(x=>!x.released_at).reduce((n,x)=>n+BigInt(x.amount_minor||0),0n)),"Active commission holds"));
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Place commission hold",()=>edit(null),"primary"));}
+    container.append(metrics,el("p","Commission holds are separate from business/capacity holds and reduce withdrawable User commission.","notice"));
+    const rows=holds.map(h=>{const actions=el("div",undefined,"admin-row-actions");if(!h.released_at)actions.append(button(el,"Release",()=>edit(h),"primary"));return [userName(h.user_id),money(h.amount_minor),h.reference,h.reason,new Date(h.created_at).toLocaleString("en-IN"),h.released_at?"released":"active",actions];});
+    container.append(table(el,["User","Amount","Reference","Reason","Created","State","Action"],rows));
+    function edit(h){dialog(el,container,h?"Release commission hold":"Place commission hold",(body,d)=>{const form=el("form",undefined,"form-grid"),user=selectField(el,form,"user","User",users.rows.map(x=>[x.id,x.name]),h?.user_id),amount=field(el,form,"amount","Amount INR",h?String(Number(h.amount_minor)/100):"500"),reference=field(el,form,"reference","Reference",h?.reference||("COM-"+Date.now())),reason=field(el,form,"reason","Reason",h?"Commission review completed":"Commission review hold");if(h){user.disabled=true;amount.disabled=true;reference.disabled=true;}const save=el("button",h?"Release":"Place hold",h?"primary":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const minor=h?h.amount_minor:String(Math.round(Number(amount.value)*100));await post("payout/hold/manage",{id:h?.id||crypto.randomUUID(),userId:h?.user_id||user.value,amountMinor:minor,reference:h?.reference||reference.value,reason:reason.value,release:!!h});d.close();await commissionHolds(o);});};});}
   }
-
   async function businessHolds(o){
     const {request,post,action,el,container,title}=o;title.textContent="Holds / frozen";container.replaceChildren();
-    const data=await request("business/holds"),holds=data.holds||[],metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Records",holds.length,"Business + dispute holds"),metric(el,"Active",holds.filter(x=>x.state==="active").length,"Currently held"),metric(el,"Active value",money(holds.filter(x=>x.state==="active").reduce((n,x)=>n+BigInt(x.amount_minor||0),0n)),"INR hold value"));container.append(metrics,el("p","Generic business holds/frozen records are distinct from commission holds and payout-dispute holds. Each domain retains separate accounting provenance.","notice"));
-    const rows=holds.map(h=>{const actions=el("div",undefined,"admin-row-actions");if(data.canManage&&h.state==="active")actions.append(button(el,"Release",()=>release(h),"primary"));return [h.owner_id,money(h.amount_minor),h.category,h.reference,h.reason,h.state,new Date(h.created_at).toLocaleString("en-IN"),actions];});container.append(table(el,["Owner","Amount","Category","Reference","Reason","State","Created","Action"],rows));
-    function release(h){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const save=el("button","Release","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/holds/update",{id:h.id,ownerId:h.owner_id,amountMinor:h.amount_minor,reference:h.reference,reason:reason.value,release:true,category:h.category});d.close();await businessHolds(o);});};d.append(el("h2","Release hold"),form);container.append(d);d.showModal();}
+    const [data,users,merchants]=await Promise.all([request("business/holds"),post("panel/directory",{type:"user",status:"approved",search:"",offset:0,limit:100}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0,limit:100})]),holds=data.holds||[],accounts=[...users.rows,...merchants.rows],name=id=>accounts.find(x=>x.id===id)?.name||id;
+    const metrics=el("div",undefined,"grid metrics");metrics.append(metric(el,"Records",holds.length,"Business + dispute holds"),metric(el,"Active",holds.filter(x=>x.state==="active").length,"Currently held"),metric(el,"Active value",money(holds.filter(x=>x.state==="active").reduce((n,x)=>n+BigInt(x.amount_minor||0),0n)),"INR hold value"));
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canManage)tools.append(button(el,"+ Place hold",()=>edit(null),"primary"));}
+    container.append(metrics,el("p","Generic business holds/frozen records are distinct from commission holds and payout-dispute holds. Each domain retains separate accounting provenance.","notice"));
+    const rows=holds.map(h=>{const actions=el("div",undefined,"admin-row-actions");if(data.canManage&&h.state==="active"&&!String(h.category).startsWith("payout_dispute"))actions.append(button(el,"Release",()=>edit(h),"primary"));return [name(h.owner_id),String(h.category||"hold").includes("dispute")?"Dispute":"Business",money(h.amount_minor),h.category,h.reference,h.reason,h.state,actions];});
+    container.append(table(el,["Owner","Domain","Amount","Category","Reference","Reason","State","Action"],rows));
+    function edit(h){dialog(el,container,h?"Release hold":"Place hold",(body,d)=>{const form=el("form",undefined,"form-grid"),owner=selectField(el,form,"owner","Owner",accounts.map(x=>[x.id,x.name+" · "+x.accountType]),h?.owner_id),amount=field(el,form,"amount","Amount INR",h?String(Number(h.amount_minor)/100):"500"),category=selectField(el,form,"category","Category",[["hold","Hold"],["frozen","Frozen"]],h?.category||"hold"),reference=field(el,form,"reference","Reference",h?.reference||("HOLD-"+Date.now())),reason=field(el,form,"reason","Reason",h?"Hold review completed":"Operational hold");if(h){owner.disabled=true;amount.disabled=true;category.disabled=true;reference.disabled=true;}const save=el("button",h?"Release":"Place hold",h?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/holds/update",{id:h?.id||crypto.randomUUID(),ownerId:h?.owner_id||owner.value,amountMinor:h?.amount_minor||String(Math.round(Number(amount.value)*100)),reference:h?.reference||reference.value,reason:reason.value,release:!!h,category:h?.category||category.value});d.close();await businessHolds(o);});};});}
   }
-
-
   async function credentialsPage(o){
     const {post,action,el,container,title}=o;title.textContent="API credentials";container.replaceChildren();
     const [data,merchants]=await Promise.all([post("panel/credentials",{offset:0}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0})]);
