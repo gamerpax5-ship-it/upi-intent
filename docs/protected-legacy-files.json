@@ -388,13 +388,13 @@
     },
     {
       "path": "public/downloads/WPAY-Agent.apk",
-      "bytes": 2360736,
-      "sha256": "0cf08af217b8fdc84e74f0512b93ffbd2d6cac60974fd63f2034c723d152a502"
+      "bytes": 1800303,
+      "sha256": "5c496ae59d16d913164e717550699aede6b18f211029505856ad51567a2b1158"
     },
     {
       "path": "public/downloads/WPAY-Agent.json",
-      "bytes": 106,
-      "sha256": "402175f3e6921bf65878b2662e56384585926053ff580ca2bbde85dca97b9f8d"
+      "bytes": 156,
+      "sha256": "2aefec9e2680b7f0f0200b29101dc27ecbb1208fe4567be4946ac5435f93e9ac"
     },
     {
       "path": "public/generator.js",
@@ -990,6 +990,20 @@
       "path": "vendor/smart-upi-parser/vite.config.ts",
       "bytes": 820,
       "sha256": "694f17daf64d3bf3481ee838ce69c26c593c60c0ed45a19209754fe5a742bcf0"
+    }
+  ],
+  "approvedArtifactUpdates": [
+    {
+      "approvedAt": "2026-09-27",
+      "sourceCommit": "d4b8ffb33313fe0fb14711a466e2f8ca5a2aeb52",
+      "sourceWorkflowRun": 36224047592,
+      "sourceBuildCommit": "cde39a9f94130f53e79db0f907d0866defb2f1e1",
+      "version": "0.10.5+build.21",
+      "paths": [
+        "public/downloads/WPAY-Agent.apk",
+        "public/downloads/WPAY-Agent.json"
+      ],
+      "reason": "Explicitly approved re-pin of verified published WPAY Agent artifacts; all other protected file hashes remain unchanged."
     }
   ]
 }
