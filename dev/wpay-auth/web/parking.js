@@ -28,8 +28,9 @@
    card.append(el('h2','My Parking Payments'));
    for(const h of data.history){const row=el('article',undefined,'business-row');facts(row,{Reference:h.reference,Amount:'INR '+money(h.amountMinor),State:h.state,Beneficiary:h.beneficiary.beneficiaryName,Bank:h.beneficiary.bankName,Account:h.beneficiary.accountNumber,IFSC:h.beneficiary.ifsc,Expires:h.expiresAt,Cooldown:h.cooldownUntil||'—',Scan:h.scanState||'—',Reason:h.reason||'—'});
     if(h.canSubmit===true||(h.canSubmit===undefined&&h.state==='active')){const form=el('form'),utr=field(form,'12-digit UTR'),proof=field(form,'Payment proof','file'),note=field(form,'Note','text',false);proof.accept='.pdf,.png,.jpg,.jpeg';submit(form,'I paid · Send to review',async()=>{await post('parking/submit',{id:h.id,utr:utr.value,proof:await file(proof),note:note.value});await render(args);});row.append(form,button('Release lock',async()=>{await post('parking/release',{id:h.id});await render(args);}));}
+    if(h.canLateProof&&root.WPayLateReview)row.append(root.WPayLateReview.openButton(args,'parking',h.id,()=>render(args)));
     card.append(row);
-   }return;
+   }if(root.WPayLateReview)await root.WPayLateReview.render(args,'parking',card);return;
   }
 
   if(page==='admin'){
@@ -46,7 +47,7 @@
    card.append(el('h2','Orders'));for(const o of data.orders){const row=el('article',undefined,'business-row');facts(row,{ID:o.id,Tenant:o.tenantId,Reference:o.reference,Total:'INR '+money(o.totalMinor),Minimum:'INR '+money(o.minMinor),Maximum:'INR '+money(o.maxMinor||o.totalMinor),State:o.state});card.append(row);}
    card.append(el('h2','Review Queue'));for(const r of data.reviews){const row=el('article',undefined,'business-row'),form=el('form'),reason=field(form,'Reason');facts(row,{ID:r.id,Order:r.orderId,Reference:r.reference,User:r.userName,Amount:'INR '+money(r.amountMinor),State:r.state,Scan:r.scanState||'unscanned'});
     row.append(button('Download proof',async()=>{const p=await post('parking/proof',{id:r.id});download(p.name,p.data);}));
-    const act=async chosen=>{await post('parking/review',{id:r.id,action:chosen,reason:reason.value});await render(args);};form.append(button('Review',()=>act('review')),button('Approve paid',()=>act('approve')),button('Dispute',()=>act('dispute')),button('Not paid',()=>act('not_paid')));row.append(form);card.append(row);}return;
+    const act=async chosen=>{await post('parking/review',{id:r.id,action:chosen,reason:reason.value});await render(args);};form.append(button('Review',()=>act('review')),button('Approve paid',()=>act('approve')),button('Dispute',()=>act('dispute')),button('Not paid',()=>act('not_paid')));row.append(form);card.append(row);}if(root.WPayLateReview)await root.WPayLateReview.render(args,'parking',card);return;
   }
   throw new Error('error.NOT_FOUND');
  }
