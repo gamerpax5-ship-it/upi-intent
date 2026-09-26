@@ -288,6 +288,74 @@
     container.append(table(el,["Date","Category","Payee","Amount","Reference","State"],data.expenses.map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded"])));
   }
 
+
+  async function deposits(o){
+    const {post,action,el,container,title}=o;title.textContent="User deposits";container.replaceChildren();
+    const data=await post("funding/list",{state:"",offset:0}),confirmed=data.requests.filter(r=>r.state==="confirmed"),pending=data.requests.filter(r=>["requested","detected","confirming","review"].includes(r.state));
+    const sum=(rows,key)=>rows.reduce((n,r)=>n+BigInt(key==="credit"?r.credit_minor||0:r.snapshot?.amountMinor||0),0n);
+    const metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Confirmed deposit",money(sum(confirmed,"credit")),"Credited User capacity"),metric(el,"Needs review",pending.length,"Evidence / provider review"),metric(el,"USDT requested",(sum(data.requests,"usdt")/1000000n).toLocaleString("en-IN")+" USDT","Requested funding"),metric(el,"Funded Users",new Set(confirmed.map(r=>r.owner_id)).size,"Users with confirmed funding"));
+    container.append(metrics,el("p","First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller. Manual Admin confirmation remains explicitly separate from blockchain verification.","notice"));
+    const rows=data.requests.map(r=>{
+      const actions=el("div",undefined,"admin-row-actions");
+      if(!["confirmed","rejected","reversed"].includes(r.state)){
+        if(data.actions.includes("review"))actions.append(button(el,"Recheck provider",()=>action(async()=>{await post("funding/recheck",{requestId:r.id});await deposits(o);})));
+        if(data.actions.includes("approve"))actions.append(button(el,"Manual confirm",()=>manual(r,"manual_confirm"),"primary"));
+        if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>manual(r,"manual_reject"),"danger"));
+      }
+      return [r.name,r.id,(BigInt(r.snapshot.amountMinor)/1000000n).toLocaleString("en-IN")+" USDT",r.snapshot.rate,r.claims?.[0]?.tx_hash||"No hash",r.state,r.source||"none",actions];
+    });
+    container.append(table(el,["User","Request","USDT","Rate","Tx reference","State","Source","Action"],rows));
+    function manual(r,command){
+      const d=document.createElement("dialog"),form=document.createElement("form"),reasonLabel=el("label","Review reason"),reason=el("input");reason.required=true;reasonLabel.append(reason);form.append(reasonLabel);
+      let amount;if(command==="manual_confirm"){const l=el("label","Actual received USDT (optional)"),i=el("input");i.type="number";i.step="0.000001";l.append(i);form.append(l);amount=i;}
+      const save=el("button",command==="manual_confirm"?"Confirm deposit":"Reject deposit",command==="manual_confirm"?"primary":"danger");save.type="submit";form.append(el("p","Manual confirmation records human-review provenance and does not claim blockchain verification.","notice"),save,button(el,"Cancel",()=>d.close()));
+      form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("funding/review",{requestId:r.id,action:command,reason:reason.value,...(amount?.value?{amountUsdt:amount.value}:{})});d.close();await deposits(o);});};d.append(el("h2",command==="manual_confirm"?"Manual deposit confirmation":"Reject deposit"),form);container.append(d);d.showModal();
+    }
+  }
+
+  async function routingPage(o){
+    const {request,el,container,title}=o;title.textContent="Assignments & routing";container.replaceChildren();
+    const data=await request("business/routing"),eligible=data.candidates.filter(x=>x.eligible),blocked=data.candidates.filter(x=>!x.eligible);
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Candidates",data.candidates.length,"Merchant/User routing candidates"),metric(el,"Eligible",eligible.length,"Can accept configured minimum"),metric(el,"Blocked",blocked.length,"Eligibility blockers"),metric(el,"Reservations",data.reservations.length,"Recent reservations"),metric(el,"Reconciliation",data.reconciliation.length,"Capacity deficit/review"),metric(el,"Strategy",data.strategy||"—","Server routing strategy"));container.append(metrics);
+    const rows=data.candidates.map(c=>[c.merchantId,c.userId,c.priority??"—",c.eligible?"ready":"blocked",(c.reasons||[]).join(", ")||"—",c.capacity?.available??"—"]);
+    container.append(table(el,["Merchant","User","Priority","Readiness","Reasons","Available capacity"],rows));
+  }
+
+  async function assignmentsPage(o){
+    const {request,post,action,el,container,title}=o;title.textContent="User assignments";container.replaceChildren();
+    const data=await request("business/assignments"),name=id=>data.accounts.find(a=>a.id===id)?.name||id;
+    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Merchant-to-User assignment layer. Bank-specific UPI routes remain a separate collection-routing layer.","notice"));if(data.canUpdate)toolbar.append(button(el,"+ Assign User",()=>create(),"primary"));container.append(toolbar);
+    const rows=data.assignments.map(a=>[name(a.merchant_id),name(a.user_id),a.priority,a.weight,money(a.min_minor)+" – "+money(a.max_minor),a.status,data.capacity[a.user_id]?.available?money(data.capacity[a.user_id].available):"—"]);
+    container.append(table(el,["Merchant","User","Priority","Weight","Ticket range","State","User available"],rows));
+    function create(){
+      const d=document.createElement("dialog"),form=document.createElement("form"),select=(label,items)=>{const l=el("label",label),s=el("select");for(const [v,t] of items){const op=el("option",t);op.value=v;s.append(op);}l.append(s);form.append(l);return s;},inp=(label,value)=>{const l=el("label",label),i=el("input");i.value=value;i.required=true;l.append(i);form.append(l);return i;};
+      const merchant=select("Merchant",data.accounts.filter(a=>a.account_type==="merchant").map(a=>[a.id,a.name])),user=select("User",data.accounts.filter(a=>a.account_type==="user").map(a=>[a.id,a.name])),priority=inp("Priority","100"),weight=inp("Weight","1"),min=inp("Minimum INR","1.00"),max=inp("Maximum INR","10000.00");
+      const minor=v=>{const [w,f=""]=v.split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();},save=el("button","Assign","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:null,merchantId:merchant.value,userId:user.value,priority:Number(priority.value),weight:Number(weight.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true});d.close();await assignmentsPage(o);});};d.append(el("h2","Assign Merchant to User"),form);container.append(d);d.showModal();
+    }
+  }
+
+  async function devicesPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Devices";container.replaceChildren();
+    const data=await post("operations/device-setup",{});
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Linked devices",data.devices.length,"Scoped ownership links"),metric(el,"Online",data.devices.filter(x=>x.status==="online").length,"Heartbeat within 120s"),metric(el,"Offline",data.devices.filter(x=>x.status==="offline").length,"Linked but stale"),metric(el,"Pairing",data.pairingAvailable?"Ready":"Unavailable","Pairing bridge status"));container.append(metrics);
+    const grid=el("div",undefined,"device-grid");
+    for(const d of data.devices){
+      const card=el("article",undefined,"card device-card"),top=el("div",undefined,"device-top"),copy=el("div",undefined,"device-model");copy.append(el("h3",d.model||d.device),el("p",(d.ownerName||"—")+" · "+d.device));top.append(copy,el("span",d.status,"admin-state "+d.status));card.append(top);
+      const stats=el("div",undefined,"device-stats"),fact=(label,value)=>{const x=el("div",undefined,"fact");x.append(el("label",label),el("strong",String(value??"—")));return x;};stats.append(fact("Phone",d.phone||"Unavailable"),fact("Carrier",d.carrier||"Unavailable"),fact("APK",d.apkVersion||"Unavailable"),fact("Last seen",d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-IN"):"Unavailable"));card.append(stats);
+      const actions=el("div",undefined,"account-card-actions");if(!d.legacyMapping)actions.append(button(el,"Health & location history",()=>detail(d)));if(data.canRevoke)actions.append(button(el,"Unlink from WPay",()=>action(async()=>{await post("operations/device-setup/revoke",{id:d.id});await devicesPage(o);}),"danger"));card.append(actions);grid.append(card);
+    }container.append(grid);
+    function detail(d){action(async()=>{const info=await post("operations/device-setup/detail",{id:d.id}),dialog=document.createElement("dialog"),wrap=el("div"),rows=info.history.map(h=>[new Date(h.at).toLocaleString("en-IN"),(h.battery??"—")+"% / "+(h.health||"—"),h.network||"—",h.latitude==null?"Unavailable":h.latitude+", "+h.longitude,h.locationPermission==null?"Unavailable":h.locationPermission&&h.locationEnabled?"Enabled":"Disabled"]);wrap.append(el("p","Last 48 hours · diagnostic metadata only.","notice"),table(el,["Time","Battery / health","Network","Location","Location permission"],rows));dialog.append(el("h2","Device details · "+d.device),wrap,button(el,"Close",()=>dialog.close()));container.append(dialog);dialog.showModal();});}
+  }
+
+  async function activationPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Activation codes";container.replaceChildren();
+    const [setup,history]=await Promise.all([post("operations/device-setup",{}),post("operations/pairing-history",{offset:0})]);
+    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Pairing codes are account-owned and separate from OTP-event permissions.","notice"));const generate=button(el,"Generate activation code",()=>issue(),"primary");generate.disabled=!setup.canCreate;toolbar.append(generate);container.append(toolbar);
+    const rows=history.requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check",()=>action(()=>post("operations/device-setup/poll",{requestId:r.id}))));if(r.canRevoke)actions.append(button(el,"Revoke",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await activationPage(o);}),"danger"));return [new Date(r.created_at).toLocaleString("en-IN"),r.owner_name,r.state,r.device_ref||"—",new Date(r.expires_at).toLocaleString("en-IN"),actions];});container.append(table(el,["Created","Owner","Status","Device","Expires","Action"],rows));
+    function issue(){action(async()=>{const result=await post("operations/device-setup/create",{requestId:crypto.randomUUID()}),d=document.createElement("dialog"),code=el("code",result.pairingCode,"code-secret");d.append(el("h2","Enter this code in WPay Agent"),code,el("p","Expires "+new Date(result.expiresAt).toLocaleString("en-IN")),button(el,"Copy code",()=>navigator.clipboard?.writeText(result.pairingCode)),button(el,"Close",()=>d.close()));container.append(d);d.showModal();});}
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -304,6 +372,11 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.deposits")return deposits(o);
+    if(destination==="v5.routing")return routingPage(o);
+    if(destination==="v5.assignments")return assignmentsPage(o);
+    if(destination==="v5.devices")return devicesPage(o);
+    if(destination==="v5.activation")return activationPage(o);
     if(destination==="v5.bank-upi")return bankUpi(o);
     if(destination==="v5.approvals")return approvals(o);
     if(destination==="v5.upi-analytics")return upiAnalytics(o);
