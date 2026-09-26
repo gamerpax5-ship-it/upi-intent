@@ -12,6 +12,7 @@ CREATE TABLE wpay_auth.admin_commercial_defaults(
   CHECK(merchant_payout_fee ~ '^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$'),
  merchant_payment_link_ttl_seconds integer NOT NULL DEFAULT 300
   CHECK(merchant_payment_link_ttl_seconds BETWEEN 30 AND 900),
+ admin_managed_collections boolean,
  actor_id uuid REFERENCES wpay_auth.accounts(id),
  updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
