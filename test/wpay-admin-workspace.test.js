@@ -9,6 +9,9 @@ test('Admin topbar stays on V5 Notifications and Profile pages',()=>{
  assert.doesNotMatch(ui,/profile\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
  assert.match(ui,/go\('reports\.view','Reports','v5\.reports'\)/);
  for(const destination of ['v5.approvals','v5.bank-upi','v5.deposits','v5.payout-approval','v5.payout-disputes','v5.late-reviews','v5.withdrawals'])assert.match(ui,new RegExp(destination.replaceAll('.','\\\\.')));
+ const v5=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.match(v5,/Open Account settings[\s\S]*?navigate\("v5\.profile"\)/);
+ assert.doesNotMatch(v5,/Open Account settings[\s\S]*?administration\.account-security/);
 });
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
