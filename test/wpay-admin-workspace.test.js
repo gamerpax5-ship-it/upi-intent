@@ -107,6 +107,12 @@ test('Admin final V5 parity audit has 55 visible pages and no V5 renderer gaps',
  assert.ok(ui.includes("Recent financial activity"));
  assert.ok(ui.includes("command-strip"));
 });
+test('Admin creation metadata matches password-only Admin login policy',()=>{
+ const fs=require('node:fs'),authority=fs.readFileSync(require.resolve('../lib/wpay/operations/admin-authority.js'),'utf8'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.ok(authority.includes('passwordResetRequired:true,mfaRequired:false'));
+ assert.ok(ui.includes('must reset it on first sign-in, then use email + password for Admin login.'));
+ assert.doesNotMatch(ui,/New Admins receive a one-time temporary credential and must complete reset \+ MFA/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
