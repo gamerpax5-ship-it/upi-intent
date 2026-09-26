@@ -450,6 +450,51 @@
     function release(h){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const save=el("button","Release","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/holds/update",{id:h.id,ownerId:h.owner_id,amountMinor:h.amount_minor,reference:h.reference,reason:reason.value,release:true,category:h.category});d.close();await businessHolds(o);});};d.append(el("h2","Release hold"),form);container.append(d);d.showModal();}
   }
 
+
+  async function credentialsPage(o){
+    const {post,action,el,container,title}=o;title.textContent="API credentials";container.replaceChildren();
+    const [data,merchants]=await Promise.all([post("panel/credentials",{offset:0}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0})]);
+    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","API credential metadata is tenant-scoped. Create/revoke is Super Admin-restricted and secret material is shown once.","notice"));if(data.canCreate)toolbar.append(button(el,"+ Create credential",()=>create(),"primary"));container.append(toolbar);
+    const rows=data.rows.map(k=>{const actions=el("div",undefined,"admin-row-actions");if(data.canRevoke&&!k.revoked_at)actions.append(button(el,"Revoke",()=>revoke(k),"danger"));return [k.prefix,k.merchant_id,k.label,(k.scopes||[]).join(", "),k.revoked_at?"revoked":"active",k.last_used_at?new Date(k.last_used_at).toLocaleString("en-IN"):"—",actions];});container.append(table(el,["Prefix","Merchant","Label","Scopes","State","Last used","Action"],rows));
+    function create(){const d=document.createElement("dialog"),form=document.createElement("form"),select=(label,items)=>{const l=el("label",label),x=el("select");for(const [v,t]of items){const op=el("option",t);op.value=v;x.append(op);}l.append(x);form.append(l);return x;},field=(label,value="")=>{const l=el("label",label),x=el("input");x.value=value;x.required=true;l.append(x);form.append(l);return x;},merchant=select("Merchant",merchants.rows.map(m=>[m.id,m.name])),label=field("Label","Production integration"),scope=select("Scopes",[["read","orders:read"],["write","orders:read + orders:write"]]),save=el("button","Create credential","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/credentials/create",{merchantId:merchant.value,label:label.value,scopes:scope.value==="write"?["orders:read","orders:write"]:["orders:read"]});d.close();const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Save credential secret"),el("p","This secret is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret)),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();credentialsPage(o);}));container.append(secret);secret.showModal();});};d.append(el("h2","Create API credential"),form);container.append(d);d.showModal();}
+    function revoke(k){action(async()=>{await post("panel/credentials/revoke",{id:k.id});await credentialsPage(o);});}
+  }
+
+  async function webhooksPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Webhooks";container.replaceChildren();
+    const [data,merchants]=await Promise.all([post("panel/webhooks",{offset:0}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0})]);
+    const endpointRows=(data.endpoints?.rows||[]).map(e=>[e.merchant_id,e.url,new Date(e.created_at).toLocaleString("en-IN"),e.id]);
+    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Webhook endpoint rotation and delivery retry are now available through scoped Admin panel actions.","notice"));if(data.canUpdate)toolbar.append(button(el,"Configure endpoint",()=>configure(),"primary"));container.append(toolbar);
+    const grid=el("div",undefined,"grid two-col"),left=el("section",undefined,"card panel"),right=el("section",undefined,"card panel");left.append(el("h2","Endpoint configuration"),table(el,["Merchant","Endpoint","Created","Secret version"],endpointRows));
+    const deliveries=data.rows.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(data.canUpdate&&r.state==="pending"&&r.attempts<8)actions.append(button(el,"Retry",()=>retry(r),"primary"));return [r.merchant_id,r.event_type,r.state,r.attempts,r.last_code||"—",r.next_attempt_at?new Date(r.next_attempt_at).toLocaleString("en-IN"):"—",actions];});right.append(el("h2","Delivery history"),table(el,["Merchant","Event","State","Attempts","HTTP","Next attempt","Action"],deliveries));grid.append(left,right);container.append(grid);
+    function configure(){const d=document.createElement("dialog"),form=document.createElement("form"),ml=el("label","Merchant"),m=el("select");for(const x of merchants.rows){const op=el("option",x.name);op.value=x.id;m.append(op);}ml.append(m);form.append(ml);const ul=el("label","HTTPS endpoint"),url=el("input");url.type="url";url.required=true;url.value="https://example.com/wpay";ul.append(url);form.append(ul);const save=el("button","Save endpoint","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/webhooks/configure",{merchantId:m.value,url:url.value});d.close();const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Webhook secret rotated"),el("p","Save this secret now. It is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret)),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();webhooksPage(o);}));container.append(secret);secret.showModal();});};d.append(el("h2","Configure Merchant webhook"),form);container.append(d);d.showModal();}
+    function retry(r){action(async()=>{await post("panel/webhooks/retry",{id:r.id});await webhooksPage(o);});}
+  }
+
+  async function apiLogsPage(o){
+    const {post,el,container,title}=o;title.textContent="API logs";container.replaceChildren();
+    const data=await post("panel/api-logs",{offset:0});container.append(el("p","Audit-only API access metadata. Secrets and request bodies are not displayed.","notice"),table(el,["Time","Merchant","Operation","Log ID"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.merchant_id,r.operation,r.id])));
+  }
+
+  async function notificationsPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Notifications";container.replaceChildren();
+    const data=await post("panel/notifications",{offset:0}),grid=el("div",undefined,"grid two-col"),settings=el("section",undefined,"card panel"),history=el("section",undefined,"card panel");
+    const line=el("div",undefined,"toggle-line"),copy=el("div");copy.append(el("strong","In-app notifications"),el("p","Enable or disable Admin in-app notification delivery."));const label=el("label",undefined,"switch"),input=el("input"),span=el("span");input.type="checkbox";input.checked=data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input,span);line.append(copy,label);settings.append(el("h2","Notification preferences"),line);if(data.canUpdate)settings.append(button(el,"Save preference",()=>action(async()=>{await post("panel/preferences",{inAppNotifications:input.checked});await notificationsPage(o);}),"primary"));
+    history.append(el("h2","Recent notifications"));for(const n of data.rows){const row=el("div",undefined,"summary-row");row.append(el("strong",n.event),el("span",new Date(n.created_at).toLocaleString("en-IN")));history.append(row);}if(!data.rows.length)history.append(el("p","No notification events.","admin-empty"));grid.append(settings,history);container.append(grid);
+  }
+
+  async function profilePage(o){
+    const {account,request,post,action,el,container,title,navigate}=o;title.textContent="Profile";container.replaceChildren();
+    const data=await request("panel/profile"),grid=el("div",undefined,"grid two-col"),profile=el("section",undefined,"card panel"),security=el("section",undefined,"card panel");profile.append(el("h2","Admin account"));
+    const form=document.createElement("form"),label=el("label","Display name"),name=el("input");name.value=account.name;name.required=true;label.append(name);form.append(label);if(data.canEdit){const save=el("button","Save profile","primary");save.type="submit";form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{const r=await post("panel/profile/update",{name:name.value});account.name=r.name;await profilePage(o);});};}profile.append(form,el("p","Email: "+account.email,"notice"));
+    security.append(el("h2","Account security"),el("p","Email/password changes and recent-auth confirmation use the live Security page.","notice"),button(el,"Open Security",()=>navigate("administration.account-security"),"primary"));grid.append(profile,security);container.append(grid);
+  }
+
+  async function settingsPage(o){
+    const {request,el,container,title}=o;title.textContent="Settings";container.replaceChildren();
+    const data=await request("panel/settings"),grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card panel"),policy=el("section",undefined,"card panel");auth.append(el("h2","Authentication policy"));for(const [l,v] of [["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}policy.append(el("h2","Platform behavior"),el("p","Security policy is server-enforced and not editable from this page.","notice"));for(const [l,v]of [["Temporary password",data.temporaryPasswordHours+" hours"],["Reset challenge",data.resetChallengeMinutes+" minutes"],["Security policy editable",data.securityPolicyEditable?"Yes":"No"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));policy.append(row);}grid.append(auth,policy);container.append(grid);
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -466,6 +511,12 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.credentials")return credentialsPage(o);
+    if(destination==="v5.webhooks")return webhooksPage(o);
+    if(destination==="v5.api-logs")return apiLogsPage(o);
+    if(destination==="v5.notifications")return notificationsPage(o);
+    if(destination==="v5.profile")return profilePage(o);
+    if(destination==="v5.settings")return settingsPage(o);
     if(destination==="v5.payout-review")return payoutReview(o);
     if(destination==="v5.payout-capabilities")return payoutCapabilities(o);
     if(destination==="v5.merchant-usdt")return merchantUsdt(o);
