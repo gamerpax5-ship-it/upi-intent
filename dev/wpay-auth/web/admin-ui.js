@@ -24,8 +24,8 @@
     ['Analytics',can('overview.view')?'v5.analytics':null]
    ]],
    ['ACCOUNTS & APPROVALS','users',[
-    ['Users',dest('users.view','administration.users')],
-    ['Merchants',dest('merchants.view','administration.merchants')],
+    ['Users',can('users.view')?'v5.users':null],
+    ['Merchants',can('merchants.view')?'v5.merchants':null],
     ['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null],
     ['User collection access',can('users.commercial.update')?'v5.collection-access':null],
     ['User deposits',can('deposits.view')?'v5.deposits':null]
@@ -66,8 +66,8 @@
     ['APK / Agent',can('apk.view')?'v5.apk':null]
    ]],
    ['TEAM & ACCESS','employee',[
-    ['Employees',dest('employee_management.view','operations.employees')],
-    ['Admin authority',byDest('operations.admins')?.destinationId]
+    ['Employees',can('employee_management.view')?'v5.employees':null],
+    ['Admin authority',byDest('operations.admins')?'v5.admins':null]
    ]],
    ['FINANCE & REPORTS','report',[
     ['Ledger',can('ledger.view')?'v5.ledger':null],
