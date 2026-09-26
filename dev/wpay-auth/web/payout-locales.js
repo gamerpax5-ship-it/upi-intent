@@ -1,6 +1,7 @@
 "use strict";
 (function(root){
  const words={
+ "late-reviews":["Late Payment Reviews","Просроченные платежи","逾期付款审核"],pending_admin:["Awaiting Admin approval","Ожидает одобрения администратора","待管理员批准"],failed:["Failed","Неуспешно","失败"],payment_valid:["Payment confirmed","Платёж подтверждён","付款已确认"],payment_invalid:["Payment rejected","Платёж отклонён","付款被拒绝"],
  disputes:['Post-approval Disputes','Споры после подтверждения','批准后争议'],reversed:['Reversed','Отменено','已撤销'],
  transactionReference:['Transaction reference','Номер операции','交易参考号'],credit:['Credit','Начисление','贷记'],debit:['Debit','Списание','借记'],released:['Released','Разблокировано','已解除'],active:['Active','Активно','有效'],
  merchantId:['Merchant account ID','ID продавца','商户账号 ID'],claimExpiresAt:['Claim expiry','Истечение задания','领取有效期'],

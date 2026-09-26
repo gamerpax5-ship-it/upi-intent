@@ -20,7 +20,9 @@
    if(p.destinationId==='administration.admin-upi'){b.textContent='UPI Directory & Routing';index=2;}
    if(id==='users.view')b.textContent='Users & approvals';
    if(id==='merchants.view')b.textContent='Merchants & approvals';
-   if(id==='devices.view')b.textContent='Device management & pairing';
+   if(id==='devices.view')b.textContent=p.destinationId==='operations.activation'?'Activation Codes':'Linked Devices';
+   if(p.destinationId==='administration.user-access')b.textContent='User Collection Access';
+   if(p.destinationId==='payout.late-reviews')b.textContent='Late Payment Reviews';
    const icon=document.createElement('i');icon.className='admin-nav-icon';icon.setAttribute('aria-hidden','true');icon.textContent=['♙','▣','⇄','◇','♧','◉','≡','▤','⚙'][index];b.prepend(icon);b.addEventListener('click',()=>document.body.classList.remove('admin-nav-open'));groups[index].append(b);
   });
   $('navigation').replaceChildren(...groups.filter(g=>g.querySelector('button')));
