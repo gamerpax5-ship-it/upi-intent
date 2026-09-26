@@ -641,7 +641,7 @@
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create "+(isUser?"User":"Merchant"),()=>createAccount(),"primary"));}
     const filters=el("div",undefined,"toolbar"),q=el("input"),st=el("select");
     q.className="control grow";q.placeholder="Search name, email or ID…";q.value=search;
-    for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"],["disabled","Disabled"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
+    for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
     const apply=button(el,"Apply",()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value}},type)),"primary");filters.append(q,st,apply);container.append(filters);
     const grid=el("div",undefined,"account-card-grid");container.append(grid);
     for(const a of data.rows){
@@ -657,6 +657,7 @@
       if(a.approvalStatus==="approved"&&data.actions.includes("commercial.update"))actions.append(button(el,"Edit rates",()=>editTerms(a)));
       if(isUser&&data.actions.includes("commercial.update"))actions.append(button(el,"Collection access",()=>editAccess(a,accessRow)));
       if(a.status==="active"&&data.actions.includes("suspend"))actions.append(button(el,"Suspend",()=>suspend(a),"danger"));
+      else if(a.status!=="active")actions.append(el("span","Reactivation backend action not exposed","access-pill off"));
       cardNode.append(actions);grid.append(cardNode);
     }
     if(!data.rows.length)grid.append(el("div","No matching accounts.","card admin-empty"));
@@ -679,8 +680,8 @@
     function manage(a,accessRow){
       dialog(el,container,(isUser?"User":"Merchant")+" · "+a.name,(body)=>{
         const layout=el("div",undefined,"admin-columns"),left=el("section",undefined,"card admin-panel"),right=el("section",undefined,"card admin-panel"),dl=el("dl",undefined,"admin-details"),settings=a.settings||{};
-        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
-        left.append(dl);right.append(el("h3","Operational links"));for(const [l,v]of [[isUser?"UPI accounts":"Active routes",a.routeCount||0],["Transactions",a.transactionCount||0]])right.append(metric(el,l,v,"Live account scope"));layout.append(left,right);body.append(layout,el("h3","Recent transactions"));
+        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add("Login password",a.passwordConfigured?"Admin configured":"Not configured");add("Login readiness",a.passwordConfigured&&a.approvalStatus==="approved"&&a.status==="active"?"Direct login ready":"Login / operations limited by account state");add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
+        left.append(dl);right.append(el("h3","Operational links"));const links=[[isUser?"UPI accounts":"Active routes",a.routeCount||0],["Recent transactions",a.transactionCount||0]];if(isUser){links.push(["Linked devices",a.linkedDeviceCount||0],["Confirmed deposits",a.confirmedDepositCount||0]);}else links.push(["Payout requests",a.payoutRequestCount||0]);for(const [l,v]of links)right.append(metric(el,l,v,"Live account scope"));layout.append(left,right);body.append(layout,el("h3","Recent transactions"));
         body.append(table(el,["Reference","Type","Amount","Status"],(a.recentActivity||[]).map(x=>[x.reference,x.type,money(x.amountMinor),pill(el,x.status)])));
       });
     }
