@@ -394,25 +394,19 @@
   }
   async function payoutReview(o){
     const {post,action,el,container,title}=o;title.textContent="Payout review";container.replaceChildren();
-    const data=await post("payout/search",{offset:0,limit:25});
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(
-      metric(el,"Orders",data.orders.length,"Scoped payout history"),
-      metric(el,"Submitted",data.orders.filter(x=>x.status==="submitted").length,"Waiting Merchant review"),
-      metric(el,"Admin review",data.orders.filter(x=>x.status==="merchant_rejected_review").length,"Merchant rejected / escalated"),
-      metric(el,"Successful",data.orders.filter(x=>x.status==="successful").length,"Settled"),
-      metric(el,"Reversed",data.orders.filter(x=>x.status==="reversed").length,"Invalid dispute reversal"),
-      metric(el,"Open",data.orders.filter(x=>x.status==="open").length,"Available for claiming")
-    );container.append(metrics,el("p","Current server policy keeps submitted payouts with Merchant review first. Admin resolution is available on escalated merchant_rejected_review records. Submitted payouts can also auto-approve after the configured review timeout.","notice"));
-    const rows=data.orders.map(p=>{
-      const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Details",()=>detail(p)));
-      if(p.status==="merchant_rejected_review"){actions.append(button(el,"Mark paid",()=>resolve(p,"paid"),"primary"),button(el,"Not paid",()=>resolve(p,"not_paid"),"danger"));}
-      const due=p.submittedAt?new Date(+new Date(p.submittedAt)+15*60000):null,remaining=due?due-Date.now():null,timeout=due?(remaining>0?Math.ceil(remaining/60000)+" min remaining":"Due / worker may auto-approve"):"—";return [p.reference,money(p.amountMinor),p.status,p.claimedAt?new Date(p.claimedAt).toLocaleString("en-IN"):"—",p.submittedAt?new Date(p.submittedAt).toLocaleString("en-IN"):"—",due?new Date(due).toLocaleString("en-IN")+" · "+timeout:"—",p.completedAt?new Date(p.completedAt).toLocaleString("en-IN"):"—",actions];
-    });container.append(table(el,["Reference","Amount","State","Claimed","Submitted","15m auto-approval due","Completed","Action"],rows));
-    function detail(p){action(async()=>{const d=await post("payout/get",{id:p.id}),dialog=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"—")));facts.append(x);};add("Reference",d.reference);add("Merchant",d.merchantId);add("Amount",money(d.amountMinor));add("State",d.status);add("UTR",d.evidence?.utr||"—");add("Proof",d.proof?.name||"—");wrap.append(facts);if(d.audit?.length)wrap.append(el("h3","Audit"),table(el,["State","Reason","Time"],d.audit.map(a=>[a.state,a.reason||"—",new Date(a.created_at).toLocaleString("en-IN")])));dialog.append(el("h2","Payout details"),wrap,button(el,"Close",()=>dialog.close()));container.append(dialog);dialog.showModal();});}
-    function resolve(p,decision){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const save=el("button",decision==="paid"?"Mark paid":"Mark not paid",decision==="paid"?"primary":"danger");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/resolve",{id:p.id,action:decision,reason:reason.value});d.close();await payoutReview(o);});};d.append(el("h2","Resolve payout"),form);container.append(d);d.showModal();}
+    const data=await post("payout/search",{offset:0,limit:50});
+    container.append(el("p","Current policy: User payment window is 10 minutes + 5-minute submission grace. Submitted payout waits for Merchant review; without a Merchant decision, the 15-minute timeout can auto-approve with merchant_review_timeout provenance. Admin resolution applies after Merchant rejection/escalation.","notice"));
+    const rows=data.orders.filter(x=>["claimed","submitted","merchant_rejected_review","successful","not_paid"].includes(x.status)).map(p=>{
+      const actions=el("div",undefined,"admin-row-actions");
+      if(p.status==="merchant_rejected_review")actions.append(button(el,"Mark paid",()=>resolve(p,"paid"),"primary"),button(el,"Not paid",()=>resolve(p,"not_paid"),"danger"));
+      else if(p.status==="submitted")actions.append(el("span","Merchant review / timeout","small muted"));
+      const due=p.submittedAt?new Date(+new Date(p.submittedAt)+15*60000):null,remaining=due?+due-Date.now():null,timeout=due?(remaining>0?Math.ceil(remaining/60000)+" min remaining":"Due / worker may auto-approve"):"—";
+      const ref=el("div");ref.append(el("strong",p.reference),el("div",p.id,"small muted"));
+      return [ref,p.claimUserName||p.claimUserId||"—",money(p.amountMinor),p.utr||"—",pill(el,p.status),p.submittedAt?new Date(p.submittedAt).toLocaleString("en-IN"):"—",due?new Date(due).toLocaleString("en-IN")+" · "+timeout:"—",actions];
+    });
+    container.append(table(el,["Reference","User","Amount","UTR","State","Submitted","15m timeout","Action"],rows));
+    function resolve(p,decision){dialog(el,container,decision==="paid"?"Mark payout paid":"Mark payout not paid",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="paid"?"Admin reviewed escalated payout evidence":"Payment not received"),save=el("button",decision==="paid"?"Mark paid":"Not paid",decision==="paid"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/resolve",{id:p.id,action:decision,reason:reason.value});d.close();await payoutReview(o);});};});}
   }
-
   async function payoutCapabilities(o){
     const {request,post,action,el,container,title}=o;title.textContent="Payout bank capabilities";container.replaceChildren();
     const data=await request("payout/capabilities"),metrics=el("div",undefined,"admin-primary-kpis");
