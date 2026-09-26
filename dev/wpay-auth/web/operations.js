@@ -111,7 +111,20 @@
     const form=el('form'),name=field(form,'Name',employee?.name||''),email=field(form,'Email',employee?.email||'','email'),password=employee?null:field(form,'Employee login password','','password');name.required=email.required=true;name.maxLength=100;email.maxLength=254;if(password){password.required=true;password.autocomplete='new-password';password.minLength=15;password.maxLength=128;}
     const statusLabel=el('label','Status'),status=el('select');for(const value of ['active','suspended','disabled']){const option=el('option',value);option.value=value;status.append(option);}status.value=employee?.status||'active';statusLabel.append(status);if(employee)form.append(statusLabel);
     const checkGroup=(label,values,selected,required=[])=>{const group=el('fieldset');group.append(el('legend',label));const entries=values.map(([value,text])=>{const l=el('label',text),input=el('input');input.type='checkbox';input.checked=selected.includes(value);input.disabled=required.includes(value);l.prepend(input);group.append(l);return [value,input];});form.append(group);return ()=>entries.filter(([,n])=>n.checked).map(([v])=>v);};
-    const permissions=checkGroup('Permissions',data.permissions.map(p=>[p.id,p.label]),employee?.permissions||data.requiredPermissions,data.requiredPermissions),tenantIds=checkGroup('Operational tenants',data.tenantIds.map(t=>[t,t]),employee?.admin_scope?.tenantIds||data.tenantIds);
+    const selectedPermissions=employee?.permissions||data.requiredPermissions;
+    const permissionGetters=[];
+    if(data.permissionGroups?.length){
+     for(const groupData of data.permissionGroups){
+      const group=el('fieldset');group.append(el('legend',groupData.label));
+      const entries=[];
+      for(const p of groupData.permissions){
+       const l=el('label',p.label),input=el('input');input.type='checkbox';input.checked=selectedPermissions.includes(p.id);input.disabled=!p.selectable||data.requiredPermissions.includes(p.id);
+       l.prepend(input);if(p.restricted||!p.selectable)l.append(el('small',p.restricted?' · restricted':' · not delegable from this Admin'));group.append(l);entries.push([p.id,input]);
+      }
+      form.append(group);permissionGetters.push(()=>entries.filter(([,n])=>n.checked).map(([v])=>v));
+     }
+    }else permissionGetters.push(checkGroup('Permissions',data.permissions.map(p=>[p.id,p.label]),selectedPermissions,data.requiredPermissions));
+    const permissions=()=>[...new Set(permissionGetters.flatMap(fn=>fn()))],tenantIds=checkGroup('Operational tenants',data.tenantIds.map(t=>[t,t]),employee?.admin_scope?.tenantIds||data.tenantIds);
     form.append(el('p','Saving permission or status changes invalidates every existing Employee session. Employees always enroll in authenticator MFA.','notice'));
     const save=el('button','Save Employee');save.type='submit';form.append(save,button('Cancel',()=>reload()));
     form.onsubmit=e=>{e.preventDefault();action(async()=>{const body={...(employee?{id:employee.id,status:status.value}:{}),name:name.value,email:email.value,...(password?{password:password.value}:{}),permissions:permissions(),tenantIds:tenantIds()};const result=await post(employee?'operations/employee/update':'operations/employee/create',body);if(password)password.value='';body.password='';if(employee)return reload();card.replaceChildren(el('h2','Employee created'),el('p','The Admin-set password is active. The Employee can sign in at /employee and complete mandatory authenticator MFA enrollment.'));facts(card,{Email:result.email,'Login URL':result.loginPath,'Password configured':result.passwordConfigured?'Yes':'No','Password reset required':result.passwordResetRequired?'Yes':'No','MFA required':result.mfaRequired?'Yes':'No'});card.append(button('Return to Employees',()=>reload()));});};card.append(form);
