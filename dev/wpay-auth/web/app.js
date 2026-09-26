@@ -50,8 +50,19 @@ async function action(callback) {
   try { await callback(); } catch(error) { message(error.message.startsWith("error.") ? error.message : "error.UNAVAILABLE"); }
   finally { busy = false; $("workspace").setAttribute("aria-busy","false"); globalThis.WPayReferenceUi?.restoreAvailability(); $("language").disabled = false; if ($("message").textContent === tr("loading")) message(); globalThis.WPayReferencePresentation?.refresh(); if(pendingNavigation!==null){const next=pendingNavigation;pendingNavigation=null;navigate(next);} }
 }
+function renderAdminLogin(root){
+  root.append(el("div","WPay Admin","eyebrow"),el("h2","Sign in to workspace"),el("p","Use your Admin email and password to access the live WPay workspace."));
+  const form=el("form"),emailWrap=el("div",undefined,"field"),emailLabel=el("label","Admin email"),email=el("input",undefined,"control"),passwordWrap=el("div",undefined,"field"),passwordLabel=el("label","Password"),password=el("input",undefined,"control"),actions=el("div",undefined,"login-actions"),submit=el("button","Open Admin Workspace","btn primary w100");
+  email.type="email";email.name="email";email.required=true;email.autocomplete="username";email.maxLength=254;emailLabel.append(email);emailWrap.append(emailLabel);
+  password.type="password";password.name="password";password.required=true;password.autocomplete="current-password";globalThis.WPayPasswordPolicy.bind(password,locale,"login");passwordLabel.append(password);passwordWrap.append(passwordLabel);
+  submit.type="submit";actions.append(submit);form.append(emailWrap,passwordWrap,actions);
+  const note=el("div","Live authentication · email + password only. Sensitive actions may ask you to confirm your password again.","demo-note");note.style.marginTop="14px";
+  form.onsubmit=event=>{event.preventDefault();action(async()=>{const data={email:email.value,password:password.value};try{await handleStage(await post("login",data));}finally{password.value="";data.password="";}});};
+  root.append(form,note);email.focus();
+}
 function renderAccess() {
   const root = $("access-card"); root.replaceChildren(); if (stage) return renderMfa(root);
+  if(entryRole==='admin'&&mode==='login')return renderAdminLogin(root);
   if(entryRole)root.append(el('p',tr(entryRole),'eyebrow'));
   root.append(el("h2",tr(mode === "register" ? "registerTitle" : "loginTitle"))); const form = el("form");
   if (mode === "register") { const input = field(form,"name"); input.maxLength = 100; input.autocomplete = "name"; }
