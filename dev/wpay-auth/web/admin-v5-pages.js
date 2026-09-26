@@ -313,10 +313,8 @@
   async function activationPage(o){
     const {post,action,el,container,title}=o;title.textContent="Activation codes";container.replaceChildren();
     const [setup,history]=await Promise.all([post("operations/device-setup",{}),post("operations/pairing-history",{offset:0})]);
-    const now=Date.now(),active=history.requests.filter(r=>r.state==="pending"&&+new Date(r.expires_at)>now),used=history.requests.filter(r=>r.state==="used"),employeeGenerated=history.requests.filter(r=>r.owner_type==="employee").length;
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const generate=button(el,"Generate account-owned code",()=>issue(),"primary");generate.disabled=!setup.canCreate;tools.append(generate);}
-    const metrics=el("div",undefined,"grid metrics");metrics.append(metric(el,"Active codes",active.length,"Unclaimed and not expired"),metric(el,"Claimed codes",used.length,"Paired to a device"),metric(el,"Employee generated",employeeGenerated,"Scoped Employee session actor"),metric(el,"Expiry policy","24 hours","Activation / pairing lifetime"));
-    container.append(metrics,el("p","Pairing code is account-owned by the current logged-in actor and is separate from sensitive OTP-event access. A code is shown only when issued; history never re-exposes the secret.","notice"));
+    container.append(el("p","Pairing code is account-owned by the current logged-in actor and is separate from sensitive OTP-event access. A code is shown only when issued; history never re-exposes the secret. Expiry: 24 hours.","notice"));
     const rows=history.requests.map(r=>[
       el("span","Hidden after issue · "+r.id,"mono"),
       (r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),
@@ -326,7 +324,7 @@
       r.device_ref||"—",
       (()=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check pairing",()=>action(async()=>{await post("operations/device-setup/poll",{requestId:r.id});await activationPage(o);})));if(r.canRevoke)actions.append(button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await activationPage(o);}),"danger"));return actions;})()
     ]);
-    container.append(table(el,["Code","Owning session actor","Created","Expires","State","Device","Action"],rows));
+    container.append(panelTable(el,["Code","Owning session actor","Created","Expires","State","Device","Action"],rows));
     function issue(){action(async()=>{const result=await post("operations/device-setup/create",{requestId:crypto.randomUUID()}),d=document.createElement("dialog"),code=el("code",result.pairingCode,"code-secret");d.append(el("h2","Enter this code in WPay Agent"),el("p","This account-owned 8-character code is displayed only now.","notice"),code,el("p","Expires "+new Date(result.expiresAt).toLocaleString("en-IN")),button(el,"Copy code",()=>navigator.clipboard?.writeText(result.pairingCode)),button(el,"Close",()=>{code.textContent="Hidden";d.close();activationPage(o);}));container.append(d);d.showModal();});}
   }
   async function utrCapture(o){
@@ -692,7 +690,7 @@
     const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(metric(el,"Pairing requests",history.requests.length,"Account-owned pairing codes"),metric(el,"Used",history.requests.filter(x=>x.state==="used").length,"Linked to devices"),metric(el,"Pending",history.requests.filter(x=>x.state==="pending").length,"Waiting to be claimed"),metric(el,"Linked devices",setup.devices.length,"Scoped active links"));
     container.append(metrics,el("p","Pairing history and device metadata are separate from OTP-event access. Secret pairing codes are not re-exposed after issuance.","notice"));
     const rows=history.requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check pairing",()=>action(async()=>{await post("operations/device-setup/poll",{requestId:r.id});await pairingHistory(o);})));if(r.canRevoke)actions.append(button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await pairingHistory(o);}),"danger"));return ["Hidden · "+r.id,(r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),new Date(r.created_at).toLocaleString("en-IN"),new Date(r.expires_at).toLocaleString("en-IN"),pill(el,r.state),r.device_ref||"—",actions];});
-    container.append(table(el,["Code / request","Owner / actor","Created","Expires","State","Device","Action"],rows));
+    container.append(panelTable(el,["Code / request","Owner / actor","Created","Expires","State","Device","Action"],rows));
   }
   async function directory(o,type){
     const {post,request,action,el,container,title}=o,isUser=type==="user",state=o.state||{},status=state.status||"",search=state.search||"";
