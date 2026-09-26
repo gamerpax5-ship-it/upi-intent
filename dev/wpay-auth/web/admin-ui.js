@@ -37,7 +37,7 @@
     ['Assignments & routing',can('routing.view')?'v5.routing':null],
     ['User assignments',can('assignments.view')?'v5.assignments':null],
     ['Transactions',can('transactions.view')?'v5.transactions':null],
-    ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
+    ['Pay-in disputes',can('payin_dispute.view')?'v5.payin-disputes':null],
     ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null]
    ]],
    ['PARKING','bank',[
