@@ -65,155 +65,91 @@
   async function approvals(o){
     const {post,el,container,title,navigate}=o;
     title.textContent="Pending approvals";
-    const [users,merchants,banks,deposits,payouts]=await Promise.all([
+    const [users,merchants,banks,payouts,withdrawals]=await Promise.all([
       post("panel/directory",{type:"user",status:"pending",search:"",offset:0}),
       post("panel/directory",{type:"merchant",status:"pending",search:"",offset:0}),
       post("business/banks",{}),
-      post("funding/list",{state:"review",offset:0}),
-      post("payout/approval/search",{offset:0,limit:25}).catch(()=>({orders:[]}))
+      post("payout/approval/search",{offset:0,limit:50}),
+      post("payout/withdrawal/search",{offset:0,limit:50})
     ]);
-    container.replaceChildren();
-    const bankCount=banks.banks.filter(x=>["submitted","review"].includes(x.status)).length,payoutCount=(payouts.orders||[]).length;
-    const primary=el("div",undefined,"admin-primary-kpis");
-    for(const [label,value,hint] of [
-      ["User approvals",users.rows.length,"Registration review"],["Merchant approvals",merchants.rows.length,"Commercial activation"],
-      ["Bank / UPI review",bankCount,"UPI review"],["Deposit review",deposits.requests.length,"Funding evidence"],
-      ["Payout approvals",payoutCount,"Reserved payouts"],["Total waiting",users.rows.length+merchants.rows.length+bankCount+deposits.requests.length+payoutCount,"Visible scoped queues"]
-    ])primary.append(metric(el,label,value,hint));
-    container.append(primary);
-    const list=el("section",undefined,"card admin-panel");list.append(el("h2","Open queues"));
-    for(const [label,destination,count] of [
-      ["Users","administration.users",users.rows.length],["Merchants","administration.merchants",merchants.rows.length],
-      ["Bank & UPI","administration.bank-upi",bankCount],["Deposits","administration.deposits",deposits.requests.length],["Payout approvals","payout.orders",payoutCount]
-    ]){const row=el("div",undefined,"admin-review");row.append(el("span",label),el("strong",String(count)),button(el,"Review →",()=>navigate(destination)));list.append(row);}
-    container.append(list);
+    const rows=[];
+    for(const x of users.rows)rows.push({kind:"User",id:x.id,name:x.name,created:x.created_at,destination:"v5.users"});
+    for(const x of merchants.rows)rows.push({kind:"Merchant",id:x.id,name:x.name,created:x.created_at,destination:"v5.merchants"});
+    for(const x of banks.banks.filter(x=>["submitted","review"].includes(x.status)))rows.push({kind:"Bank / UPI",id:x.id,name:x.details?.upiId||x.id,created:x.created_at||x.updated_at,destination:"v5.bank-upi"});
+    for(const x of payouts.requests||[])rows.push({kind:"Payout",id:x.id,name:x.merchant_name||x.id,created:x.created_at,destination:"v5.payout-approval"});
+    for(const x of (withdrawals.withdrawals||[]).filter(x=>["requested","review"].includes(x.state)))rows.push({kind:"Withdrawal",id:x.id,name:x.userId||x.id,created:x.createdAt||x.created_at,destination:"v5.withdrawals"});
+    const band=el("div",undefined,"kpi-band"),add=(label,value)=>{const x=el("div");x.append(el("small",label),el("strong",String(value)));band.append(x);};
+    add("Total pending",rows.length);add("Users",rows.filter(x=>x.kind==="User").length);add("Merchants",rows.filter(x=>x.kind==="Merchant").length);add("UPI",rows.filter(x=>x.kind==="Bank / UPI").length);add("Finance",rows.filter(x=>["Payout","Withdrawal"].includes(x.kind)).length);
+    const section=el("section",undefined,"card admin-panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Unified action queue"),el("p","Approvals stay in their own backend domain; this page only groups the work."));head.append(copy);section.append(head);
+    section.append(table(el,["Type","Record","Name","Created","Action"],rows.map(r=>[pill(el,r.kind),r.id,r.name,r.created?new Date(r.created).toLocaleString("en-IN"):"—",button(el,"Open module",()=>navigate(r.destination),"primary")])));
+    container.replaceChildren(band,section);
   }
 
-
   async function bankUpi(o){
-    const {post,action,el,container,title,navigate}=o;
-    title.textContent="Bank & UPI";container.replaceChildren();
-    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search:""}),post("business/banks",{})]);
-    const genericById=new Map(generic.banks.map(x=>[x.id,x]));
-    const toolbar=el("div",undefined,"admin-toolbar");
-    toolbar.append(el("p","Admin-approved UPI creation, standard review/freeze controls, shared daily limits and Merchant routes in one live V5 page.","notice"));
-    if(directory.canCreate)toolbar.append(button(el,"+ Add Admin-approved UPI",()=>createUpi(),"primary"));
-    container.append(toolbar);
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(
-      metric(el,"Total UPI",directory.banks.length,"Scoped bank/UPI accounts"),
-      metric(el,"Running",directory.banks.filter(x=>x.status==="running"&&!x.frozen).length,"Operational"),
-      metric(el,"Needs review",generic.banks.filter(x=>["submitted","review"].includes(x.status)).length,"Submitted/review"),
-      metric(el,"Frozen",directory.banks.filter(x=>x.frozen).length,"Operational hold"),
-      metric(el,"Active routes",directory.routes.filter(x=>x.status==="active").length,"Merchant assignments"),
-      metric(el,"Admin-approved",directory.banks.filter(x=>x.admin_approved_by).length,"Challenge bypass provenance")
-    );container.append(metrics);
+    const {post,action,el,container,title}=o;title.textContent="Bank & UPI";container.replaceChildren();
+    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search:""}),post("business/banks",{})]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(directory.canCreate)tools.append(button(el,"+ Add Admin-approved UPI",()=>createUpi(),"primary"));}
+    container.append(el("p","Admin review supports approve/reject/freeze/release and operational Stop/Start. Per-UPI daily limit is User-owned in the latest backend, so Admin sees the limit and utilization but does not edit it here.","notice"));
     const rows=directory.banks.map(b=>{
-      const g=genericById.get(b.id)||b,limit=BigInt(b.sharedLimit||g.daily_limit_minor||0),used=BigInt(b.used||0),routeCount=directory.routes.filter(r=>r.bank_id===b.id&&r.status==="active").length;
-      const actions=el("div",undefined,"admin-row-actions");
-      actions.append(button(el,"Details",()=>showDetails(b,g)));
-      if(["submitted","review"].includes(g.status)){
-        if(generic.actions.includes("approve"))actions.append(button(el,"Approve",()=>review(g,"approve"),"primary"));
-        if(generic.actions.includes("reject"))actions.append(button(el,"Reject",()=>review(g,"reject"),"danger"));
-      }
-      if(g.frozen&&generic.actions.includes("release"))actions.append(button(el,"Release freeze",()=>review(g,"release_freeze")));
-      else if(!g.frozen&&generic.actions.includes("freeze"))actions.append(button(el,"Freeze",()=>review(g,"freeze"),"danger"));
-      if(["enabled","running"].includes(g.status)&&generic.actions.includes("stop"))actions.append(button(el,"Stop",()=>review(g,"stop")));
-      return [b.details?.upiId||b.id,(b.owner_name||b.owner_id)+" · "+(b.details?.bankName||"—"),b.admin_approved_by?"Admin approved":g.verified_version===g.version?"Payment verified":"Verification pending",money(used)+" / "+money(limit),g.statement?.status||"—",g.frozen?"frozen":g.status,routeCount,actions];
+      const g=genericById.get(b.id)||b,limit=BigInt(b.sharedLimit||g.daily_limit_minor||0),used=BigInt(b.used||0),remaining=limit>used?limit-used:0n,routes=directory.routes.filter(r=>r.bank_id===b.id&&r.status==="active").length,actions=el("div",undefined,"admin-row-actions");
+      actions.append(button(el,"Details",()=>details(b,g)));
+      if(["submitted","review"].includes(g.status)){if(generic.actions.includes("approve"))actions.append(button(el,"Approve",()=>review(g,"approve"),"primary"));if(generic.actions.includes("reject"))actions.append(button(el,"Reject",()=>review(g,"reject"),"danger"));}
+      if(g.frozen&&generic.actions.includes("release"))actions.append(button(el,"Release freeze",()=>review(g,"release_freeze")));else if(!g.frozen&&generic.actions.includes("freeze"))actions.append(button(el,"Freeze",()=>review(g,"freeze"),"danger"));
+      if(["running","stopped","approved","verified"].includes(g.status)&&!g.frozen)actions.append(button(el,g.status==="stopped"?"Start":"Stop",()=>stateChange(b,g.status==="stopped"?"start":"stop")));
+      return [(b.details?.upiId||b.id)+" · "+(b.owner_name||b.owner_id)+" · "+(b.details?.bankName||"—"),b.admin_approved_by?"admin approved":g.verified_version===g.version?"payment verified":"verification pending",money(used)+" / "+money(limit)+" · "+money(remaining)+" remaining · owner-managed daily limit",g.statement?.status||"no statement",g.frozen?"frozen":g.status,routes,actions];
     });
-    container.append(table(el,["UPI","Owner / bank","Approval","Daily limit usage","Statement","State","Routes","Actions"],rows));
-
-    function field(form,label,value=""){const l=el("label",label),i=el("input");i.required=true;i.value=value;l.append(i);form.append(l);return i;}
-    function createUpi(){
-      const d=document.createElement("dialog"),form=document.createElement("form"),users=directory.accounts.filter(x=>x.account_type==="user"),ownerLabel=el("label","Account owner"),owner=el("select");
-      for(const u of users){const op=el("option",u.name);op.value=u.id;owner.append(op);}ownerLabel.append(owner);form.append(ownerLabel);
-      const upi=field(form,"UPI ID"),holder=field(form,"Account holder"),bank=field(form,"Bank name"),account=field(form,"Account number"),ifsc=field(form,"IFSC"),mobile=field(form,"Registered mobile"),limit=field(form,"Shared daily bank limit (INR)","100000.00"),provider=field(form,"UPI provider",""),notes=field(form,"Notes",""),reason=field(form,"Approval reason");
-      const save=el("button","Create approved UPI","primary");save.type="submit";form.append(el("p",(directory.adminManagedCollections?"Admin-managed collection enabled. ":"Funded User capacity remains required. ")+"Admin approval replaces the UPI payment challenge for this entry. Shared bank and route limits still apply.","notice"),save,button(el,"Cancel",()=>d.close()));
-      form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,dec=""]=limit.value.split("."),bankLimitMinor=(BigInt(w)*100n+BigInt(dec.padEnd(2,"0"))).toString();await post("business/admin-upi/create",{ownerId:owner.value,details:{upiId:upi.value,holderName:holder.value,bankName:bank.value,accountNumber:account.value,ifsc:ifsc.value.toUpperCase(),mobile:mobile.value,providerName:provider.value,notes:notes.value,accountType:"business",bankLimitMinor},reason:reason.value,requestId:crypto.randomUUID()});d.close();await bankUpi(o);});};d.append(el("h2","Add Admin-approved UPI"),form);container.append(d);d.showModal();
-    }
-    function review(bank,command){
-      const d=document.createElement("dialog"),form=document.createElement("form"),reason=field(form,"Reason"),save=el("button",command.replaceAll("_"," "),command==="reject"||command==="freeze"?"danger":"primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));
-      form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/banks/review",{bankId:bank.id,version:bank.version,action:command,reason:reason.value});d.close();await bankUpi(o);});};d.append(el("h2","UPI "+command.replaceAll("_"," ")),form);container.append(d);d.showModal();
-    }
-    function showDetails(bank,g){
-      const old=container.querySelector(".v5-upi-detail");if(old)old.remove();const card=el("section",undefined,"card admin-record-detail v5-upi-detail"),top=el("div",undefined,"admin-toolbar");top.append(el("h2",bank.details?.upiId||bank.id),button(el,"Close",()=>card.remove()));card.append(top);
-      const facts=el("div",undefined,"kv-grid");
-      for(const [label,value] of [["Owner",bank.owner_name||bank.owner_id],["Bank",bank.details?.bankName],["Account",bank.details?.accountNumber],["IFSC",bank.details?.ifsc],["Mobile",bank.details?.mobile],["Version",bank.version],["Verification",g.verification?.status||"—"],["Statement",g.statement?.status||"—"],["Routes",directory.routes.filter(r=>r.bank_id===bank.id).length]])facts.append((()=>{const x=el("div",undefined,"v5-fact");x.append(el("small",label),el("strong",String(value??"—")));return x;})());
-      card.append(facts,button(el,"Open routing",()=>navigate("administration.routing"),"primary"));container.append(card);card.scrollIntoView({behavior:"smooth",block:"nearest"});
-    }
+    container.append(table(el,["UPI / owner","Approval","Daily limit usage","Statement","State","Routes","Actions"],rows));
+    function createUpi(){dialog(el,container,"Add Admin-approved UPI",(body,d)=>{const form=el("form",undefined,"form-grid"),users=directory.accounts.filter(x=>x.account_type==="user"),owner=selectField(el,form,"owner","Account owner",users.map(x=>[x.id,x.name])),upi=field(el,form,"upi","UPI ID"),holder=field(el,form,"holder","Account holder"),bank=field(el,form,"bank","Bank name"),account=field(el,form,"account","Account number"),ifsc=field(el,form,"ifsc","IFSC"),mobile=field(el,form,"mobile","Registered mobile"),provider=field(el,form,"provider","UPI provider"),type=selectField(el,form,"type","Account type",[["business","Business"],["personal","Personal"]],"business"),limit=field(el,form,"limit","Shared daily limit INR","1000000"),reason=field(el,form,"reason","Approval reason","Admin verified identity");form.append(el("p","Admin approval is not bank evidence. The live system records this as Admin approval provenance.","notice"));const save=el("button","Create approved UPI","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,fr=""]=String(limit.value).split("."),bankLimitMinor=(BigInt(w)*100n+BigInt(fr.padEnd(2,"0"))).toString();await post("business/admin-upi/create",{ownerId:owner.value,details:{upiId:upi.value,holderName:holder.value,bankName:bank.value,accountNumber:account.value,ifsc:ifsc.value.toUpperCase(),mobile:mobile.value,providerName:provider.value,notes:"",accountType:type.value,bankLimitMinor},reason:reason.value,requestId:crypto.randomUUID()});d.close();await bankUpi(o);});};});}
+    function review(bank,command){dialog(el,container,(command==="approve"?"Approve ":command==="reject"?"Reject ":command.replaceAll("_"," ")+" ")+(bank.details?.upiId||bank.id),(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",command==="approve"?"Reviewed account identity":"Operational review"),save=el("button",command.replaceAll("_"," "),command==="reject"||command==="freeze"?"danger":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/banks/review",{bankId:bank.id,version:bank.version,action:command,reason:reason.value});d.close();await bankUpi(o);});};});}
+    function stateChange(bank,command){dialog(el,container,(command==="start"?"Start ":"Stop ")+(bank.details?.upiId||bank.id),(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",command==="start"?"Resume approved UPI":"Operational stop"),save=el("button",command==="start"?"Start":"Stop",command==="start"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/admin-upi/state",{bankId:bank.id,version:bank.version,action:command,reason:reason.value});d.close();await bankUpi(o);});};});}
+    function details(bank,g){dialog(el,container,"UPI details · "+(bank.details?.upiId||bank.id),(body)=>{const dl=el("dl",undefined,"admin-details"),add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Owner",bank.owner_name||bank.owner_id);add("UPI",bank.details?.upiId);add("Holder",bank.details?.holderName);add("Bank",bank.details?.bankName);add("Account",bank.details?.accountNumber);add("IFSC",bank.details?.ifsc);add("Mobile",bank.details?.mobile);add("Version",bank.version);add("Status",g.frozen?"frozen":g.status);add("Daily usage",money(bank.used||0)+" / "+money(bank.sharedLimit||g.daily_limit_minor||0));body.append(dl,el("h4","Merchant routes"));const routes=directory.routes.filter(r=>r.bank_id===bank.id);if(!routes.length)body.append(el("div","No explicit routes.","admin-empty"));for(const r of routes){const row=el("div",undefined,"summary-row");row.append(el("span",(r.merchant_name||r.merchant_id)+" · priority "+r.priority),el("strong",money(r.min_minor)+" – "+money(r.max_minor)));body.append(row);}});}
   }
 
   async function upiAnalytics(o){
-    const {request,el,container,title}=o;
-    title.textContent="UPI Analytics";
-    const [banks,routing]=await Promise.all([request("business/banks"),request("business/routing")]);
-    container.replaceChildren();
-    const running=banks.banks.filter(b=>b.status==="running"&&!b.frozen&&!b.deactivated),available=running.filter(b=>BigInt(b.daily_limit_minor||0)>0n);
-    const primary=el("div",undefined,"admin-primary-kpis");
-    for(const [label,value,hint] of [
-      ["Total UPI",banks.banks.length,"Configured accounts"],["Running UPI",running.length,"Operational"],["Available UPI",available.length,"Daily limit configured"],
-      ["Routing candidates",routing.candidates.length,"Merchant/User eligibility"],["Reservations",routing.reservations.length,"Recent reservations"],["Reconciliation",routing.reconciliation.length,"Capacity events"]
-    ])primary.append(metric(el,label,value,hint));
-    container.append(primary);
-    const rows=banks.banks.map(b=>{
-      const links=routing.candidates.filter(c=>c.userId===b.owner_id),eligible=links.filter(c=>c.eligible).length;
-      return [b.details?.upiId||b.id,b.details?.bankName||"—",b.status,money(b.daily_limit_minor||0),eligible+" / "+links.length,b.statement?.status||"—",b.verification?.status||"—"];
-    });
-    container.append(table(el,["UPI","Bank","State","Daily limit","Eligible routes","Statement","Verification"],rows));
+    const {post,action,el,container,title}=o,days=o.state?.days||1;title.textContent="UPI Analytics";
+    const [directory,transactions,generic]=await Promise.all([post("business/admin-upi",{offset:0,search:""}),post("operations/transactions",{offset:0,status:""}),post("business/banks",{})]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
+    const cutoff=Date.now()-days*86400000,records=transactions.records.filter(t=>!t.createdAt||+new Date(t.createdAt)>=cutoff),running=directory.banks.filter(b=>{const g=genericById.get(b.id)||b;return g.status==="running"&&!g.frozen}),totalLimit=directory.banks.reduce((n,b)=>n+BigInt(b.sharedLimit||genericById.get(b.id)?.daily_limit_minor||0),0n),used=directory.banks.reduce((n,b)=>n+BigInt(b.used||0),0n),available=directory.banks.filter(b=>{const g=genericById.get(b.id)||b,l=BigInt(b.sharedLimit||g.daily_limit_minor||0);return g.status==="running"&&!g.frozen&&l>BigInt(b.used||0)}).length,activeRoutes=directory.routes.filter(r=>r.status==="active").length,successRate=records.length?records.filter(x=>x.status==="successful").length/records.length*100:0,util=totalLimit?Number(used*10000n/totalLimit)/100:0;
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const [n,label]of [[1,"Today"],[7,"7 days"],[30,"30 days"]]){const b=button(el,label,()=>action(()=>upiAnalytics({...o,state:{days:n}})));if(days===n)b.classList.add("active");tabs.append(b);}tools.append(tabs);}
+    container.replaceChildren();const metrics=el("div",undefined,"grid analytics-metrics");for(const [l,v,h]of [["Total UPI",directory.banks.length,"All configured accounts"],["Running UPI",running.length,"Running and not frozen"],["Available UPI",available,"Shared limit remaining"],["Shared limit",money(totalLimit),"Configured bank limits"],["Limit used",money(used),util.toFixed(1)+"% utilization"],["Active routes",activeRoutes,"Merchant assignments"],["Success rate",successRate.toFixed(1)+"%","Owner-side aggregate"],["Needs review",generic.banks.filter(x=>["submitted","review"].includes(x.status)).length,"UPI review queue"]])metrics.append(metric(el,l,v,h));container.append(metrics);
+    const txByBank=directory.banks.map(b=>{const g=genericById.get(b.id)||b,tx=records.filter(t=>t.bankId===b.id),ok=tx.filter(t=>t.status==="successful"),pending=tx.filter(t=>t.status==="verification_pending"),limit=BigInt(b.sharedLimit||g.daily_limit_minor||0),bankUsed=BigInt(b.used||0);return {bank:b,g,txTotal:tx.length,successful:ok.length,pending:pending.length,volume:ok.reduce((n,t)=>n+BigInt(t.amountMinor||0),0n),successRate:tx.length?ok.length/tx.length*100:0,routeCount:directory.routes.filter(r=>r.bank_id===b.id&&r.status==="active").length,limit,bankUsed};});
+    const grid=el("div",undefined,"admin-columns"),utilCard=el("section",undefined,"card admin-panel"),health=el("section",undefined,"card admin-panel");utilCard.append(el("h2","UPI utilization"),el("p","Shared daily limit consumption","admin-subtitle"));const bars=el("div",undefined,"mini-bar-list");for(const x of [...txByBank].sort((a,b)=>Number((b.bankUsed*10000n/(b.limit||1n))-(a.bankUsed*10000n/(a.limit||1n))))){const pct=x.limit?Number(x.bankUsed*10000n/x.limit)/100:0,row=el("div",undefined,"mini-bar-row"),progress=el("div",undefined,"progress"),fill=el("span");fill.style.width=Math.min(100,pct)+"%";progress.append(fill);row.append(el("label",x.bank.details?.upiId||x.bank.id),progress,el("strong",pct.toFixed(1)+"%"));bars.append(row);}utilCard.append(bars);health.append(el("h2","Route health"));for(const [l,v]of [["Running / available",running.length+" / "+available],["Frozen UPI",generic.banks.filter(x=>x.frozen).length],["Admin-approved",directory.banks.filter(x=>x.admin_approved_by).length],["Payment verified",generic.banks.filter(x=>x.verified_version===x.version).length],["Active routes",activeRoutes],["Disabled routes",directory.routes.filter(x=>x.status!=="active").length]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));health.append(row);}grid.append(utilCard,health);container.append(grid);
+    container.append(el("section",undefined,"card admin-panel"));const perf=container.lastElementChild;perf.append(el("h2","UPI performance"),el("p","Owner-side transactions + shared limits","admin-subtitle"),table(el,["UPI / owner","State","Routes","Transactions","Successful","Pending","Success rate","Volume","Limit remaining"],txByBank.map(x=>[(x.bank.details?.upiId||x.bank.id)+" · "+(x.bank.owner_name||x.bank.owner_id)+" · "+(x.bank.details?.bankName||"—"),x.g.frozen?"frozen":x.g.status,x.routeCount,x.txTotal,x.successful,x.pending,x.successRate.toFixed(1)+"%",money(x.volume),money(x.limit>x.bankUsed?x.limit-x.bankUsed:0n)])));
+    container.append(el("p","Window changes filter the scoped transaction sample while shared-limit utilization remains current India-day state.","notice"));
   }
 
   async function parkingView(o,mode){
     const {request,post,action,el,container,title}=o,data=await request("parking/admin");
     title.textContent=mode==="beneficiaries"?"Parking Beneficiaries":mode==="orders"?"Parking Orders":"Parking Review";
     container.replaceChildren();
+    const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const beneficiaryById=new Map(data.beneficiaries.map(b=>[b.id,b])),orderById=new Map(data.orders.map(x=>[x.id,x]));
+    const confirmedFor=b=>data.confirmations.filter(c=>c.beneficiary_id===b.id);
+    const preview=()=>{
+      dialog(el,container,"Preview what a User sees",(body)=>{
+        const form=document.createElement("form"),label=el("label","User"),select=el("select");for(const u of data.users||[]){const op=el("option",u.name);op.value=u.id;select.append(op);}label.append(select);form.append(label);const host=el("div");body.append(form,host);
+        const draw=()=>{const uid=select.value,confirmed=new Set(data.confirmations.filter(c=>c.user_id===uid).map(c=>c.beneficiary_id)),visible=data.orders.filter(o=>o.state==="open"&&BigInt(o.remainingMinor||0)>0n&&confirmed.has(o.beneficiaryId));host.replaceChildren();const phone=el("div",undefined,"preview-phone"),head=el("div","WPay User · Parking","preview-phone-head"),screen=el("div",undefined,"preview-screen");screen.append(el("div","Beneficiaries","eyebrow"));for(const b of data.beneficiaries){const item=el("div",undefined,"preview-item");item.append(el("strong",b.details.beneficiaryName),el("span",b.details.bankName+" · "+(confirmed.has(b.id)?"I added · confirmed":"Not confirmed")));screen.append(item);}screen.append(el("div","Visible Parking orders","eyebrow"));if(!visible.length){const item=el("div",undefined,"preview-item");item.append(el("strong","No eligible Parking orders"),el("span","Confirm a matching beneficiary first."));screen.append(item);}for(const o of visible){const b=beneficiaryById.get(o.beneficiaryId),item=el("div",undefined,"preview-item");item.append(el("strong",o.reference+" · "+money(o.totalMinor)),el("span",(b?.details.beneficiaryName||"—")+" · min "+money(o.minMinor)+" · max "+money(o.maxMinor||o.totalMinor)));screen.append(item);}phone.append(head,screen);host.append(phone);};select.onchange=draw;draw();
+      });
+    };
     if(mode==="beneficiaries"){
-      const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Beneficiaries created for Users in the selected workspace.","notice"));
-      if(data.canCreate)toolbar.append(button(el,"+ Create beneficiary",()=>createBeneficiary()));container.append(toolbar);
-      container.append(table(el,["Name","Workspace","Bank","Account","IFSC","UPI"],data.beneficiaries.map(b=>[b.details.beneficiaryName,b.tenantId,b.details.bankName,b.details.accountNumber,b.details.ifsc,b.details.upiId||"—"])));
-      function createBeneficiary(){
-        const d=document.createElement("dialog"),f=document.createElement("form");d.append(el("h2","Create Parking Beneficiary"));
-        const input=label=>{const l=el("label",label),i=el("input");i.required=true;l.append(i);f.append(l);return i;};
-        const tenant=input("Workspace"),name=input("Beneficiary name"),bank=input("Bank name"),account=input("Account number"),ifsc=input("IFSC"),upi=input("UPI ID");tenant.value=data.tenants[0]||"";
-        const save=el("button","Create","primary");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
-        f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/beneficiary/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryName:name.value,bankName:bank.value,accountNumber:account.value,ifsc:ifsc.value.toUpperCase(),upiId:upi.value});d.close();await parkingView(o,mode);});};
-        d.append(f);container.append(d);d.showModal();
-      }
+      if(tools){if(data.canCreate)tools.append(button(el,"+ Create beneficiary",()=>createBeneficiary(),"primary"));tools.append(button(el,"User preview",preview));}
+      const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(metric(el,"Beneficiaries",data.beneficiaries.filter(x=>!x.revoked).length,"Tenant-scoped beneficiary records"),metric(el,"User confirmations",data.confirmations.length,"“I added” confirmations"),metric(el,"Open orders",data.orders.filter(x=>x.state==="open").length,"Orders linked to beneficiaries"),metric(el,"Review queue",data.reviews.length,"Submitted User payments"));container.append(metrics,el("p","Actual repo logic: Admin / authorized Employee creates the beneficiary. User sees it, adds the exact beneficiary in their banking app, then confirms I added. Only confirmed beneficiaries unlock matching Parking orders for that User.","notice"));
+      const rows=data.beneficiaries.map(b=>[b.details.beneficiaryName+" · "+b.id+" · "+b.tenantId,b.details.bankName+" · "+b.details.accountNumber+" · "+b.details.ifsc,b.details.upiId||"—",(b.sourceName||"—")+" · "+(b.sourceType||"—"),String(b.confirmationCount||0)+" · "+(confirmedFor(b).map(c=>c.user_name).join(", ")||"No confirmations yet"),data.orders.filter(o=>o.beneficiaryId===b.id&&o.state==="open").length,b.revoked?"revoked":"active"]);
+      container.append(table(el,["Beneficiary","Bank details","UPI","Created by","User confirmations","Open orders","State"],rows));
+      function createBeneficiary(){dialog(el,container,"Create Parking Beneficiary",(body,d)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(data.tenants||[]).map(x=>[x,x]),data.tenants?.[0]),name=field(el,form,"name","Beneficiary name"),bank=field(el,form,"bank","Bank name"),account=field(el,form,"account","Account number"),ifsc=field(el,form,"ifsc","IFSC"),upi=field(el,form,"upi","UPI ID");const save=el("button","Create beneficiary","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/beneficiary/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryName:name.value,bankName:bank.value,accountNumber:account.value,ifsc:ifsc.value.toUpperCase(),upiId:upi.value});d.close();await parkingView(o,mode);});};});}
       return;
     }
     if(mode==="orders"){
-      const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Total, minimum and maximum per transaction are enforced by the live Parking backend.","notice"));
-      if(data.canCreate)toolbar.append(button(el,"+ Create Parking order",()=>createOrder()));container.append(toolbar);
-      container.append(table(el,["Reference","Workspace","Total","Minimum","Maximum","State"],data.orders.map(x=>[x.reference,x.tenantId,money(x.totalMinor),money(x.minMinor),money(x.maxMinor||x.totalMinor),x.state])));
-      function createOrder(){
-        const d=document.createElement("dialog"),f=document.createElement("form");d.append(el("h2","Create Parking Order"));
-        const select=(label,items)=>{const l=el("label",label),s=el("select");for(const [v,t] of items){const op=el("option",t);op.value=v;s.append(op);}l.append(s);f.append(l);return s;};
-        const input=label=>{const l=el("label",label),i=el("input");i.required=true;l.append(i);f.append(l);return i;};
-        const tenant=select("Workspace",(data.tenants||[]).map(x=>[x,x])),beneficiary=select("Beneficiary",data.beneficiaries.map(b=>[b.id,b.details.beneficiaryName+" · "+b.details.bankName]));
-        const reference=input("Reference"),total=input("Total INR"),min=input("Minimum / txn INR"),max=input("Maximum / txn INR");
-        const toMinor=v=>{const [w,d=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(d.padEnd(2,"0"))).toString();};
-        const save=el("button","Create","primary");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
-        f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/order/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryId:beneficiary.value,reference:reference.value,totalMinor:toMinor(total.value),minMinor:toMinor(min.value),maxMinor:toMinor(max.value)});d.close();await parkingView(o,mode);});};
-        d.append(f);container.append(d);d.showModal();
-      }
+      if(tools){if(data.canCreate)tools.append(button(el,"+ Create Parking order",()=>createOrder(),"primary"));tools.append(button(el,"User visibility preview",preview));}
+      container.append(el("p","Latest rule: each order has total, minimum and maximum per transaction. A User can pay the whole remaining amount when the remainder falls below minimum, but cannot exceed maximum. Payment window is 10 minutes + 5-minute submission grace.","notice"));
+      const rows=data.orders.map(o=>{const b=beneficiaryById.get(o.beneficiaryId),locked=BigInt(o.lockedMinor||o.locked||0);return [o.reference+" · "+o.id,(b?.details.beneficiaryName||"—")+" · "+(b?.details.bankName||"—"),o.tenantId,money(o.totalMinor),money(o.minMinor),money(o.maxMinor||o.totalMinor),money(o.remainingMinor||0),(b?.confirmationCount||0)+" Users",o.state];});
+      container.append(table(el,["Reference","Beneficiary","Workspace","Total","Min / txn","Max / txn","Remaining","Confirmed Users","State"],rows));
+      function createOrder(){dialog(el,container,"Create Parking order",(body,d)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(data.tenants||[]).map(x=>[x,x]),data.tenants?.[0]),beneficiary=selectField(el,form,"beneficiary","Beneficiary",data.beneficiaries.filter(x=>!x.revoked).map(b=>[b.id,b.details.beneficiaryName+" · "+b.details.bankName])),reference=field(el,form,"reference","Reference"),total=field(el,form,"total","Total INR","5000"),min=field(el,form,"min","Minimum per transaction INR","500"),max=field(el,form,"max","Maximum per transaction INR","5000"),toMinor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();};const save=el("button","Create order","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/order/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryId:beneficiary.value,reference:reference.value,totalMinor:toMinor(total.value),minMinor:toMinor(min.value),maxMinor:toMinor(max.value)});d.close();await parkingView(o,mode);});};});}
       return;
     }
-    const rows=data.reviews.map(r=>{
-      const actions=el("div",undefined,"admin-row-actions");
-      actions.append(
-        button(el,"Proof",async()=>{const p=await post("parking/proof",{id:r.id}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}),
-        button(el,"Review",()=>decision(r,"review")),
-        button(el,"Approve",()=>decision(r,"approve"),"primary"),
-        button(el,"Dispute",()=>decision(r,"dispute"),"danger"),
-        button(el,"Not paid",()=>decision(r,"not_paid"),"danger")
-      );
-      return [r.reference,r.userName,money(r.amountMinor),r.state,r.scanState||"—",actions];
-    });
-    container.append(table(el,["Reference","User","Amount","State","Scan","Action"],rows));
-    function decision(r,chosen){
-      const d=document.createElement("dialog"),f=document.createElement("form"),l=el("label","Reason"),i=el("input");i.required=true;l.append(i);f.append(l);
-      const label={review:"Move to review",approve:"Approve paid",dispute:"Dispute",not_paid:"Not paid"}[chosen]||chosen,save=el("button",label,chosen==="approve"?"primary":chosen==="review"?"":"danger");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
-      f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/review",{id:r.id,action:chosen,reason:i.value});d.close();await parkingView(o,mode);});};d.append(el("h2","Parking decision"),f);container.append(d);d.showModal();
-    }
+    container.append(el("p","Approved Parking completion restores User capacity only after accepted evidence. Review can move submitted → review/disputed → completed or not_paid.","notice"));
+    const rows=data.reviews.map(r=>{const order=orderById.get(r.orderId),beneficiary=beneficiaryById.get(r.beneficiaryId||order?.beneficiaryId),actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Review",()=>decision(r,"review")),button(el,"Approve paid",()=>decision(r,"approve"),"primary"),button(el,"Dispute",()=>decision(r,"dispute"),"danger"),button(el,"Not paid",()=>decision(r,"not_paid"),"danger"));return [r.orderId,r.userName,beneficiary?.details.beneficiaryName||"—",money(r.amountMinor),r.utr||"—",r.state,r.reviewer||"—",actions];});
+    container.append(table(el,["Order","User","Beneficiary","Amount","UTR","State","Reviewer","Action"],rows));
+    function decision(r,chosen){dialog(el,container,"Parking decision",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason"),label={review:"Review",approve:"Approve paid",dispute:"Dispute",not_paid:"Not paid"}[chosen],save=el("button",label,chosen==="approve"?"primary":chosen==="review"?"":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/review",{id:r.id,action:chosen,reason:reason.value});d.close();await parkingView(o,mode);});};});}
   }
 
 
@@ -293,48 +229,59 @@
 
   async function deposits(o){
     const {post,action,el,container,title}=o;title.textContent="User deposits";container.replaceChildren();
-    const data=await post("funding/list",{state:"",offset:0}),confirmed=data.requests.filter(r=>r.state==="confirmed"),pending=data.requests.filter(r=>["requested","detected","confirming","review"].includes(r.state));
+    const data=await post("funding/list",{state:"",offset:0}),confirmed=data.requests.filter(r=>r.state==="confirmed"),pending=data.requests.filter(r=>["review","detected","confirming","requested"].includes(r.state));
     const sum=(rows,key)=>rows.reduce((n,r)=>n+BigInt(key==="credit"?r.credit_minor||0:r.snapshot?.amountMinor||0),0n);
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Confirmed deposit",money(sum(confirmed,"credit")),"Credited User capacity"),metric(el,"Needs review",pending.length,"Evidence / provider review"),metric(el,"USDT requested",(sum(data.requests,"usdt")/1000000n).toLocaleString("en-IN")+" USDT","Requested funding"),metric(el,"Funded Users",new Set(confirmed.map(r=>r.owner_id)).size,"Users with confirmed funding"));
-    container.append(metrics,el("p","First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller. Manual Admin confirmation remains explicitly separate from blockchain verification.","notice"));
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(metric(el,"Confirmed deposit",money(sum(confirmed,"credit")),"Credited User capacity"),metric(el,"Needs review",pending.length,"Evidence / provider review"),metric(el,"USDT requested",(sum(data.requests,"usdt")/1000000n).toLocaleString("en-IN")+" USDT","Funding request total"),metric(el,"Funded users",new Set(confirmed.map(r=>r.owner_id)).size,"Users with confirmed funding"));
+    container.append(metrics,el("p","Funding workflow independently verifies TRC20/ERC20 transfers. 2,000 USDT minimum applies to the first confirmed deposit only. After confirmed history, later top-ups may be smaller. A submitted transaction hash is never confirmation.","notice"));
+    const quoteInr=r=>{
+      if(r.credit_minor)return money(r.credit_minor);
+      const raw=String(r.snapshot?.rate??"0"),[w,f=""]=raw.split("."),ratePaise=BigInt(w||0)*100n+BigInt(f.padEnd(2,"0").slice(0,2)||0),minor=BigInt(r.snapshot?.amountMinor||0);
+      return money(minor*ratePaise/1000000n);
+    };
     const rows=data.requests.map(r=>{
       const actions=el("div",undefined,"admin-row-actions");
       if(!["confirmed","rejected","reversed"].includes(r.state)){
-        if(data.actions.includes("review"))actions.append(button(el,"Recheck provider",()=>action(async()=>{await post("funding/recheck",{requestId:r.id});await deposits(o);})));
         if(data.actions.includes("approve"))actions.append(button(el,"Manual confirm",()=>manual(r,"manual_confirm"),"primary"));
+        if(data.actions.includes("review"))actions.append(button(el,"Recheck provider",()=>action(async()=>{await post("funding/recheck",{requestId:r.id});await deposits(o);})));
         if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>manual(r,"manual_reject"),"danger"));
-      }
-      return [r.name,r.id,(BigInt(r.snapshot.amountMinor)/1000000n).toLocaleString("en-IN")+" USDT",r.snapshot.rate,r.claims?.[0]?.tx_hash||"No hash",r.state,r.source||"none",actions];
+      }else if(r.state==="confirmed"&&data.actions.includes("approve"))actions.append(button(el,"Reverse",()=>reverse(r),"danger"));
+      const tx=(r.claims||[])[0]?.tx_hash||"No hash";
+      return [r.name+" · "+r.id,(BigInt(r.snapshot?.amountMinor||0)/1000000n).toLocaleString("en-IN")+" USDT",quoteInr(r)+" · ₹"+String(r.snapshot?.rate??"—")+" / USDT",(r.snapshot?.network||"—")+" · "+(r.snapshot?.address||"—"),tx,r.state,r.source||"none",actions];
     });
-    container.append(table(el,["User","Request","USDT","Rate","Tx reference","State","Source","Action"],rows));
+    container.append(table(el,["User","USDT","INR credit / rate","Network / address","Tx reference","State","Source","Action"],rows));
     function manual(r,command){
       const d=document.createElement("dialog"),form=document.createElement("form"),reasonLabel=el("label","Review reason"),reason=el("input");reason.required=true;reasonLabel.append(reason);form.append(reasonLabel);
       let amount;if(command==="manual_confirm"){const l=el("label","Actual received USDT (optional)"),i=el("input");i.type="number";i.step="0.000001";l.append(i);form.append(l);amount=i;}
-      const save=el("button",command==="manual_confirm"?"Confirm deposit":"Reject deposit",command==="manual_confirm"?"primary":"danger");save.type="submit";form.append(el("p","Manual confirmation records human-review provenance and does not claim blockchain verification.","notice"),save,button(el,"Cancel",()=>d.close()));
+      const save=el("button",command==="manual_confirm"?"Confirm review":"Reject",command==="manual_confirm"?"primary":"danger");save.type="submit";form.append(el("p","Manual review provenance remains distinct from blockchain verification.","notice"),save,button(el,"Cancel",()=>d.close()));
       form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("funding/review",{requestId:r.id,action:command,reason:reason.value,...(amount?.value?{amountUsdt:amount.value}:{})});d.close();await deposits(o);});};d.append(el("h2",command==="manual_confirm"?"Manual deposit confirmation":"Reject deposit"),form);container.append(d);d.showModal();
+    }
+    function reverse(r){
+      const d=document.createElement("dialog"),form=document.createElement("form"),rl=el("label","Reversal reason"),reason=el("input"),refLabel=el("label","Evidence reference"),reference=el("input");reason.required=reference.required=true;reference.value="admin-reversal-"+r.id;rl.append(reason);refLabel.append(reference);form.append(rl,refLabel);
+      const save=el("button","Reverse confirmed deposit","danger");save.type="submit";form.append(el("p","This posts an exact capacity reversal and may create a reconciliation deficit if capacity was already consumed.","notice"),save,button(el,"Cancel",()=>d.close()));
+      form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("funding/review",{requestId:r.id,action:"reverse",reason:reason.value,evidenceReference:reference.value,attributionReference:"",network:"",token:"",address:"",amountUsdt:"",txHash:"",eventIndex:0,reviewedFinal:false});d.close();await deposits(o);});};d.append(el("h2","Reverse deposit"),form);container.append(d);d.showModal();
     }
   }
 
   async function routingPage(o){
-    const {request,el,container,title}=o;title.textContent="Assignments & routing";container.replaceChildren();
-    const data=await request("business/routing"),eligible=data.candidates.filter(x=>x.eligible),blocked=data.candidates.filter(x=>!x.eligible);
-    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Candidates",data.candidates.length,"Merchant/User routing candidates"),metric(el,"Eligible",eligible.length,"Can accept configured minimum"),metric(el,"Blocked",blocked.length,"Eligibility blockers"),metric(el,"Reservations",data.reservations.length,"Recent reservations"),metric(el,"Reconciliation",data.reconciliation.length,"Capacity deficit/review"),metric(el,"Strategy",data.strategy||"—","Server routing strategy"));container.append(metrics);
-    const rows=data.candidates.map(c=>[c.merchantId,c.userId,c.priority??"—",c.eligible?"ready":"blocked",(c.reasons||[]).join(", ")||"—",c.capacity?.available??"—"]);
-    container.append(table(el,["Merchant","User","Priority","Readiness","Reasons","Available capacity"],rows));
+    const {post,action,el,container,title}=o;title.textContent="Assignments & routing";const data=await post("business/admin-upi",{offset:0,search:""}),bankById=new Map(data.banks.map(b=>[b.id,b]));
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canRoute)tools.append(button(el,"+ Assign route",()=>create(),"primary"));}
+    container.replaceChildren(el("p","Routing uses account status, approval, security readiness, bank state, daily limits, configured ticket limits and capacity policy. Lower priority value routes first.","notice"));
+    const rows=data.routes.map(r=>{const bank=bankById.get(r.bank_id),ready=r.readiness?.eligible===true,actions=el("div",undefined,"admin-row-actions");if(data.canRoute)actions.append(button(el,r.status==="active"?"Disable":"Enable",()=>toggle(r)));return [r.merchant_name||r.merchant_id,(bank?.details?.upiId||r.bank_id)+" · "+(bank?.owner_name||r.user_id),r.priority,money(r.min_minor)+" – "+money(r.max_minor),r.status,ready?"ready":"blocked",actions];});
+    container.append(table(el,["Merchant","UPI / User","Priority","Payment range","State","Readiness","Action"],rows));
+    function create(){dialog(el,container,"Assign UPI route",(body,d)=>{const form=el("form",undefined,"form-grid"),banks=data.banks.filter(b=>!b.frozen&&["running","approved","verified","stopped"].includes(b.status)),merchants=data.accounts.filter(a=>a.account_type==="merchant"),bank=selectField(el,form,"bank","UPI account",banks.map(b=>[b.id,(b.details?.upiId||b.id)+" · "+b.owner_name])),merchant=selectField(el,form,"merchant","Merchant",merchants.map(m=>[m.id,m.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),reason=field(el,form,"reason","Reason","Merchant routing assignment"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();};const save=el("button","Create route","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const selected=bankById.get(bank.value);await post("business/admin-upi/route",{id:null,bankId:bank.value,version:selected.version,merchantId:merchant.value,priority:Number(priority.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true,reason:reason.value});d.close();await routingPage(o);});};});}
+    function toggle(r){dialog(el,container,(r.status==="active"?"Disable ":"Enable ")+"route",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",r.status==="active"?"Operational route disabled":"Operational route enabled"),bank=bankById.get(r.bank_id),save=el("button",r.status==="active"?"Disable":"Enable",r.status==="active"?"danger":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/admin-upi/route",{id:r.id,bankId:r.bank_id,version:bank.version,merchantId:r.merchant_id,priority:r.priority,minMinor:r.min_minor,maxMinor:r.max_minor,enabled:r.status!=="active",reason:reason.value});d.close();await routingPage(o);});};});}
   }
 
   async function assignmentsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="User assignments";container.replaceChildren();
     const data=await request("business/assignments"),name=id=>data.accounts.find(a=>a.id===id)?.name||id;
-    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p","Merchant-to-User assignment layer. Bank-specific UPI routes remain a separate collection-routing layer.","notice"));if(data.canUpdate)toolbar.append(button(el,"+ Assign User",()=>create(),"primary"));container.append(toolbar);
-    const rows=data.assignments.map(a=>[name(a.merchant_id),name(a.user_id),a.priority,a.weight,money(a.min_minor)+" – "+money(a.max_minor),a.status,data.capacity[a.user_id]?.available?money(data.capacity[a.user_id].available):"—"]);
-    container.append(table(el,["Merchant","User","Priority","Weight","Ticket range","State","User available"],rows));
-    function create(){
-      const d=document.createElement("dialog"),form=document.createElement("form"),select=(label,items)=>{const l=el("label",label),s=el("select");for(const [v,t] of items){const op=el("option",t);op.value=v;s.append(op);}l.append(s);form.append(l);return s;},inp=(label,value)=>{const l=el("label",label),i=el("input");i.value=value;i.required=true;l.append(i);form.append(l);return i;};
-      const merchant=select("Merchant",data.accounts.filter(a=>a.account_type==="merchant").map(a=>[a.id,a.name])),user=select("User",data.accounts.filter(a=>a.account_type==="user").map(a=>[a.id,a.name])),priority=inp("Priority","100"),weight=inp("Weight","1"),min=inp("Minimum INR","1.00"),max=inp("Maximum INR","10000.00");
-      const minor=v=>{const [w,f=""]=v.split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();},save=el("button","Assign","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:null,merchantId:merchant.value,userId:user.value,priority:Number(priority.value),weight:Number(weight.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true});d.close();await assignmentsPage(o);});};d.append(el("h2","Assign Merchant to User"),form);container.append(d);d.showModal();
-    }
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canUpdate)tools.append(button(el,"+ Assign User",()=>create(),"primary"));}
+    container.append(el("p","User Assignment is separate from a bank-specific UPI route. Capacity and account eligibility are shown here; the routing page evaluates concrete bank/UPI candidates.","notice"));
+    const rows=data.assignments.map(a=>{const actions=el("div",undefined,"admin-row-actions");if(data.canUpdate&&a.status==="active")actions.append(button(el,"Release",()=>release(a),"danger"));return [name(a.merchant_id),name(a.user_id),a.priority,money(a.min_minor)+" – "+money(a.max_minor),data.capacity[a.user_id]?.available?money(data.capacity[a.user_id].available):"—",a.status,actions];});
+    container.append(table(el,["Merchant","User","Priority","Amount range","User available","State","Action"],rows));
+    function create(){dialog(el,container,"Assign Merchant to User",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",data.accounts.filter(a=>a.account_type==="merchant").map(a=>[a.id,a.name])),user=selectField(el,form,"user","User",data.accounts.filter(a=>a.account_type==="user").map(a=>[a.id,a.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();},save=el("button","Assign","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:null,merchantId:merchant.value,userId:user.value,priority:Number(priority.value),weight:1,minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true});d.close();await assignmentsPage(o);});};});}
+    function release(a){dialog(el,container,"Release assignment",(body,d)=>{const form=document.createElement("form"),save=el("button","Release","danger");save.type="submit";form.append(el("p","This disables the Merchant-to-User assignment. Bank-specific UPI routes remain independently controlled.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:a.id,merchantId:a.merchant_id,userId:a.user_id,priority:a.priority,weight:a.weight||1,minMinor:a.min_minor,maxMinor:a.max_minor,enabled:false});d.close();await assignmentsPage(o);});};});}
   }
 
   async function devicesPage(o){
@@ -571,24 +518,21 @@
   async function collectionAccessPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="User collection access";container.replaceChildren();
     const data=await request("business/user-access"),policy=el("div",undefined,"policy-grid");
-    for(const [name,body] of [
-      ["Free Setup","Allows APK/device and Bank/UPI setup even when funded available capacity is zero."],
-      ["Unlimited Collection","Exempts collection routing from capacity insufficiency only. Account, device, UPI, ticket and daily limits still apply."],
-      ["First deposit policy","Without Free Setup, first confirmed deposit requires at least 2,000 USDT; later top-ups may be smaller."]
-    ]){const c=el("article",undefined,"policy-card");c.append(el("strong",name),el("p",body));policy.append(c);}container.append(policy);
-    const rows=data.users.map(u=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Manage access",()=>edit(u),"primary"));return [u.name,u.free_setup?"enabled":"disabled",u.unlimited_collection?"enabled":"disabled",u.free_setup?"setup allowed":"funding required",u.unlimited_collection?"capacity exempt":"capacity backed",u.reason||"Default policy",actions];});container.append(table(el,["User","Free setup","Unlimited collection","Setup status","Collection mode","Reason","Action"],rows),el("p","Unlimited Collection never bypasses approval, device eligibility, UPI verification, route min/max or per-UPI daily limits.","notice"));
-    function edit(u){const d=document.createElement("dialog"),form=document.createElement("form"),toggle=(label,checked)=>{const line=el("div",undefined,"toggle-line"),copy=el("div"),wrap=el("label",undefined,"switch"),input=el("input"),span=el("span");copy.append(el("strong",label));input.type="checkbox";input.checked=checked;wrap.append(input,span);line.append(copy,wrap);form.append(line);return input;},free=toggle("Free Setup",u.free_setup),unlimited=toggle("Unlimited Collection",u.unlimited_collection),label=el("label","Reason"),reason=el("input");reason.required=true;reason.value=u.reason||"Admin collection access update";label.append(reason);form.append(label);const save=el("button","Save access","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:u.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});d.close();await collectionAccessPage(o);});};d.append(el("h2","Collection access · "+u.name),form);container.append(d);d.showModal();}
+    for(const [name,body]of [["Free Setup","Allows APK/device and bank/UPI setup even when funded available capacity is zero."],["Unlimited Collection","Exempts collection routing from capacity insufficiency only. Account, device, UPI, ticket and daily limits still apply."],["First deposit policy","Without Free Setup, first confirmed deposit requires at least 2,000 USDT. After confirmed history, later top-ups may be smaller."]]){const c=el("article",undefined,"policy-card");c.append(el("strong",name),el("p",body));policy.append(c);}container.append(policy);
+    const rows=data.users.map(u=>{const available=BigInt(u.available_minor||0),setup=u.free_setup||available>0n,actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Manage access",()=>edit(u)));return [u.name+" · "+u.id,money(available),u.free_setup?"enabled":"disabled",u.unlimited_collection?"enabled":"disabled",setup?"setup allowed":"funding required",u.unlimited_collection?"Capacity exempt":"Capacity backed",actions];});
+    container.append(table(el,["User","Capacity","Free setup","Unlimited collection","Setup status","Collection mode","Action"],rows),el("p","Unlimited Collection bypasses capacity, not security: User active/approved, device eligibility, UPI approval/verification, route min/max and per-UPI daily limit checks still apply.","notice"));
+    function edit(u){dialog(el,container,"Collection access · "+u.name,(body,d)=>{const form=document.createElement("form"),toggle=(labelText,checked)=>{const line=el("div",undefined,"toggle-line"),copy=el("div"),wrap=el("label",undefined,"switch"),input=el("input"),span=el("span");copy.append(el("strong",labelText));input.type="checkbox";input.checked=checked;wrap.append(input,span);line.append(copy,wrap);form.append(line);return input;},free=toggle("Free Setup",u.free_setup),unlimited=toggle("Unlimited Collection",u.unlimited_collection),reason=field(el,form,"reason","Reason",u.reason||"Admin collection access update"),save=el("button","Save access","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:u.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});d.close();await collectionAccessPage(o);});};});}
   }
 
   async function transactionsPage(o){
     const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();
-    const [payins,payouts]=await Promise.all([post("operations/transactions",{offset:0,status:""}),post("payout/search",{offset:0,limit:25})]);
-    const successPayins=payins.records.filter(x=>x.status==="successful").length,successPayouts=payouts.orders.filter(x=>x.status==="successful").length,metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Pay-in records",payins.records.length,"Gateway / UTR transactions"),metric(el,"Payout records",payouts.orders.length,"Payout workflow"),metric(el,"Successful pay-ins",successPayins,"Posted collections"),metric(el,"Successful payouts",successPayouts,"Settled payouts"),metric(el,"Recovery review",payins.records.filter(x=>x.status==="recovery_review").length,"Evidence review"),metric(el,"Verification pending",payins.records.filter(x=>x.status==="verification_pending").length,"Pending evidence"));container.append(metrics);
-    const rows=[
-      ...payins.records.map(t=>[new Date(t.createdAt).toLocaleString("en-IN"),t.reference,"Pay-in",t.merchantId||"—",t.userId||"—",money(t.amountMinor),(t.observations||[]).map(x=>x.utr).join(", ")||"—",t.status,t.evidenceState]),
-      ...payouts.orders.map(t=>[new Date(t.createdAt).toLocaleString("en-IN"),t.reference,"Payout","—","—",money(t.amountMinor),"—",t.status,"payout workflow"])
-    ].sort((a,b)=>new Date(b[0])-new Date(a[0]));container.append(table(el,["Time","Reference","Type","Merchant","User","Amount","UTR","Status","Evidence"],rows));
+    const [payins,payouts]=await Promise.all([post("operations/transactions",{offset:0,status:""}),post("payout/search",{offset:0,limit:50})]);
+    const toolbar=el("div",undefined,"toolbar"),search=el("input"),status=el("select");search.className="control grow";search.placeholder="Search reference, UTR, merchant, user…";for(const v of ["","successful","verification_pending","failed"]){const op=el("option",v||"All status");op.value=v;status.append(op);}status.className="control";toolbar.append(search,status);const panel=el("section",undefined,"card admin-panel");container.append(toolbar,panel);
+    const records=[
+      ...payins.records.map(t=>({at:t.createdAt,reference:t.reference,id:t.orderId,type:"Pay-in",merchant:t.merchantId||"—",user:t.userId||"—",amount:t.amountMinor,utr:(t.observations||[]).map(x=>x.utr).join(", ")||"—",status:t.status,evidence:t.evidenceState||"—"})),
+      ...payouts.orders.map(t=>({at:t.createdAt,reference:t.reference,id:t.id,type:"Payout",merchant:t.merchantId||"—",user:t.claimUserId||t.userId||"—",amount:t.amountMinor,utr:t.utr||"—",status:t.status,evidence:"payout workflow"}))
+    ];
+    const draw=()=>{const q=search.value.trim().toLowerCase(),st=status.value,rows=records.filter(t=>(!st||t.status===st)&&[t.reference,t.utr,t.merchant,t.user,t.id].join(" ").toLowerCase().includes(q)).map(t=>[t.at?new Date(t.at).toLocaleString("en-IN"):"—",t.reference+" · "+t.id,t.type,t.merchant+" · "+t.user,money(t.amount),t.utr,t.status,t.evidence]);panel.replaceChildren(table(el,["Time","Reference","Type","Merchant / User","Amount","UTR","Status","Evidence"],rows));};search.oninput=draw;status.onchange=draw;draw();
   }
 
   async function payoutDisputes(o){
@@ -657,7 +601,7 @@
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create "+(isUser?"User":"Merchant"),()=>createAccount(),"primary"));}
     const filters=el("div",undefined,"toolbar"),q=el("input"),st=el("select");
     q.className="control grow";q.placeholder="Search name, email or ID…";q.value=search;
-    for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"],["disabled","Disabled"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
+    for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
     const apply=button(el,"Apply",()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value}},type)),"primary");filters.append(q,st,apply);container.append(filters);
     const grid=el("div",undefined,"account-card-grid");container.append(grid);
     for(const a of data.rows){
@@ -673,6 +617,7 @@
       if(a.approvalStatus==="approved"&&data.actions.includes("commercial.update"))actions.append(button(el,"Edit rates",()=>editTerms(a)));
       if(isUser&&data.actions.includes("commercial.update"))actions.append(button(el,"Collection access",()=>editAccess(a,accessRow)));
       if(a.status==="active"&&data.actions.includes("suspend"))actions.append(button(el,"Suspend",()=>suspend(a),"danger"));
+      else if(a.status!=="active")actions.append(el("span","Reactivation backend action not exposed","access-pill off"));
       cardNode.append(actions);grid.append(cardNode);
     }
     if(!data.rows.length)grid.append(el("div","No matching accounts.","card admin-empty"));
@@ -695,8 +640,8 @@
     function manage(a,accessRow){
       dialog(el,container,(isUser?"User":"Merchant")+" · "+a.name,(body)=>{
         const layout=el("div",undefined,"admin-columns"),left=el("section",undefined,"card admin-panel"),right=el("section",undefined,"card admin-panel"),dl=el("dl",undefined,"admin-details"),settings=a.settings||{};
-        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
-        left.append(dl);right.append(el("h3","Operational links"));for(const [l,v]of [[isUser?"UPI accounts":"Active routes",a.routeCount||0],["Transactions",a.transactionCount||0]])right.append(metric(el,l,v,"Live account scope"));layout.append(left,right);body.append(layout,el("h3","Recent transactions"));
+        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add("Login password",a.passwordConfigured?"Admin configured":"Not configured");add("Login readiness",a.passwordConfigured&&a.approvalStatus==="approved"&&a.status==="active"?"Direct login ready":"Login / operations limited by account state");add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
+        left.append(dl);right.append(el("h3","Operational links"));const links=[[isUser?"UPI accounts":"Active routes",a.routeCount||0],["Recent transactions",a.transactionCount||0]];if(isUser){links.push(["Linked devices",a.linkedDeviceCount||0],["Confirmed deposits",a.confirmedDepositCount||0]);}else links.push(["Payout requests",a.payoutRequestCount||0]);for(const [l,v]of links)right.append(metric(el,l,v,"Live account scope"));layout.append(left,right);body.append(layout,el("h3","Recent transactions"));
         body.append(table(el,["Reference","Type","Amount","Status"],(a.recentActivity||[]).map(x=>[x.reference,x.type,money(x.amountMinor),pill(el,x.status)])));
       });
     }
