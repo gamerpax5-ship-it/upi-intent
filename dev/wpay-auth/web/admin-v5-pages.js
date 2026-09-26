@@ -28,6 +28,11 @@
     if(!rows.length){const tr=el("tr"),td=el("td","No records.");td.colSpan=headers.length;tr.append(td);tbody.append(tr);}
     t.append(tbody);wrap.append(t);return wrap;
   };
+  const panelTable=(el,headers,rows,titleText="",subtitle="")=>{
+    const section=el("section",undefined,"card panel");
+    if(titleText){const head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2",titleText));if(subtitle)copy.append(el("p",subtitle));head.append(copy);section.append(head);}
+    section.append(table(el,headers,rows));return section;
+  };
 
   async function analytics(o){
     const {post,action,el,container,title}=o,days=o.state?.days||30;
