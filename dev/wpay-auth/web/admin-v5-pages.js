@@ -495,6 +495,45 @@
     const data=await request("panel/settings"),grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card panel"),policy=el("section",undefined,"card panel");auth.append(el("h2","Authentication policy"));for(const [l,v] of [["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}policy.append(el("h2","Platform behavior"),el("p","Security policy is server-enforced and not editable from this page.","notice"));for(const [l,v]of [["Temporary password",data.temporaryPasswordHours+" hours"],["Reset challenge",data.resetChallengeMinutes+" minutes"],["Security policy editable",data.securityPolicyEditable?"Yes":"No"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));policy.append(row);}grid.append(auth,policy);container.append(grid);
   }
 
+
+  async function ledgerPage(o){
+    const {request,post,el,container,title}=o;title.textContent="Ledger";container.replaceChildren();
+    const data=await request("business/ledger"),entries=data.entries||[],types=[...new Set(entries.map(x=>x.ledger_type))];
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Entries",entries.length,"Current ledger page"),metric(el,"Ledger types",types.length,"Distinct accounting domains"),metric(el,"Credits",entries.filter(x=>x.direction==="credit").length,"Credit entries"),metric(el,"Debits",entries.filter(x=>x.direction==="debit").length,"Debit entries"));container.append(metrics,el("p","Live owner-side ledger projection. Immutable journals, balancing entries and idempotency data remain server authority.","notice"));
+    const rows=entries.map(e=>[new Date(e.created_at).toLocaleString("en-IN"),e.owner_id,e.ledger_type,e.direction,money(e.amount_minor),e.reference_type,e.reference_id,e.payout_status||"—"]);
+    container.append(table(el,["Time","Owner","Ledger type","Direction","Amount","Reference type","Reference","Payout state"],rows));
+  }
+
+  async function reportsPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Reports";container.replaceChildren();
+    const data=await post("panel/reports",{offset:0}),metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Rows",data.rows.length,"Visible ledger rows"),metric(el,"Currencies",new Set(data.rows.map(x=>x.currency)).size,"Visible currencies"),metric(el,"Export",data.canExport?"Enabled":"Unavailable","Permission-controlled"),metric(el,"Period",new Date(data.from).toLocaleDateString("en-IN")+" – "+new Date(data.to).toLocaleDateString("en-IN"),"Current report window"));container.append(metrics);
+    const summary=el("div",undefined,"admin-summary-grid");for(const [k,v]of Object.entries(data.totals||{})){const tile=el("article",undefined,"admin-summary-tile");tile.append(el("span",k.replaceAll("_"," ")),el("strong",String(v)));summary.append(tile);}container.append(summary);
+    container.append(table(el,["Date","Owner","Ledger","Direction","Amount","Currency","Reference"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.owner_id,r.ledger_type,r.direction,r.amount_minor,r.currency,r.reference_id])));
+    if(data.canExport)container.append(button(el,"Export CSV",()=>action(async()=>{const out=await post("panel/reports/export",{offset:0,from:data.from,to:data.to}),url=URL.createObjectURL(new Blob([out.csv],{type:"text/csv;charset=utf-8"})),a=document.createElement("a");a.href=url;a.download="wpay-report.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}),"primary"));
+  }
+
+  async function auditPage(o){
+    const {post,el,container,title}=o;title.textContent="Audit log";container.replaceChildren();
+    const data=await post("panel/admin-audit",{offset:0});container.append(el("p","Security, panel and business audit sources are combined in time order.","notice"),table(el,["Time","Source","Action","Actor","Target"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.source,r.action,r.actor_id,r.target_id||"—"])));
+  }
+
+  async function supportPage(o){
+    const {post,action,el,container,title}=o;title.textContent="Support";container.replaceChildren();
+    const data=await post("panel/support",{offset:0});
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Tickets",data.rows.length,"Visible support queue"),metric(el,"Open",data.rows.filter(x=>x.status==="open").length,"Needs response"),metric(el,"Resolved",data.rows.filter(x=>x.status==="resolved").length,"Closed cases"),metric(el,"Write access",data.canWrite?"Enabled":"Read only","Permission-controlled"));container.append(metrics);
+    const rows=data.rows.map(t=>{const actions=el("div",undefined,"admin-row-actions");if(data.canWrite)actions.append(button(el,"Reply / update",()=>reply(t),"primary"));return [new Date(t.created_at).toLocaleString("en-IN"),t.subject,t.message,t.status,t.reply||"—",actions];});container.append(table(el,["Created","Subject","Message","Status","Latest reply","Action"],rows));
+    function reply(t){const d=document.createElement("dialog"),form=document.createElement("form"),statusLabel=el("label","Status"),status=el("select");for(const v of ["open","resolved"]){const op=el("option",v);op.value=v;status.append(op);}status.value=t.status;statusLabel.append(status);form.append(statusLabel);const l=el("label","Reply"),message=el("textarea");message.required=true;l.append(message);form.append(l);const save=el("button","Save reply","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/support/update",{requestId:crypto.randomUUID(),id:t.id,status:status.value,message:message.value});d.close();await supportPage(o);});};d.append(el("h2","Support ticket"),form);container.append(d);d.showModal();}
+  }
+
+  async function apkPage(o){
+    const {request,el,container,title}=o;title.textContent="APK / Agent";container.replaceChildren();
+    const data=await request("apk"),metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Package",data.package,"Android Agent"),metric(el,"Version",data.version+" / "+data.build,"Current artifact"),metric(el,"Minimum Android",data.minimumAndroidApi,"API level"),metric(el,"File size",data.bytes,"Bytes"),metric(el,"Signing",data.signing?.identity||"—","Verified signer"),metric(el,"Refreshed",data.refreshedAt?new Date(data.refreshedAt).toLocaleString("en-IN"):"—","Artifact metadata"));
+    container.append(metrics,el("p","APK artifact metadata is hash-bound and read-only here. OTP capture logic is not modified by this Admin UI work.","notice"));
+    const link=el("a","Download WPAY Agent","primary");link.href="/wpay-auth/roles/admin/apk/download";link.download="WPAY-Agent.apk";container.append(link);
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -511,6 +550,11 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.ledger")return ledgerPage(o);
+    if(destination==="v5.reports")return reportsPage(o);
+    if(destination==="v5.audit")return auditPage(o);
+    if(destination==="v5.support")return supportPage(o);
+    if(destination==="v5.apk")return apkPage(o);
     if(destination==="v5.credentials")return credentialsPage(o);
     if(destination==="v5.webhooks")return webhooksPage(o);
     if(destination==="v5.api-logs")return apiLogsPage(o);
