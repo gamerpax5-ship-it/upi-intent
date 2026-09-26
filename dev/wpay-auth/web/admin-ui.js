@@ -117,8 +117,8 @@
   const filterNav=q=>{q=q.trim().toLowerCase();for(const group of $('navigation').querySelectorAll('.nav-group')){let shown=0;for(const b of group.querySelectorAll('.nav-item')){b.hidden=!!q&&!b.textContent.toLowerCase().includes(q);if(!b.hidden)shown++;}group.hidden=!!q&&!shown;}};
   if(sidebarSearch)sidebarSearch.oninput=e=>filterNav(e.target.value);
   if(globalSearch)globalSearch.oninput=e=>{const q=e.target.value.trim().toLowerCase();results.replaceChildren();if(!q){results.classList.add('hidden');return;}const matches=[...$('navigation').querySelectorAll('.nav-item')].filter(b=>b.textContent.toLowerCase().includes(q)).slice(0,10);for(const b of matches){const r=document.createElement('div');r.className='search-result';r.innerHTML='<strong>'+b.textContent+'</strong><small>Admin module</small>';r.onclick=()=>{results.classList.add('hidden');globalSearch.value='';api.navigate(b.dataset.destination);};results.append(r);}results.classList.toggle('hidden',!matches.length);};
-  if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate(p.destinationId);};
-  if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate(p.destinationId);};
+  if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate('v5.notifications');};
+  if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate('v5.profile');};
  }
  async function overview({account,post,action,el,container,title,navigate},days=30){
   title.textContent='Overview';container.replaceChildren(el('p','Loading your operational overview…','admin-empty'));
