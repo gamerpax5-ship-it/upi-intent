@@ -3,6 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {fixture}=require('./helpers/wpay-9a-fixture');
 
 test('Employee creation accepts an Admin-set permanent password while legacy omission stays compatible',async t=>{
+ if(process.env.WPAY_9A_TEST_CONFIRM!=='fresh-local-synthetic-only'||!process.env.WPAY_9A_TEST_CONFIG){t.skip('Requires isolated 9A fixture');return;}
  const f=await fixture(t),{service,call}=f;
  const permissions=['profile.view','account_security.view','account_security.update'];
  const password='Synthetic direct Employee password 2026!';
