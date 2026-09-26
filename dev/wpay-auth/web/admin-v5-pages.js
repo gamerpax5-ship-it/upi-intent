@@ -542,14 +542,14 @@
   }
 
   async function transactionsPage(o){
-    const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();
+    const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
     const [payins,payouts]=await Promise.all([post("operations/transactions",{offset:0,status:""}),post("payout/search",{offset:0,limit:50})]);
     const toolbar=el("div",undefined,"toolbar"),search=el("input"),status=el("select");search.className="control grow";search.placeholder="Search reference, UTR, merchant, user…";for(const v of ["","successful","verification_pending","failed"]){const op=el("option",v||"All status");op.value=v;status.append(op);}status.className="control";toolbar.append(search,status);const panel=el("section",undefined,"card admin-panel");container.append(toolbar,panel);
     const records=[
       ...payins.records.map(t=>({at:t.createdAt,reference:t.reference,id:t.orderId,type:"Pay-in",merchant:t.merchantId||"—",user:t.userId||"—",amount:t.amountMinor,utr:(t.observations||[]).map(x=>x.utr).join(", ")||"—",status:t.status,evidence:t.evidenceState||"—"})),
       ...payouts.orders.map(t=>({at:t.createdAt,reference:t.reference,id:t.id,type:"Payout",merchant:t.merchantId||"—",user:t.claimUserId||t.userId||"—",amount:t.amountMinor,utr:t.utr||"—",status:t.status,evidence:"payout workflow"}))
     ];
-    const draw=()=>{const q=search.value.trim().toLowerCase(),st=status.value,rows=records.filter(t=>(!st||t.status===st)&&[t.reference,t.utr,t.merchant,t.user,t.id].join(" ").toLowerCase().includes(q)).map(t=>[t.at?new Date(t.at).toLocaleString("en-IN"):"—",t.reference+" · "+t.id,t.type,t.merchant+" · "+t.user,money(t.amount),t.utr,t.status,t.evidence]);panel.replaceChildren(table(el,["Time","Reference","Type","Merchant / User","Amount","UTR","Status","Evidence"],rows));};search.oninput=draw;status.onchange=draw;draw();
+    let visible=records;const draw=()=>{const q=search.value.trim().toLowerCase(),st=status.value;visible=records.filter(t=>(!st||t.status===st)&&[t.reference,t.utr,t.merchant,t.user,t.id].join(" ").toLowerCase().includes(q));const rows=visible.map(t=>[t.at?new Date(t.at).toLocaleString("en-IN"):"—",t.reference+" · "+t.id,t.type,t.merchant+" · "+t.user,money(t.amount),t.utr,t.status,t.evidence]);panel.replaceChildren(table(el,["Time","Reference","Type","Merchant / User","Amount","UTR","Status","Evidence"],rows));};search.oninput=draw;status.onchange=draw;if(tools)tools.append(button(el,"Export transactions CSV",()=>{const fields=["id","reference","type","merchant","user","amount_minor","utr","status","evidence","at"],lines=[fields,...visible.map(t=>[t.id,t.reference,t.type,t.merchant,t.user,t.amount,t.utr,t.status,t.evidence,t.at])],csv=lines.map(r=>r.map(v=>`"${String(v??"").replaceAll(`"`,`""`)}"`).join(",")).join("\r\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");link.href=url;link.download="wpay-transactions.csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"primary"));draw();
   }
 
   async function payoutDisputes(o){
