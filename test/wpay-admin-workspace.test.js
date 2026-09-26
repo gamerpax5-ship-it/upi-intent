@@ -7,6 +7,8 @@ test('Admin topbar stays on V5 Notifications and Profile pages',()=>{
  assert.match(ui,/profile\.view'[\s\S]*?api\.navigate\('v5\.profile'\)/);
  assert.doesNotMatch(ui,/notifications\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
  assert.doesNotMatch(ui,/profile\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
+ assert.match(ui,/go\('reports\.view','Reports','v5\.reports'\)/);
+ for(const destination of ['v5.approvals','v5.bank-upi','v5.deposits','v5.payout-approval','v5.payout-disputes','v5.late-reviews','v5.withdrawals'])assert.match(ui,new RegExp(destination.replaceAll('.','\\\\.')));
 });
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
