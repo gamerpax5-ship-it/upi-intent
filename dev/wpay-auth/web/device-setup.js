@@ -23,7 +23,7 @@
      setTimeout(()=>{code.textContent='Hidden';},Math.min(60000,Math.max(0,+new Date(result.expiresAt)-Date.now())));
     });generate.disabled=!data.pairingAvailable||!data.canCreate;card.append(generate);
     if(!data.pairingAvailable)card.append(el('p',data.pairingStatus==='source_unavailable'?'Pairing service is temporarily unavailable. Retry shortly.':'APK pairing is not connected to this workspace. Admin must configure the existing pairing service.','notice'));
-    if(!data.canCreate)card.append(el('p','Your account does not have permission to issue pairing codes.','notice'));
+    if(!data.canCreate)card.append(el('p',data.setupAllowed===false?'Activation needs available collection capacity. Complete an approved payout or Parking payment, confirm a deposit, or ask Admin for free setup access.':'Your account does not have permission to issue pairing codes.','notice'));
     card.append(button('Refresh activation status',()=>reload()));
     const history=await post('operations/pairing-history',{offset:state.historyOffset||0});card.append(el('h2','Activation code history'));
     const table=el('table'),head=el('thead'),heading=el('tr');for(const label of ['Created','Owner','Status','Device','Expires','Action'])heading.append(el('th',label));head.append(heading);table.append(head);const body=el('tbody');

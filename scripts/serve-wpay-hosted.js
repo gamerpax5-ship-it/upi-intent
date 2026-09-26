@@ -32,12 +32,13 @@ async function main(){
     stage="mfa_factors";const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
     stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingService=configuredPairingService();const pairingBridge=pairingService||configuredPairingBridge();
-    stage="server_start";const server=await startAuthServer({service:new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY}),
+    stage="server_start";const service=new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY});const server=await startAuthServer({service,
       port:Number(process.env.PORT),hostedOrigin:policy.origin,readiness:async()=>{
         if(stopping)return false;
         try {await pool.query("SELECT 1");return true;}catch{return false;}
       }});
-    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(()=>{clearTimeout(deadline);pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
+    const deadlines=require("../lib/wpay/workers/deadlines").startDeadlines({pool,payouts:service.payouts,parking:service.parking,onError:code=>console.error(code)});
+    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
     return server;
@@ -45,3 +46,4 @@ async function main(){
 }
 if(require.main===module)main().catch(()=>{console.error("WPAY_HOSTED_UNAVAILABLE");process.exitCode=1;});
 module.exports={main};
+
