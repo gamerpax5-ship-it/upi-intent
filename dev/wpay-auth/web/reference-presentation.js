@@ -45,6 +45,7 @@
    for(const record of records){const row=document.createElement('tr');for(const value of record.facts.querySelectorAll('dd')){const cell=document.createElement('td');cell.append(...value.childNodes);row.append(cell);}record.facts.remove();const actions=document.createElement('td');actions.append(...record.node.childNodes);row.append(actions);body.append(row);}
    table.append(body);wrap.append(table);rows[0].before(wrap);rows.forEach(n=>n.remove());
   }
+  if(role==='user')root.WPayUserBurgundyPages?.enhance(host,metadata,account,section);
  }
  async function fees({post,action,el,container},offset=0){
   const result=await post('panel/fees',{offset,limit:25});container.replaceChildren();
