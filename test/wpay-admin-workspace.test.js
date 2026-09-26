@@ -57,6 +57,21 @@ test('Admin Accounts and Collections use the final V5 hierarchy',()=>{
  assert.doesNotMatch(ui,/metric\(el,"Configured UPI"/);
  assert.doesNotMatch(ui,/metric\(el,"Confirmed deposit"/);
 });
+test('Admin Parking and Treasury preserve final V5 density and panel hierarchy',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const sig of [
+  'panelTable(el,["Beneficiary","Bank details","UPI","Created by","User confirmations","Open orders","State"]',
+  'panelTable(el,["Reference","Beneficiary","Workspace","Total","Min / txn","Max / txn","Remaining","Confirmed Users","State"]',
+  'panelTable(el,["Order","User","Beneficiary","Amount","UTR","State","Reviewer","Action"]',
+  'panelTable(el,["Reference","User","Amount","UTR","State","Submitted","15m timeout","Action"]',
+  'panelTable(el,["Merchant","INR reserved","USDT quote","Rate","Network / destination","State","Action"]',
+  'panelTable(el,["Payout","Merchant / User","Amount / commission","Coverage","Reason","Proofs","Status","Action"]',
+  'panelTable(el,["Kind","Resource / User","Amount","Held","Reserve","UTR / proof","Reason / conflict","Status","Action"]'
+ ])assert.ok(ui.includes(sig));
+ assert.doesNotMatch(ui,/metric\(el,"Banks"[\s\S]*Payout capable/);
+ assert.doesNotMatch(ui,/metric\(el,"Requests"[\s\S]*Commission withdrawals/);
+ assert.doesNotMatch(ui,/metric\(el,"Holds"[\s\S]*Commission hold history/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
