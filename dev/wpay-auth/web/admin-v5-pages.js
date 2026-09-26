@@ -356,6 +356,33 @@
     function issue(){action(async()=>{const result=await post("operations/device-setup/create",{requestId:crypto.randomUUID()}),d=document.createElement("dialog"),code=el("code",result.pairingCode,"code-secret");d.append(el("h2","Enter this code in WPay Agent"),code,el("p","Expires "+new Date(result.expiresAt).toLocaleString("en-IN")),button(el,"Copy code",()=>navigator.clipboard?.writeText(result.pairingCode)),button(el,"Close",()=>d.close()));container.append(d);d.showModal();});}
   }
 
+
+  async function utrCapture(o){
+    const {post,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();
+    const data=await post("operations/transactions",{offset:0,status:""}),observations=data.records.flatMap(r=>(r.observations||[]).map(x=>({...x,reference:r.reference,orderId:r.orderId,userId:r.userId,merchantId:r.merchantId,status:r.status,accounting:r.accountingState,recovered:r.recovered})));
+    const statement=observations.filter(x=>x.source==="statement"||x.recovered),verified=observations.filter(x=>x.verified),pending=data.records.filter(r=>["pending_payment","verification_pending","recovery_review"].includes(r.status));
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Total UTR captures",observations.length,"Scoped observations"),metric(el,"Verified",verified.length,"Independent evidence"),metric(el,"Statement captured",statement.length,"Statement/recovery source"),metric(el,"Pending review",pending.length,"Orders awaiting evidence"));
+    container.append(metrics,el("p","Captured UTR observations and financial approval are separate evidence surfaces. Manual Admin approval remains explicit and does not become bank verification.","notice"));
+    const rows=observations.sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.reference,x.utr,x.source,x.userId||"—",x.merchantId||"—",x.verified?"verified":"observed",x.accounting]);
+    container.append(table(el,["Captured","Reference","UTR","Source","User","Merchant","Evidence","Accounting"],rows));
+  }
+
+  async function statementsPage(o){
+    const {request,post,action,el,container,title}=o;title.textContent="Statements & reconciliation";container.replaceChildren();
+    const [data,recovery]=await Promise.all([request("operations/statements"),post("operations/transactions",{offset:0,status:"recovery_review"})]);
+    const toolbar=el("div",undefined,"admin-toolbar");toolbar.append(el("p",data.message||"Statement import is onboarding/reconciliation evidence and never posts credit by upload alone.","notice"));container.append(toolbar);
+    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Authorized banks",data.banks.length,"Scoped receiving accounts"),metric(el,"Statement imports",data.imports.length,"Uploaded/parser records"),metric(el,"Accepted imports",data.imports.filter(x=>x.status==="accepted").length,"Parser accepted"),metric(el,"Recovery review",recovery.records.length,"Pay-ins under reconciliation"));container.append(metrics);
+    const bankRows=data.banks.map(b=>{
+      const actions=el("div",undefined,"admin-row-actions"),upload=button(el,"Upload statement",()=>uploadFor(b),"primary");actions.append(upload);return [b.ownerName,b.id,b.version,b.status,data.imports.filter(x=>x.bank_id===b.id).length,actions];
+    });container.append(el("h2","Statement sources"),table(el,["User","Bank reference","Version","State","Imports","Action"],bankRows));
+    container.append(el("h2","Import history"),table(el,["Import","Owner","Bank","Version","Rows","Credits","State","Reason"],data.imports.map(i=>[i.id,i.owner_id,i.bank_id,i.bank_version,i.rows_scanned,i.credit_count,i.status,i.reason||"—"])));
+    container.append(el("h2","Reconciliation review"),table(el,["Reference","User","Merchant","Amount","Evidence","Accounting","UTR observations"],recovery.records.map(r=>[r.reference,r.userId||"—",r.merchantId||"—",money(r.amountMinor),r.evidenceState,r.accountingState,(r.observations||[]).map(x=>x.utr+" · "+x.source).join(" | ")||"—"])));
+    function uploadFor(bank){
+      const d=document.createElement("dialog"),form=document.createElement("form"),label=el("label","Statement file"),input=el("input");input.type="file";input.accept=".csv,.xls,.xlsx";input.required=true;label.append(input);form.append(label);const save=el("button","Upload targeted statement","primary");save.type="submit";form.append(el("p","The existing statement parser runs server-side. Upload alone does not establish ownership or financial credit.","notice"),save,button(el,"Cancel",()=>d.close()));
+      form.onsubmit=e=>{e.preventDefault();action(async()=>{const chosen=input.files[0];if(!chosen||chosen.size>1048576)throw Error("Choose a statement up to 1 MiB");const bytes=new Uint8Array(await chosen.arrayBuffer());let raw="";for(const byte of bytes)raw+=String.fromCharCode(byte);await post("operations/statement/upload",{ownerId:bank.ownerId,bankId:bank.id,version:bank.version,requestId:crypto.randomUUID(),format:chosen.name.split(".").at(-1).toLowerCase(),base64:btoa(raw)});d.close();await statementsPage(o);});};d.append(el("h2","Upload statement · "+bank.ownerName),form);container.append(d);d.showModal();
+    }
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -372,6 +399,8 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.utr")return utrCapture(o);
+    if(destination==="v5.statements")return statementsPage(o);
     if(destination==="v5.deposits")return deposits(o);
     if(destination==="v5.routing")return routingPage(o);
     if(destination==="v5.assignments")return assignmentsPage(o);
