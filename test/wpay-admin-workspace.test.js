@@ -1,6 +1,13 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID,randomBytes}=require('node:crypto');
 const finance=require('../lib/wpay/panels/admin-finance');
+test('Admin topbar stays on V5 Notifications and Profile pages',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8');
+ assert.match(ui,/notifications\.view'[\s\S]*?api\.navigate\('v5\.notifications'\)/);
+ assert.match(ui,/profile\.view'[\s\S]*?api\.navigate\('v5\.profile'\)/);
+ assert.doesNotMatch(ui,/notifications\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
+ assert.doesNotMatch(ui,/profile\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
