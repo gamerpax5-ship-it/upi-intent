@@ -83,16 +83,16 @@
     ['Audit log',byDest('admin-finance.audit')?.destinationId]
    ]],
    ['DEVELOPER','settings',[
-    ['API credentials',dest('api_credentials.view','administration.api-credentials')],
-    ['Webhooks',dest('webhooks.view','administration.webhooks')],
-    ['API logs',dest('api_logs.view','administration.api-logs')]
+    ['API credentials',can('api_credentials.view')?'v5.credentials':null],
+    ['Webhooks',can('webhooks.view')?'v5.webhooks':null],
+    ['API logs',can('api_logs.view')?'v5.api-logs':null]
    ]],
    ['SUPPORT & PLATFORM','settings',[
     ['Support',dest('support_admin.view','administration.support')],
-    ['Notifications',dest('notifications.view','completion.notifications')],
+    ['Notifications',can('notifications.view')?'v5.notifications':null],
     ['Security',dest('account_security.view','administration.account-security')],
-    ['Settings',dest('settings.view','administration.settings')],
-    ['Profile',dest('profile.view','completion.profile')]
+    ['Settings',can('settings.view')?'v5.settings':null],
+    ['Profile',can('profile.view')?'v5.profile':null]
    ]]
   ];
   const navigationRoot=$('navigation');navigationRoot.replaceChildren();
