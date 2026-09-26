@@ -426,3 +426,6 @@ th,td{padding:10px 11px}
 .wpay-admin .section-tabs{display:flex;gap:5px;flex-wrap:wrap}.wpay-admin .section-tabs button{border:1px solid var(--line);background:#100d20;color:var(--muted);border-radius:9px;padding:7px 10px;font-size:9px;font-weight:850}.wpay-admin .section-tabs button.active{color:#fff;background:rgba(124,77,255,.18);border-color:rgba(154,107,255,.25)}
 .wpay-admin .mini-bar-list{display:grid;gap:9px}.wpay-admin .mini-bar-row{display:grid;grid-template-columns:minmax(110px,1fr) minmax(120px,2fr) 48px;gap:9px;align-items:center;font-size:9px}.wpay-admin .mini-bar-row label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wpay-admin .mini-bar-row strong{text-align:right}
 .wpay-admin .progress{height:7px;border-radius:999px;background:#0d0a19;border:1px solid var(--line);overflow:hidden}.wpay-admin .progress span{display:block;height:100%;background:linear-gradient(90deg,#7c4dff,#55d6c8);border-radius:999px}
+
+/* V5 reference keeps Overview inside the DASHBOARD group; retain the legacy hook only for runtime compatibility. */
+.wpay-admin #account-home{display:none!important}
