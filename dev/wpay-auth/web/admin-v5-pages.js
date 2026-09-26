@@ -483,17 +483,53 @@
   async function notificationsPage(o){
     const {post,action,el,container,title}=o;title.textContent="Notifications";container.replaceChildren();
     const data=await post("panel/notifications",{offset:0}),grid=el("div",undefined,"grid two-col"),settings=el("section",undefined,"card panel"),history=el("section",undefined,"card panel");
-    const line=el("div",undefined,"toggle-line"),copy=el("div");copy.append(el("strong","In-app notifications"),el("p","Enable or disable Admin in-app notification delivery."));const label=el("label",undefined,"switch"),input=el("input"),span=el("span");input.type="checkbox";input.checked=data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input,span);line.append(copy,label);settings.append(el("h2","Notification preferences"),line);if(data.canUpdate)settings.append(button(el,"Save preference",()=>action(async()=>{await post("panel/preferences",{inAppNotifications:input.checked});await notificationsPage(o);}),"primary"));
-    history.append(el("h2","Recent notifications"));for(const n of data.rows){const row=el("div",undefined,"summary-row");row.append(el("strong",n.event),el("span",new Date(n.created_at).toLocaleString("en-IN")));history.append(row);}if(!data.rows.length)history.append(el("p","No notification events.","admin-empty"));grid.append(settings,history);container.append(grid);
+    const line=el("div",undefined,"toggle-line"),copy=el("div");copy.append(el("strong","In-app notifications"),el("p","Enable or disable Admin in-app notification delivery."));const label=el("label",undefined,"switch"),input=el("input"),span=el("span");input.type="checkbox";input.checked=!!data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input,span);line.append(copy,label);
+    settings.append(el("h2","Notification preferences"),line);
+    if(data.canUpdate)settings.append(button(el,"Save preference",()=>action(async()=>{await post("panel/preferences",{inAppNotifications:input.checked});await notificationsPage(o);}),"primary"));
+    const head=el("div",undefined,"panel-head"),headCopy=el("div");headCopy.append(el("h2","Recent notifications"),el("p","Security and account events"));head.append(headCopy);
+    if(data.canUpdate&&data.rows.some(x=>!x.read))head.append(button(el,"Mark all read",()=>action(async()=>{await post("panel/notifications/read-all",{});await notificationsPage(o);}),"sm"));
+    history.append(head);
+    for(const n of data.rows){
+      const row=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",n.event),el("div",new Date(n.created_at).toLocaleString("en-IN"),"small muted"));row.append(left,pill(el,n.read?"read":"unread"));history.append(row);
+    }
+    if(!data.rows.length)history.append(el("p","No notification events.","admin-empty"));
+    grid.append(settings,history);container.append(grid);
   }
-
   async function profilePage(o){
-    const {account,request,post,action,el,container,title,navigate}=o;title.textContent="Profile";container.replaceChildren();
-    const data=await request("panel/profile"),grid=el("div",undefined,"grid two-col"),profile=el("section",undefined,"card panel"),security=el("section",undefined,"card panel");profile.append(el("h2","Admin account"));
-    const form=document.createElement("form"),label=el("label","Display name"),name=el("input");name.value=account.name;name.required=true;label.append(name);form.append(label);if(data.canEdit){const save=el("button","Save profile","primary");save.type="submit";form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{const r=await post("panel/profile/update",{name:name.value});account.name=r.name;await profilePage(o);});};}profile.append(form,el("p","Email: "+account.email,"notice"));
-    security.append(el("h2","Account security"),el("p","Email/password changes and recent-auth confirmation use the live Security page.","notice"),button(el,"Open Security",()=>navigate("administration.account-security"),"primary"));grid.append(profile,security);container.append(grid);
-  }
+    const {account,request,post,action,handleStage,el,container,title}=o;title.textContent="Profile";container.replaceChildren();
+    const data=await request("panel/profile"),grid=el("div",undefined,"grid two-col"),profile=el("section",undefined,"card panel"),security=el("section",undefined,"card panel");
+    profile.append(el("h2","Profile"));
+    const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Display name",account.name||""),email=field(el,form,"email","Email",account.email||"","email");
+    const save=el("button","Save profile","primary");save.type="submit";if(!data.canEdit)save.disabled=true;form.append(save);profile.append(form);
+    form.onsubmit=e=>{e.preventDefault();action(async()=>{
+      if(data.canEdit&&name.value.trim()!==(account.name||"")){const r=await post("panel/profile/update",{name:name.value});account.name=r.name;}
+      if(email.value.trim()!==(account.email||""))return confirmCurrentPassword("Change email",async password=>{
+        const result=await post("security/admin-email",{password,newEmail:email.value.trim()});password="";await handleStage(result);
+      });
+      await profilePage(o);
+    });};
 
+    security.append(el("h2","Account security"));
+    const passwordForm=el("form"),newPassword=field(el,passwordForm,"newPassword","New password","","password");newPassword.autocomplete="new-password";newPassword.minLength=15;newPassword.maxLength=128;
+    passwordForm.append(el("p","Use at least 15 characters. Existing sessions are revoked after a successful change.","notice"));
+    const change=el("button","Change password","primary");change.type="submit";passwordForm.append(change);security.append(passwordForm);
+    passwordForm.onsubmit=e=>{e.preventDefault();if(!passwordForm.reportValidity())return;action(async()=>confirmCurrentPassword("Change password",async password=>{
+      const result=await post("security/admin-password",{password,newPassword:newPassword.value});newPassword.value="";password="";await handleStage(result);
+    }));};
+
+    grid.append(profile,security);container.append(grid);
+
+    function confirmCurrentPassword(labelText,submit){
+      return new Promise(resolve=>{
+        const d=document.createElement("dialog"),form=document.createElement("form"),wrap=el("label","Current password"),password=el("input");password.type="password";password.autocomplete="current-password";password.required=true;wrap.append(password);form.append(wrap,el("p","Confirm your current password to continue. Other active sessions may be revoked.","notice"));
+        const buttons=el("div",undefined,"admin-row-actions"),ok=el("button",labelText,"primary"),cancel=el("button","Cancel");ok.type="submit";cancel.type="button";buttons.append(ok,cancel);form.append(buttons);d.append(el("h2",labelText),form);container.append(d);
+        let finished=false;const done=()=>{if(finished)return;finished=true;d.close();d.remove();resolve();};
+        cancel.onclick=done;d.addEventListener("cancel",e=>{e.preventDefault();done();});
+        form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;ok.disabled=true;const secret=password.value;password.value="";try{await submit(secret);done();}catch(err){ok.disabled=false;done();throw err;}};
+        d.showModal();
+      });
+    }
+  }
   async function settingsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="Settings";container.replaceChildren();
     const [auth,defaults]=await Promise.all([request("panel/settings"),request("panel/merchant-default-rate")]);
