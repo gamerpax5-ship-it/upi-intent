@@ -1,7 +1,104 @@
 <!doctype html>
-<html lang="en"><head><meta name="wpay-entry-role" content="admin"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WPay · Admin</title><script src="/wpay-auth/admin-ui.js" defer></script>
-<link rel="icon" href="/wpay-auth/favicon.ico"><link rel="stylesheet" href="/wpay-auth/styles.css"><link rel="stylesheet" href="/wpay-auth/admin-ui.css"><script src="/wpay-auth/locales.js" defer></script><script src="/wpay-auth/business-locales.js" defer></script><script src="/wpay-auth/business.js" defer></script><script src="/wpay-auth/funding-locales.js" defer></script><script src="/wpay-auth/funding.js" defer></script><script src="/wpay-auth/onboarding.js" defer></script><script src="/wpay-auth/gateway.js" defer></script><script src="/wpay-auth/payout-locales.js" defer></script><script src="/wpay-auth/late-review.js" defer></script><script src="/wpay-auth/payouts.js" defer></script><script src="/wpay-auth/parking.js" defer></script><script src="/wpay-auth/admin-utr.js" defer></script><script defer src="/wpay-auth/device-setup.js"></script><script src="/wpay-auth/operations.js" defer></script><script src="/wpay-auth/completion-locales.js" defer></script><script src="/wpay-auth/completion.js" defer></script><script src="/wpay-auth/password-policy.js" defer></script><script src="/wpay-auth/admin-finance.js" defer></script><script src="/wpay-auth/admin-upi.js" defer></script><script src="/wpay-auth/admin-pages.js" defer></script><script src="/wpay-auth/app.js" defer></script><link rel="stylesheet" href="/wpay-auth/admin-prototype.css"></head>
-<body class="wpay-admin"><header><a class="brand" href="/admin"><svg class="brand-symbol" width="43" height="39" viewBox="0 0 46 40" aria-hidden="true"><path d="M5 7L15 33L23 14" fill="none" stroke="#9b80ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23 14L31 33L41 7" fill="none" stroke="#72b8fa" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg> WPay <small>ADMIN WORKSPACE</small></a><div class="admin-search"><input id="admin-search" type="search" placeholder="Search admin sections…" aria-label="Search admin sections"></div><span class="environment">ADMIN CONSOLE</span><label class="locale-label"><span data-i18n="language">Language</span><select id="language" aria-label="Language"><option value="en">English</option><option value="ru">Русский</option><option value="zh-CN">简体中文</option></select></label></header>
-<main><section id="auth" class="auth-layout"><div class="intro"><p class="eyebrow">WPAY ADMIN</p><h1>Every operation.<br>One clear view.</h1><p>Manage approvals, balances and payment operations from your secure workspace.</p><div class="login-trust">Sign in with your admin email and password</div></div><div id="access-card" class="card auth-card"></div></section>
-<section id="workspace" class="workspace" hidden><aside class="card"><p class="eyebrow" data-i18n="workspace"></p><button id="account-home" type="button" class="nav-item" data-i18n="account"></button><nav id="navigation" aria-label="WPay"></nav><div class="session-actions"><button id="logout" type="button" data-i18n="logout"></button><button id="logout-all" type="button" data-i18n="logoutAll"></button></div></aside><div class="content"><div class="page-heading"><div><p id="account-type" class="eyebrow"></p><h1 id="page-title"></h1></div><span id="approval-badge" class="badge"></span></div><div id="page-content"></div></div></section>
-<p id="message" role="status" aria-live="polite"></p><dialog id="approval-dialog"></dialog></main><footer>WPay Admin · Access is controlled by your assigned permissions.</footer></body></html>
+<html lang="en">
+<head>
+<meta name="wpay-entry-role" content="admin">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WPay · Admin</title>
+<link rel="icon" href="/wpay-auth/favicon.ico">
+<link rel="stylesheet" href="/wpay-auth/styles.css">
+<link rel="stylesheet" href="/wpay-auth/admin-ui.css">
+<script src="/wpay-auth/admin-ui.js" defer></script>
+<script src="/wpay-auth/locales.js" defer></script>
+<script src="/wpay-auth/business-locales.js" defer></script>
+<script src="/wpay-auth/business.js" defer></script>
+<script src="/wpay-auth/funding-locales.js" defer></script>
+<script src="/wpay-auth/funding.js" defer></script>
+<script src="/wpay-auth/onboarding.js" defer></script>
+<script src="/wpay-auth/gateway.js" defer></script>
+<script src="/wpay-auth/payout-locales.js" defer></script>
+<script src="/wpay-auth/late-review.js" defer></script>
+<script src="/wpay-auth/payouts.js" defer></script>
+<script src="/wpay-auth/parking.js" defer></script>
+<script src="/wpay-auth/admin-utr.js" defer></script>
+<script src="/wpay-auth/device-setup.js" defer></script>
+<script src="/wpay-auth/operations.js" defer></script>
+<script src="/wpay-auth/completion-locales.js" defer></script>
+<script src="/wpay-auth/completion.js" defer></script>
+<script src="/wpay-auth/password-policy.js" defer></script>
+<script src="/wpay-auth/admin-finance.js" defer></script>
+<script src="/wpay-auth/admin-upi.js" defer></script>
+<script src="/wpay-auth/admin-pages.js" defer></script>
+<script src="/wpay-auth/admin-v5-pages.js" defer></script>
+<script src="/wpay-auth/app.js" defer></script>
+</head>
+<body class="wpay-admin">
+<div class="app-shell">
+  <section id="auth" class="login-view">
+    <div class="login-art">
+      <div class="brand">
+        <div class="brandmark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg></div>
+        <div>WPay<small>ADMIN CONTROL PLANE</small></div>
+      </div>
+      <div class="hero">
+        <span class="hero-chip">PREMIUM ADMIN OPERATIONS</span>
+        <h1>Every payment.<br><span>One clear view.</span></h1>
+        <p>Manage approvals, routing, payout risk, UTR evidence, treasury, teams and platform operations from one scoped WPay workspace.</p>
+        <div class="hero-grid">
+          <div class="hero-feature"><strong>Financial controls</strong><span>Balance reservation, holds, fees, commissions, withdrawals and settlement states.</span></div>
+          <div class="hero-feature"><strong>Evidence-first reviews</strong><span>Separate bank-verified evidence from explicit manual Admin approval.</span></div>
+          <div class="hero-feature"><strong>Scoped authority</strong><span>Users, Merchants, Employees and Admin permissions stay tenant-aware.</span></div>
+          <div class="hero-feature"><strong>Operational visibility</strong><span>UPI routing, devices, statements, APIs, support and audit history.</span></div>
+        </div>
+      </div>
+      <footer>WPay Admin · live scoped workspace</footer>
+    </div>
+    <div class="login-side"><div id="access-card" class="login-card"></div></div>
+  </section>
+
+  <section id="workspace" class="workspace" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="brand"><div class="brandmark"><svg viewBox="0 0 32 32" fill="none"><path d="M3 7.5 8.3 25 15.8 12.3 22 25 29 7.5h-6.1L20.6 17l-4.8-9.2L10.4 17 8.2 7.5H3Z" fill="white"/></svg></div><div>WPay<small>ADMIN WORKSPACE</small></div></div>
+      </div>
+      <div class="sidebar-search"><input class="control" id="admin-search" type="search" placeholder="Search modules…" aria-label="Search admin modules"></div>
+      <button id="account-home" type="button" class="nav-item">Overview</button>
+      <nav id="navigation" aria-label="WPay Admin"></nav>
+      <div class="sidebar-foot">
+        <div class="admin-mini"><div class="avatar" id="admin-avatar">SA</div><div><strong id="admin-account">WPay Admin</strong><small id="admin-scope">Scoped authority</small></div></div>
+        <div class="session-actions">
+          <button id="logout-all" type="button" class="btn ghost w100 sm">Log out all sessions</button>
+          <button id="logout" type="button" class="btn ghost w100 sm">Log out</button>
+        </div>
+      </div>
+    </aside>
+
+    <button class="mobile-veil" id="admin-mobile-veil" type="button" aria-label="Close menu"></button>
+    <main class="main">
+      <header class="topbar">
+        <button class="btn ghost menu-btn" id="admin-menu-btn" type="button" aria-label="Open menu">☰</button>
+        <div class="crumb">Workspace / <strong id="admin-crumb">Overview</strong></div>
+        <div class="top-search">
+          <span class="search-glyph">⌕</span>
+          <input class="control" id="admin-global-search" type="search" placeholder="Search pages, users, merchants, UTRs…">
+          <div class="search-results hidden" id="admin-search-results"></div>
+        </div>
+        <button class="icon-btn" id="admin-notifications" type="button" title="Notifications"><svg class="admin-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>
+        <button class="icon-btn" id="admin-theme" type="button" title="Theme"><svg class="admin-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg></button>
+        <button class="top-user" id="admin-profile" type="button"><div class="avatar" id="admin-top-avatar">SA</div><span><strong id="admin-top-role">Super Admin</strong><small id="admin-top-scope">Platform scope</small></span></button>
+        <label class="admin-language-hidden"><span data-i18n="language">Language</span><select id="language" aria-label="Language"><option value="en">English</option><option value="ru">Русский</option><option value="zh-CN">简体中文</option></select></label>
+      </header>
+      <div class="content">
+        <div class="page-head">
+          <div><div class="eyebrow" id="page-eyebrow">ADMIN OVERVIEW</div><h1 id="page-title">Overview</h1><p id="page-subtitle">Payments, risk, approvals and finance in one operational view.</p><span id="approval-badge" class="badge" hidden></span><span id="account-type" hidden></span></div>
+          <div class="page-tools" id="page-tools"></div>
+        </div>
+        <div id="page-content"></div>
+      </div>
+    </main>
+  </section>
+</div>
+<p id="message" class="toast" role="status" aria-live="polite"></p>
+<dialog id="approval-dialog"></dialog>
+</body>
+</html>
