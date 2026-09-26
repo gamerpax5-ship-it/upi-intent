@@ -520,12 +520,12 @@
     grid.append(profile,security);container.append(grid);
 
     function confirmCurrentPassword(labelText,submit){
-      return new Promise(resolve=>{
+      return new Promise((resolve,reject)=>{
         const d=document.createElement("dialog"),form=document.createElement("form"),wrap=el("label","Current password"),password=el("input");password.type="password";password.autocomplete="current-password";password.required=true;wrap.append(password);form.append(wrap,el("p","Confirm your current password to continue. Other active sessions may be revoked.","notice"));
         const buttons=el("div",undefined,"admin-row-actions"),ok=el("button",labelText,"primary"),cancel=el("button","Cancel");ok.type="submit";cancel.type="button";buttons.append(ok,cancel);form.append(buttons);d.append(el("h2",labelText),form);container.append(d);
-        let finished=false;const done=()=>{if(finished)return;finished=true;d.close();d.remove();resolve();};
-        cancel.onclick=done;d.addEventListener("cancel",e=>{e.preventDefault();done();});
-        form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;ok.disabled=true;const secret=password.value;password.value="";try{await submit(secret);done();}catch(err){ok.disabled=false;done();throw err;}};
+        let finished=false;const finish=(error)=>{if(finished)return;finished=true;d.close();d.remove();if(error)reject(error);else resolve();};
+        cancel.onclick=()=>finish();d.addEventListener("cancel",e=>{e.preventDefault();finish();});
+        form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;ok.disabled=true;const secret=password.value;password.value="";try{await submit(secret);finish();}catch(err){ok.disabled=false;finish(err);}};
         d.showModal();
       });
     }
