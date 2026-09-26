@@ -19,7 +19,7 @@
   const badge=s=>el('span',words(s),'admin-state '+s);
   if(settings){const data=await request('panel/settings');card.append(el('h2','Authentication & sessions'),el('p','Current server-enforced policy. Change your own email and password from Account settings.','admin-subtitle'));detail(card,data);return;}
   if(directory){
-   const type=user?'user':'merchant',data=await post('panel/directory',{type,status:state.status||'all',search:state.search||'',offset:state.offset||0});
+   const type=user?'user':'merchant',data=await post('panel/directory',{type,status:state.status||'all',search:state.search||'',offset:state.offset||0}),access=user&&data.actions.includes('commercial.update')?await request('business/user-access'):null,accessByUser=new Map((access?.users||[]).map(x=>[x.id,x]));
    const intro=el('div',undefined,'admin-toolbar');intro.append(el('p',user?'Review registrations and manage user commissions and USDT terms.':'Review registrations and manage merchant fees and settlement rates.','admin-subtitle'),button('Refresh',()=>reload()));if(data.canCreate)intro.append(button(user?'+ Create user':'+ Create merchant',()=>{
     const d=el('dialog'),form=el('form',undefined,'admin-editor');d.append(el('h2',user?'Create user':'Create merchant'),button('Close',()=>d.close()),form);card.append(d);d.onclose=()=>d.remove();
     const name=input(form,'Name'),email=input(form,'Email'),password=input(form,'Password');email.type='email';password.type='password';password.autocomplete='new-password';globalThis.WPayPasswordPolicy.bind(password,'en','establish');
@@ -38,10 +38,14 @@
    const drawer=el('section',undefined,'admin-record-detail');drawer.hidden=true;
    function inspect(r,mode='details'){
     drawer.hidden=false;drawer.replaceChildren();const top=el('div',undefined,'admin-toolbar');top.append(el('h2',r.name),button('Close',async()=>{drawer.hidden=true;}));drawer.append(top);
-    detail(drawer,{email:r.email,accountStatus:r.status,approval:r.approvalStatus,accountId:r.id,created:new Date(r.created_at).toLocaleString('en-IN'),termsVersion:r.commercialVersion||0});
+    const accessRow=user?accessByUser.get(r.id):null;detail(drawer,{email:r.email,accountStatus:r.status,approval:r.approvalStatus,accountId:r.id,created:new Date(r.created_at).toLocaleString('en-IN'),termsVersion:r.commercialVersion||0,...(user?{freeSetup:!!accessRow?.free_setup,unlimitedCollection:!!accessRow?.unlimited_collection,collectionAccessReason:accessRow?.reason||'Default funded-capacity policy'}:{})});
     if(r.settings){drawer.append(el('h3','Current commercial terms'));detail(drawer,r.settings);}
     if(mode==='details'){drawer.scrollIntoView({block:'nearest',behavior:'smooth'});return;}
-    const form=el('form',undefined,'admin-editor');form.append(el('h3',mode==='suspend'?'Suspend account':'Update commercial terms'));const fields={};
+    const form=el('form',undefined,'admin-editor');form.append(el('h3',mode==='suspend'?'Suspend account':mode==='collection.access'?'Update collection access':'Update commercial terms'));const fields={};
+    if(mode==='collection.access'){
+     const current=accessByUser.get(r.id)||{},free=el('input'),unlimited=el('input'),freeLabel=el('label','Free setup · allow APK/UPI setup without funded capacity'),unlimitedLabel=el('label','Unlimited collection · ignore capacity-insufficient routing only');free.type=unlimited.type='checkbox';free.checked=!!current.free_setup;unlimited.checked=!!current.unlimited_collection;freeLabel.prepend(free);unlimitedLabel.prepend(unlimited);form.append(freeLabel,unlimitedLabel,el('p','Unlimited Collection never bypasses account approval, device eligibility, UPI approval/verification, route min/max or per-UPI daily limits.','notice'));
+     const reason=input(form,'Reason',current.reason||'Admin collection access update');reason.maxLength=500;reason.minLength=3;const save=el('button','Save collection access','primary');save.type='submit';form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{if(!form.reportValidity())return;await post('business/user-access/update',{userId:r.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});await reload();});};drawer.append(form);drawer.scrollIntoView({block:'nearest',behavior:'smooth'});return;
+    }
     if(mode==='commercial.update')for(const k of user?['payinCommission','payoutCommission','inrPerUsdt','depositNetwork','depositAddress']:['payinFee','payoutFee','fixedPayoutFee','fixedFeeCurrency','paymentLinkTtlSeconds','inrPerUsdt']){
      fields[k]=input(form,k,r.settings?.[k]??(k==='fixedPayoutFee'?'6':k==='paymentLinkTtlSeconds'?'900':''),k==='depositNetwork'?['TRON-TRC20','ETHEREUM-ERC20']:k==='fixedFeeCurrency'?[data.fixedFeeCurrency||'']:undefined);
      if(!['depositNetwork','depositAddress','fixedFeeCurrency'].includes(k))fields[k].inputMode='decimal';
@@ -56,7 +60,7 @@
     const terms=el('div');if(r.settings)for(const k of user?['payinCommission','payoutCommission','inrPerUsdt']:['payinFee','payoutFee','fixedPayoutFee','inrPerUsdt'])terms.append(el('div',words(k)+': '+(r.settings[k]??'Not set')));else terms.textContent='Approval required';
     const actions=el('div',undefined,'admin-row-actions');actions.append(button('Details',async()=>inspect(r)));
     if(r.status==='active'&&r.approvalStatus==='pending'&&(data.actions.includes('approve')||data.actions.includes('reject')))actions.append(button('Review',()=>o.review(r),'primary'));
-    if(r.status==='active'&&r.approvalStatus==='approved'&&data.actions.includes('commercial.update'))actions.append(button('Edit terms',async()=>inspect(r,'commercial.update')));
+    if(r.status==='active'&&r.approvalStatus==='approved'&&data.actions.includes('commercial.update')){actions.append(button('Edit terms',async()=>inspect(r,'commercial.update')));if(user)actions.append(button('Collection access',async()=>inspect(r,'collection.access')));}
     if(r.status==='active'&&data.actions.includes('suspend'))actions.append(button('Suspend',async()=>inspect(r,'suspend'),'danger'));
     return [identity,badge(r.status==='active'?r.approvalStatus:r.status),terms,new Date(r.created_at).toLocaleDateString('en-IN'),actions];
    }));paging(data);card.append(drawer);return;
