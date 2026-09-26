@@ -45,6 +45,18 @@ test('Admin V5 navigation preserves the uploaded HTML flow and page metadata',()
  assert.ok(ui.includes("'Pay-in disputes':['DISPUTES','Live 48-hour Merchant pay-in dispute workflow"));
  assert.ok(ui.includes("Profile:['ACCOUNT','Admin account and security controls.']"));
 });
+test('Admin Accounts and Collections use the final V5 hierarchy',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.ok(ui.includes('const panelTable=(el,headers,rows,titleText="",subtitle="")=>'));
+ assert.ok(ui.includes('Admin-created User supports an Admin-set password.'));
+ assert.ok(ui.includes('Admin-created Merchant supports an Admin-set password.'));
+ assert.ok(ui.includes('First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller.'));
+ assert.ok(ui.includes('Per-UPI daily limit is owner-managed in the latest backend.'));
+ assert.ok(ui.includes('panelTable(el,["Merchant","UPI / User","Priority","Payment range","State","Readiness","Action"]'));
+ assert.ok(ui.includes('panelTable(el,["Merchant","User","Priority","Amount range","User available","State","Action"]'));
+ assert.doesNotMatch(ui,/metric\(el,"Configured UPI"/);
+ assert.doesNotMatch(ui,/metric\(el,"Confirmed deposit"/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
