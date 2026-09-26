@@ -453,7 +453,7 @@
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create credential",()=>create(),"primary"));}
     container.append(el("p","Credential metadata is tenant-scoped. Create/revoke is Super Admin-restricted. Secret material is shown once.","notice"));
     const rows=data.rows.map(k=>{const actions=el("div",undefined,"admin-row-actions");if(data.canRevoke&&!k.revoked_at)actions.append(button(el,"Revoke",()=>revoke(k),"danger"));return [k.prefix,k.merchant_name||merchantName(k.merchant_id),k.label,(k.scopes||[]).join(", "),pill(el,k.revoked_at?"revoked":"active"),k.last_used_at?new Date(k.last_used_at).toLocaleString("en-IN"):"—",actions];});
-    container.append(table(el,["Prefix","Merchant","Label","Scopes","Status","Last used","Action"],rows));
+    container.append(panelTable(el,["Prefix","Merchant","Label","Scopes","Status","Last used","Action"],rows));
     function create(){dialog(el,container,"Create API credential",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",merchants.rows.map(m=>[m.id,m.name])),label=field(el,form,"label","Label","Production integration"),scope=selectField(el,form,"scope","Scopes",[["read","orders:read"],["write","orders:read + orders:write"]],"read"),save=el("button","Create credential","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/credentials/create",{merchantId:merchant.value,label:label.value,scopes:scope.value==="write"?["orders:read","orders:write"]:["orders:read"]});d.close();const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Save credential secret"),el("p","This secret is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret)),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();credentialsPage(o);}));container.append(secret);secret.showModal();});};});}
     function revoke(k){dialog(el,container,"Revoke API credential",(body,d)=>{body.append(el("p","Revoking this credential is permanent for this key. Existing Merchant sessions are also invalidated.","notice"),button(el,"Revoke",()=>action(async()=>{await post("panel/credentials/revoke",{id:k.id});d.close();await credentialsPage(o);}),"danger"));});}
   }
@@ -480,7 +480,7 @@
     const {post,el,container,title}=o;title.textContent="API logs";container.replaceChildren();
     const data=await post("panel/api-logs",{offset:0});
     container.append(el("p","Merchant API access audit only. Secrets, request bodies and sensitive payloads are not displayed.","notice"));
-    container.append(table(el,["Time","Merchant","Operation","Log ID"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.merchant_name||r.merchant_id,r.operation,r.id])));
+    container.append(panelTable(el,["Time","Merchant","Operation","Log ID"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.merchant_name||r.merchant_id,r.operation,r.id])));
   }
   async function notificationsPage(o){
     const {post,action,el,container,title}=o;title.textContent="Notifications";container.replaceChildren();
@@ -552,10 +552,10 @@
   }
   async function ledgerPage(o){
     const {request,post,el,container,title}=o;title.textContent="Ledger";container.replaceChildren();
-    const data=await request("business/ledger"),entries=data.entries||[],types=[...new Set(entries.map(x=>x.ledger_type))];
-    const metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Entries",entries.length,"Current ledger page"),metric(el,"Ledger types",types.length,"Distinct accounting domains"),metric(el,"Credits",entries.filter(x=>x.direction==="credit").length,"Credit entries"),metric(el,"Debits",entries.filter(x=>x.direction==="debit").length,"Debit entries"));container.append(metrics,el("p","Live owner-side ledger projection. Immutable journals, balancing entries and idempotency data remain server authority.","notice"));
+    const data=await request("business/ledger"),entries=data.entries||[];
+    container.append(el("p","Live owner-side ledger projection. Immutable journals, balancing entries and idempotency data remain server authority.","notice"));
     const rows=entries.map(e=>[new Date(e.created_at).toLocaleString("en-IN"),e.owner_id,e.ledger_type,e.direction,money(e.amount_minor),e.reference_type,e.reference_id,e.payout_status||"—"]);
-    container.append(table(el,["Time","Owner","Ledger type","Direction","Amount","Reference type","Reference","Payout state"],rows));
+    container.append(panelTable(el,["Time","Owner","Ledger type","Direction","Amount","Reference type","Reference","Payout state"],rows));
   }
 
   async function reportsPage(o){
@@ -569,7 +569,7 @@
 
   async function auditPage(o){
     const {post,el,container,title}=o;title.textContent="Audit log";container.replaceChildren();
-    const data=await post("panel/admin-audit",{offset:0});container.append(el("p","Security, panel and business audit sources are combined in time order.","notice"),table(el,["Time","Source","Action","Actor","Target"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.source,r.action,r.actor_id,r.target_id||"—"])));
+    const data=await post("panel/admin-audit",{offset:0});container.append(el("p","Security, panel and business audit sources are combined in time order.","notice"),panelTable(el,["Time","Source","Action","Actor","Target"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.source,r.action,r.actor_id,r.target_id||"—"])));
   }
 
   async function supportPage(o){
