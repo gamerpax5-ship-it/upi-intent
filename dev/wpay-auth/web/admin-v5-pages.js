@@ -534,6 +534,48 @@
     const link=el("a","Download WPAY Agent","primary");link.href="/wpay-auth/roles/admin/apk/download";link.download="WPAY-Agent.apk";container.append(link);
   }
 
+
+  async function collectionAccessPage(o){
+    const {request,post,action,el,container,title}=o;title.textContent="User collection access";container.replaceChildren();
+    const data=await request("business/user-access"),policy=el("div",undefined,"policy-grid");
+    for(const [name,body] of [
+      ["Free Setup","Allows APK/device and Bank/UPI setup even when funded available capacity is zero."],
+      ["Unlimited Collection","Exempts collection routing from capacity insufficiency only. Account, device, UPI, ticket and daily limits still apply."],
+      ["First deposit policy","Without Free Setup, first confirmed deposit requires at least 2,000 USDT; later top-ups may be smaller."]
+    ]){const c=el("article",undefined,"policy-card");c.append(el("strong",name),el("p",body));policy.append(c);}container.append(policy);
+    const rows=data.users.map(u=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Manage access",()=>edit(u),"primary"));return [u.name,u.free_setup?"enabled":"disabled",u.unlimited_collection?"enabled":"disabled",u.free_setup?"setup allowed":"funding required",u.unlimited_collection?"capacity exempt":"capacity backed",u.reason||"Default policy",actions];});container.append(table(el,["User","Free setup","Unlimited collection","Setup status","Collection mode","Reason","Action"],rows),el("p","Unlimited Collection never bypasses approval, device eligibility, UPI verification, route min/max or per-UPI daily limits.","notice"));
+    function edit(u){const d=document.createElement("dialog"),form=document.createElement("form"),toggle=(label,checked)=>{const line=el("div",undefined,"toggle-line"),copy=el("div"),wrap=el("label",undefined,"switch"),input=el("input"),span=el("span");copy.append(el("strong",label));input.type="checkbox";input.checked=checked;wrap.append(input,span);line.append(copy,wrap);form.append(line);return input;},free=toggle("Free Setup",u.free_setup),unlimited=toggle("Unlimited Collection",u.unlimited_collection),label=el("label","Reason"),reason=el("input");reason.required=true;reason.value=u.reason||"Admin collection access update";label.append(reason);form.append(label);const save=el("button","Save access","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:u.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});d.close();await collectionAccessPage(o);});};d.append(el("h2","Collection access · "+u.name),form);container.append(d);d.showModal();}
+  }
+
+  async function transactionsPage(o){
+    const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();
+    const [payins,payouts]=await Promise.all([post("operations/transactions",{offset:0,status:""}),post("payout/search",{offset:0,limit:25})]);
+    const successPayins=payins.records.filter(x=>x.status==="successful").length,successPayouts=payouts.orders.filter(x=>x.status==="successful").length,metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Pay-in records",payins.records.length,"Gateway / UTR transactions"),metric(el,"Payout records",payouts.orders.length,"Payout workflow"),metric(el,"Successful pay-ins",successPayins,"Posted collections"),metric(el,"Successful payouts",successPayouts,"Settled payouts"),metric(el,"Recovery review",payins.records.filter(x=>x.status==="recovery_review").length,"Evidence review"),metric(el,"Verification pending",payins.records.filter(x=>x.status==="verification_pending").length,"Pending evidence"));container.append(metrics);
+    const rows=[
+      ...payins.records.map(t=>[new Date(t.createdAt).toLocaleString("en-IN"),t.reference,"Pay-in",t.merchantId||"—",t.userId||"—",money(t.amountMinor),(t.observations||[]).map(x=>x.utr).join(", ")||"—",t.status,t.evidenceState]),
+      ...payouts.orders.map(t=>[new Date(t.createdAt).toLocaleString("en-IN"),t.reference,"Payout","—","—",money(t.amountMinor),"—",t.status,"payout workflow"])
+    ].sort((a,b)=>new Date(b[0])-new Date(a[0]));container.append(table(el,["Time","Reference","Type","Merchant","User","Amount","UTR","Status","Evidence"],rows));
+  }
+
+  async function payoutDisputes(o){
+    const {post,action,el,container,title}=o;title.textContent="Post-approval disputes";container.replaceChildren();
+    const data=await post("payout/dispute/search",{offset:0,limit:25}),metrics=el("div",undefined,"admin-primary-kpis");
+    metrics.append(metric(el,"Disputes",data.orders.length,"48-hour payout disputes"),metric(el,"Pending",data.orders.filter(x=>x.status==="pending").length,"Awaiting Admin resolution"),metric(el,"Payment valid",data.orders.filter(x=>x.status==="payment_valid").length,"Holds released"),metric(el,"Payment invalid",data.orders.filter(x=>x.status==="payment_invalid").length,"Original path reversed"));container.append(metrics,el("p","Merchant statement coverage, User response proof, capacity hold and payout-commission hold are reviewed before a payment_valid/payment_invalid decision.","notice"));
+    const rows=data.orders.map(d=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Review details",()=>review(d),"primary"));return [d.reference,money(d.amountMinor),d.reason,d.status,new Date(d.created_at).toLocaleString("en-IN"),actions];});container.append(table(el,["Payout","Amount","Reason","Status","Opened","Action"],rows));
+    function review(d){action(async()=>{const p=await post("payout/get",{id:d.id}),dialog=document.createElement("dialog"),wrap=el("div"),dis=p.dispute||{},facts=el("div",undefined,"kv-grid"),add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"—")));facts.append(x);};add("Reference",p.reference);add("Amount",money(p.amountMinor));add("Merchant",p.merchantId);add("Dispute status",dis.status);add("Capacity held",dis.status==="pending"?money(dis.amountMinor):money(0));add("Commission held",dis.status==="pending"?money(dis.commissionMinor):money(0));add("Coverage from",dis.coverageFrom?new Date(dis.coverageFrom).toLocaleString("en-IN"):"—");add("Coverage through",dis.coverageThrough?new Date(dis.coverageThrough).toLocaleString("en-IN"):"—");wrap.append(facts,el("p",dis.reason||"—","notice"));
+      if(dis.status==="pending"){const form=document.createElement("form"),l=el("label","Resolution reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);for(const [decision,label,cls]of [["payment_valid","Payment valid","primary"],["payment_invalid","Payment invalid","danger"]])form.append(button(el,label,()=>action(async()=>{await post("payout/dispute/resolve",{id:p.id,action:decision,reason:reason.value});dialog.close();await payoutDisputes(o);}),cls));wrap.append(form);}
+      dialog.append(el("h2","Payout dispute review"),wrap,button(el,"Close",()=>dialog.close()));container.append(dialog);dialog.showModal();});}
+  }
+
+  async function lateReviews(o){
+    const {post,action,el,container,title}=o;title.textContent="Late payment reviews";container.replaceChildren();
+    const data=await post("payout/late/search",{offset:0}),metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Requests",data.requests.length,"Late payout proof reviews"),metric(el,"Pending",data.requests.filter(x=>x.status==="pending").length,"Awaiting decision"),metric(el,"Held value",money(data.requests.filter(x=>x.status==="pending").reduce((n,x)=>n+BigInt(x.held_minor||0),0n)),"Amount held for review"));container.append(metrics,el("p","Late proof never automatically credits funds. Existing assignments stay unchanged until review is explicitly approved or rejected.","notice"));
+    const rows=data.requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"View UTR / proof",()=>proof(r)));if(r.status==="pending")actions.append(button(el,"Approve",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));return [r.resource_id,r.user_name,money(r.amount_minor),money(r.held_minor),r.reserve_mode,r.reason,r.conflict||"—",r.status,actions];});container.append(table(el,["Payout","User","Amount","Held","Reserve mode","Reason","Conflict","Status","Action"],rows));
+    function proof(r){action(async()=>{const p=await post("payout/late/proof",{id:r.id}),d=document.createElement("dialog"),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),link=el("a","Download proof","primary");link.href=url;link.download=p.name;d.append(el("h2","Late payment proof"),el("p","UTR: "+p.utr+" · Scan: "+p.scanState,"notice"),link,button(el,"Close",()=>{URL.revokeObjectURL(url);d.close();}));container.append(d);d.showModal();});}
+    function decide(r,decision){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Decision reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const save=el("button",decision==="approve"?"Approve payment":"Reject request",decision==="approve"?"primary":"danger");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/late/decide",{id:r.id,action:decision,reason:reason.value});d.close();await lateReviews(o);});};d.append(el("h2","Late payment decision"),form);container.append(d);d.showModal();}
+  }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
@@ -550,6 +592,10 @@
 
   async function render(destination,o){
     if(destination==="v5.analytics")return analytics(o);
+    if(destination==="v5.collection-access")return collectionAccessPage(o);
+    if(destination==="v5.transactions")return transactionsPage(o);
+    if(destination==="v5.payout-disputes")return payoutDisputes(o);
+    if(destination==="v5.late-reviews")return lateReviews(o);
     if(destination==="v5.ledger")return ledgerPage(o);
     if(destination==="v5.reports")return reportsPage(o);
     if(destination==="v5.audit")return auditPage(o);
