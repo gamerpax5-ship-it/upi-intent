@@ -537,6 +537,37 @@
   }
 
 
+
+  async function financeSnapshot(o){
+    return o.post("panel/admin-finance",{offset:0});
+  }
+  async function profitOverviewPage(o){
+    const {el,container,title}=o;title.textContent="Profit overview";const d=await financeSnapshot(o),fees=d.fees||{},m=k=>BigInt(fees[k]||0),merchantFees=m("merchant_platform_fee")+m("merchant_payout_fee"),userCommissions=m("user_commission")+m("user_payout_commission");
+    container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant fees",money(merchantFees),"Posted pay-in + payout fees"),metric(el,"User commissions",money(userCommissions),"Pay-in + payout"),metric(el,"Salary & expenses",money(d.totalCosts||0),"Recorded operating costs"),metric(el,"Operating margin",money(d.operatingMargin||0),"Fees − commissions − costs"));container.append(grid,el("p","USDT exchange profit is excluded until acquisition-cost matching exists.","notice"));
+  }
+  async function financePayinPage(o){
+    const {el,container,title}=o;title.textContent="Pay-in fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_platform_fee||0),comm=BigInt(f.user_commission||0);container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant pay-in fees",money(fees),"Successful pay-ins"),metric(el,"User pay-in commission",money(comm),"User earnings"),metric(el,"Pay-in margin",money(fees-comm),"Fee less commission"));container.append(grid);
+  }
+  async function financePayoutPage(o){
+    const {el,container,title}=o;title.textContent="Payout fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_payout_fee||0),comm=BigInt(f.user_payout_commission||0);container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant payout fees",money(fees),"Successful payouts"),metric(el,"User payout commission",money(comm),"User earnings"),metric(el,"Payout margin",money(fees-comm),"Fee less commission"));container.append(grid,el("p","Fixed payout fees are already included in posted Merchant payout fees and are not double-counted.","notice"));
+  }
+  async function financeFixedPage(o){
+    const {el,container,title}=o;title.textContent="Fixed payout revenue";const d=await financeSnapshot(o),p=d.payout||{};container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Successful payouts",p.count||0,"Net successful payouts"),metric(el,"Fixed payout revenue",money(p.fixed||0),"Fixed fee component"),metric(el,"Percentage payout fees",money(p.percentage||0),"Percentage component"));container.append(grid);
+  }
+  async function financeUsdtPage(o){
+    const {el,container,title}=o;title.textContent="USDT exchange";const d=await financeSnapshot(o),fund=d.funding||{},set=d.settlement||{},usdt=v=>{const n=BigInt(v||0),a=n<0n?-n:n,s=a.toString().padStart(7,"0");return (n<0n?"−":"")+s.slice(0,-6)+"."+s.slice(-6)+" USDT";};container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Confirmed User deposits",usdt(fund.usdt),"USDT received"),metric(el,"INR capacity credited",money(fund.inr||0),"Funding conversion"),metric(el,"Completed Merchant settlements",usdt(set.usdt),"USDT settlement"),metric(el,"INR settled",money(set.inr||0),"Settlement principal"));container.append(grid,el("p","FX profit is intentionally unavailable; deposit-vs-settlement difference is not treated as profit.","notice"));
+  }
+  async function expensePage(o,mode){
+    const {post,action,el,container,title}=o,d=await financeSnapshot(o),salary=mode==="salary";title.textContent=salary?"Salary management":"Expense management";container.replaceChildren(el("p","These records affect reporting only; saving does not transfer money. Voided entries remain auditable.","notice"));
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(d.canManage)tools.append(button(el,salary?"+ Record salary":"+ Record expense",()=>create(),"primary"));}
+    const rows=(d.expenses||[]).filter(e=>salary?e.category==="salary":e.category!=="salary").map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded",!e.void_reason&&d.canManage?button(el,"Void",()=>voidExpense(e),"danger"):"—"]);container.append(table(el,["Date","Category","Payee","Amount","Reference","State","Action"],rows));
+    function create(){dialog(el,container,salary?"Record salary payment":"Record expense",(body,dlg)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(d.tenants||[]).map(x=>[x,x]),d.tenants?.[0]),category=selectField(el,form,"category","Category",salary?[["salary","Salary"]]:[["server","Server"],["maintenance","Maintenance"],["other","Other"]],salary?"salary":"server"),payee=field(el,form,"payee",salary?"Employee name / reference":"Payee"),amount=field(el,form,"amount","Amount INR"),description=field(el,form,"description","Description / payment reference"),save=el("button","Save record","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,f=""]=String(amount.value).split("."),minor=(BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();await post("panel/expense/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,category:category.value,payee:payee.value,amountMinor:minor,occurredAt:new Date().toISOString(),description:description.value});dlg.close();await expensePage(o,mode);});};});}
+    function voidExpense(e){dialog(el,container,"Void expense",(body,dlg)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Incorrect expense record"),save=el("button","Confirm void","danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=x=>{x.preventDefault();action(async()=>{await post("panel/expense/void",{id:e.id,reason:reason.value});dlg.close();await expensePage(o,mode);});};});}
+  }
+  async function securityPage(o){
+    const {request,el,container,title,navigate}=o;title.textContent="Security";const data=await request("panel/settings");container.replaceChildren();const grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card admin-panel"),boundaries=el("section",undefined,"card admin-panel");auth.append(el("h2","Authentication policy"));for(const [l,v]of [["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}boundaries.append(el("h2","Authority boundaries"));for(const [l,v]of [["Tenant scoping","Required for Admin data access"],["Recent authentication","Required for high-risk changes"],["Super Admin platform scope","Required for API key/Admin authority"],["Operational OTP reader","Restricted read access"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",v));boundaries.append(row);}boundaries.append(el("p","Use Account settings for password/email changes and recent-auth confirmation.","notice"),button(el,"Open Account settings",()=>navigate("administration.account-security"),"primary"));grid.append(auth,boundaries);container.append(grid);
+  }
+
   async function collectionAccessPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="User collection access";container.replaceChildren();
     const data=await request("business/user-access"),policy=el("div",undefined,"policy-grid");
@@ -760,6 +791,13 @@
     if(destination==="v5.utr")return utrCapture(o);
     if(destination==="v5.apk")return apkPage(o);
     if(destination==="v5.ledger")return ledgerPage(o);
+    if(destination==="v5.profit-overview")return profitOverviewPage(o);
+    if(destination==="v5.finance-payin")return financePayinPage(o);
+    if(destination==="v5.finance-payout")return financePayoutPage(o);
+    if(destination==="v5.finance-fixed")return financeFixedPage(o);
+    if(destination==="v5.finance-usdt")return financeUsdtPage(o);
+    if(destination==="v5.finance-salary")return expensePage(o,"salary");
+    if(destination==="v5.finance-expenses")return expensePage(o,"expense");
     if(destination==="v5.profit-expenses")return profitExpenses(o);
     if(destination==="v5.reports")return reportsPage(o);
     if(destination==="v5.audit")return auditPage(o);
@@ -768,6 +806,7 @@
     if(destination==="v5.api-logs")return apiLogsPage(o);
     if(destination==="v5.support")return supportPage(o);
     if(destination==="v5.notifications")return notificationsPage(o);
+    if(destination==="v5.security")return securityPage(o);
     if(destination==="v5.settings")return settingsPage(o);
     if(destination==="v5.profile")return profilePage(o);
     throw new Error("error.NOT_FOUND");
