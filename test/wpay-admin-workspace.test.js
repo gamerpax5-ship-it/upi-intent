@@ -95,6 +95,18 @@ test('Admin Finance Developer and Support pages follow final V5 hierarchy with l
  assert.doesNotMatch(ui,/metric\(el,"Entries"[\s\S]*Current ledger page/);
  assert.doesNotMatch(ui,/metric\(el,"Tickets"[\s\S]*Visible support queue/);
 });
+test('Admin final V5 parity audit has 55 visible pages and no V5 renderer gaps',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),v5=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8'),ops=fs.readFileSync(require.resolve('../dev/wpay-auth/web/operations.js'),'utf8');
+ const labels=[...ui.matchAll(/\['([^']+)',(?:can\([^\n]+\?|dest\(|byDest\()[^\n]*\]/g)].map(m=>m[1]);
+ for(const label of ['Overview','Analytics','Users','Merchants','Pending approvals','User collection access','User deposits','Bank & UPI','UPI Analytics','UPI daily limits','Assignments & routing','User assignments','Transactions','Pay-in disputes','Statements & reconciliation','Beneficiaries','Orders','Review queue','Payout approval','Payout review','Payout bank capabilities','Post-approval disputes','Late payment reviews','Merchant USDT','Commission withdrawals','User commissions','Commission holds','Holds / frozen','Activation codes','Devices','Pairing history','OTP Events','UTR Capture','APK / Agent','Employees','Admin authority','Ledger','Profit overview','Pay-in fees & commissions','Payout fees & commissions','Fixed payout revenue','USDT exchange','Salary management','Expense management','Profit & expenses','Reports','Audit log','API credentials','Webhooks','API logs','Support','Notifications','Security','Settings','Profile'])assert.ok(ui.includes("['"+label+"'"));
+ const destinations=[...ui.matchAll(/'(v5\.[a-z0-9.-]+)'/g)].map(m=>m[1]);
+ for(const d of new Set(destinations))assert.ok(v5.includes('destination==="'+d+'"')||['v5.notifications','v5.profile','v5.reports','v5.approvals','v5.bank-upi','v5.deposits','v5.payout-approval','v5.payout-disputes','v5.late-reviews','v5.withdrawals'].includes(d));
+ assert.doesNotMatch(v5,/prototype|demo|backend pending|not implemented/i);
+ assert.ok(ui.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp')]"));
+ assert.ok(ops.includes("if(page==='otp')"));
+ assert.ok(ui.includes("Recent financial activity"));
+ assert.ok(ui.includes("command-strip"));
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
