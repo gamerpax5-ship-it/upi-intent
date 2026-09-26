@@ -11,7 +11,7 @@
  }
  function login(card,mode,locale){
   if(mode!=='login')return;
-  if(role==='user'){const brand=document.querySelector('#sidebar .brand')?.cloneNode(true);if(brand){brand.style.padding='0 0 18px';brand.querySelector('small').textContent='User Portal';card.prepend(brand);}}
+  if(role==='user'){const brand=document.querySelector('#sidebar .brand')?.cloneNode(true);if(brand){brand.style.padding='0 0 18px';for(const node of brand.querySelectorAll('[id]')){const prior=node.id;node.id='login-'+prior;for(const paint of brand.querySelectorAll('[fill],[stroke]'))for(const attr of ['fill','stroke'])if(paint.getAttribute(attr)==='url(#'+prior+')')paint.setAttribute(attr,'url(#'+node.id+')');}brand.querySelector('small').textContent='User workspace';card.prepend(brand);}}
   if(locale==='en'){const eyebrow=card.querySelector('.eyebrow'),heading=card.querySelector('h2');if(eyebrow)eyebrow.textContent='Welcome back';if(heading){heading.textContent=role==='merchant'?'Sign in to WPay Merchant':'Sign in to WPay';const help=document.createElement('p');help.textContent=role==='merchant'?'Use your Merchant password and authenticator MFA.':'Sign in to your account and continue your secure payment operations.';heading.after(help);}}
   const password=card.querySelector('input[type=password]');if(password){const wrap=document.createElement('div');wrap.className='password-wrap';password.before(wrap);wrap.append(password);const toggle=document.createElement('button');toggle.type='button';toggle.textContent='Show';toggle.setAttribute('aria-label','Show password');toggle.onclick=()=>{const show=password.type==='password';password.type=show?'text':'password';toggle.textContent=show?'Hide':'Show';toggle.setAttribute('aria-label',show?'Hide password':'Show password');};wrap.append(toggle);}
  }
@@ -45,6 +45,7 @@
    for(const record of records){const row=document.createElement('tr');for(const value of record.facts.querySelectorAll('dd')){const cell=document.createElement('td');cell.append(...value.childNodes);row.append(cell);}record.facts.remove();const actions=document.createElement('td');actions.append(...record.node.childNodes);row.append(actions);body.append(row);}
    table.append(body);wrap.append(table);rows[0].before(wrap);rows.forEach(n=>n.remove());
   }
+  if(role==='user')root.WPayUserBurgundyPages?.enhance(host,metadata,account,section);
  }
  async function fees({post,action,el,container},offset=0){
   const result=await post('panel/fees',{offset,limit:25});container.replaceChildren();

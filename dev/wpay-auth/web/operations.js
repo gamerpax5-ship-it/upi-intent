@@ -3,6 +3,8 @@
  const titles={devices:'Linked Devices',otp:'OTP Events',employees:'Employees'};
  async function render(options,state={}){
   const {destination,account,request,post,action,el,container,title}=options,page=destination.split('.').at(-1);
+  if(['devices','activation'].includes(page)&&root.WPayDeviceSetupPage)return root.WPayDeviceSetupPage.render(options,state);
+  if(account.accountType==='user'&&page==='transactions'&&root.WPayUserBurgundyDashboard)return root.WPayUserBurgundyDashboard.payins(options,state);
   if(account.accountType!=='user'&&['transactions','pending-utrs'].includes(page))return root.WPayAdminUtr.render(options,state);
   title.textContent=titles[page]||'Operational access';container.replaceChildren();
   const card=el('section',undefined,'card');container.append(card);

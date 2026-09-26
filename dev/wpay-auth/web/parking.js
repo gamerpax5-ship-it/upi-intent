@@ -18,18 +18,19 @@
   }
 
   if(page==='orders'){
-   const data=await request('parking/orders');card.append(el('p','Only orders matching beneficiaries you confirmed are visible. A partial lock is exclusive for 10 minutes; expiry/release keeps that amount hidden for a 5-minute cooldown.','notice'));
+   const data=await request('parking/orders');card.append(el('p','Only orders matching beneficiaries you confirmed are visible. A partial lock is exclusive for 10 minutes; after the 10-minute payment window, you have 5 more minutes to submit UTR and proof. The amount remains reserved throughout.','notice'));
    const available=el('div');card.append(el('h2','Available Parking Orders'),available);
-   for(const o of data.orders){const row=el('article',undefined,'business-row'),form=el('form'),amount=field(form,'Amount to lock (INR)');amount.value=money(o.minMinor);amount.inputMode='decimal';
-    facts(row,{Reference:o.reference,Beneficiary:o.beneficiary.beneficiaryName,Bank:o.beneficiary.bankName,Account:o.beneficiary.accountNumber,IFSC:o.beneficiary.ifsc,Source:(o.sourceType||'Admin/Employee')+(o.sourceName?' · '+o.sourceName:''),'Total INR':money(o.totalMinor),'Remaining INR':money(o.remainingMinor),'Minimum INR':money(o.minMinor)});
+   for(const o of data.orders){const row=el('article',undefined,'business-row'),form=el('form'),amount=field(form,'Amount to lock (INR)');amount.value=money(BigInt(o.remainingMinor)<BigInt(o.minMinor)?o.remainingMinor:o.minMinor);amount.inputMode='decimal';
+    facts(row,{Reference:o.reference,Beneficiary:o.beneficiary.beneficiaryName,Bank:o.beneficiary.bankName,Account:o.beneficiary.accountNumber,IFSC:o.beneficiary.ifsc,Source:(o.sourceType||'Admin/Employee')+(o.sourceName?' · '+o.sourceName:''),'Total INR':money(o.totalMinor),'Remaining INR':money(o.remainingMinor),'Minimum INR':money(o.minMinor),'Maximum INR':money(o.maxMinor||o.totalMinor)});
     submit(form,'Lock amount · 10 minutes',async()=>{const [whole,fraction='']=amount.value.split('.');const minor=(BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))).toString();await post('parking/lock',{requestId:crypto.randomUUID(),orderId:o.id,amountMinor:minor});await render(args);});row.append(form);available.append(row);
    }
    if(!data.orders.length)available.append(el('p','No eligible Parking orders.'));
    card.append(el('h2','My Parking Payments'));
-   for(const h of data.history){const row=el('article',undefined,'business-row');facts(row,{Reference:h.reference,Amount:'INR '+money(h.amountMinor),State:h.state,Beneficiary:h.beneficiary.beneficiaryName,Bank:h.beneficiary.bankName,Account:h.beneficiary.accountNumber,IFSC:h.beneficiary.ifsc,Expires:h.expiresAt,Cooldown:h.cooldownUntil||'—',Scan:h.scanState||'—'});
-    if(h.state==='active'){const form=el('form'),utr=field(form,'12-digit UTR'),proof=field(form,'Payment proof','file'),note=field(form,'Note','text',false);proof.accept='.pdf,.png,.jpg,.jpeg';submit(form,'I paid · Send to review',async()=>{await post('parking/submit',{id:h.id,utr:utr.value,proof:await file(proof),note:note.value});await render(args);});row.append(form,button('Release lock',async()=>{await post('parking/release',{id:h.id});await render(args);}));}
+   for(const h of data.history){const row=el('article',undefined,'business-row');facts(row,{Reference:h.reference,Amount:'INR '+money(h.amountMinor),State:h.state,Beneficiary:h.beneficiary.beneficiaryName,Bank:h.beneficiary.bankName,Account:h.beneficiary.accountNumber,IFSC:h.beneficiary.ifsc,Expires:h.expiresAt,Cooldown:h.cooldownUntil||'—',Scan:h.scanState||'—',Reason:h.reason||'—'});
+    if(h.canSubmit===true||(h.canSubmit===undefined&&h.state==='active')){const form=el('form'),utr=field(form,'12-digit UTR'),proof=field(form,'Payment proof','file'),note=field(form,'Note','text',false);proof.accept='.pdf,.png,.jpg,.jpeg';submit(form,'I paid · Send to review',async()=>{await post('parking/submit',{id:h.id,utr:utr.value,proof:await file(proof),note:note.value});await render(args);});row.append(form,button('Release lock',async()=>{await post('parking/release',{id:h.id});await render(args);}));}
+    if(h.canLateProof&&root.WPayLateReview)row.append(root.WPayLateReview.openButton(args,'parking',h.id,()=>render(args)));
     card.append(row);
-   }return;
+   }if(root.WPayLateReview)await root.WPayLateReview.render(args,'parking',card);return;
   }
 
   if(page==='admin'){
@@ -38,15 +39,15 @@
    submit(beneficiaryForm,'Create beneficiary',async()=>{await post('parking/beneficiary/create',{requestId:crypto.randomUUID(),tenantId:tenant.value,beneficiaryName:name.value,bankName:bank.value,accountNumber:accountNumber.value,ifsc:ifsc.value.toUpperCase(),upiId:upi.value});await render(args);});
    card.append(el('h2','Create Parking Beneficiary'),beneficiaryForm);
 
-   const orderForm=el('form'),otenant=field(orderForm,'Tenant ID'),beneficiary=field(orderForm,'Beneficiary ID'),reference=field(orderForm,'Reference'),total=field(orderForm,'Total amount INR'),min=field(orderForm,'Minimum per transaction INR');
+   const orderForm=el('form'),otenant=field(orderForm,'Tenant ID'),beneficiary=field(orderForm,'Beneficiary ID'),reference=field(orderForm,'Reference'),total=field(orderForm,'Total amount INR'),min=field(orderForm,'Minimum per transaction INR'),max=field(orderForm,'Maximum per transaction INR');
    const minor=value=>{if(!/^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$/.test(value))throw new Error('error.INVALID_INPUT');const [w,f='']=value.split('.');return (BigInt(w)*100n+BigInt(f.padEnd(2,'0'))).toString();};
-   submit(orderForm,'Create Parking Order',async()=>{await post('parking/order/create',{requestId:crypto.randomUUID(),tenantId:otenant.value,beneficiaryId:beneficiary.value,reference:reference.value,totalMinor:minor(total.value),minMinor:minor(min.value)});await render(args);});
+   submit(orderForm,'Create Parking Order',async()=>{await post('parking/order/create',{requestId:crypto.randomUUID(),tenantId:otenant.value,beneficiaryId:beneficiary.value,reference:reference.value,totalMinor:minor(total.value),minMinor:minor(min.value),maxMinor:minor(max.value)});await render(args);});
    card.append(el('h2','Create Parking Order'),orderForm,el('h2','Beneficiaries'));
    for(const b of data.beneficiaries){const row=el('article',undefined,'business-row');facts(row,{ID:b.id,Tenant:b.tenantId,Name:b.details.beneficiaryName,Bank:b.details.bankName,Account:b.details.accountNumber,IFSC:b.details.ifsc});card.append(row);}
-   card.append(el('h2','Orders'));for(const o of data.orders){const row=el('article',undefined,'business-row');facts(row,{ID:o.id,Tenant:o.tenantId,Reference:o.reference,Total:'INR '+money(o.totalMinor),Minimum:'INR '+money(o.minMinor),State:o.state});card.append(row);}
+   card.append(el('h2','Orders'));for(const o of data.orders){const row=el('article',undefined,'business-row');facts(row,{ID:o.id,Tenant:o.tenantId,Reference:o.reference,Total:'INR '+money(o.totalMinor),Minimum:'INR '+money(o.minMinor),Maximum:'INR '+money(o.maxMinor||o.totalMinor),State:o.state});card.append(row);}
    card.append(el('h2','Review Queue'));for(const r of data.reviews){const row=el('article',undefined,'business-row'),form=el('form'),reason=field(form,'Reason');facts(row,{ID:r.id,Order:r.orderId,Reference:r.reference,User:r.userName,Amount:'INR '+money(r.amountMinor),State:r.state,Scan:r.scanState||'unscanned'});
     row.append(button('Download proof',async()=>{const p=await post('parking/proof',{id:r.id});download(p.name,p.data);}));
-    const act=async chosen=>{await post('parking/review',{id:r.id,action:chosen,reason:reason.value});await render(args);};form.append(button('Review',()=>act('review')),button('Approve paid',()=>act('approve')),button('Dispute',()=>act('dispute')),button('Not paid',()=>act('not_paid')));row.append(form);card.append(row);}return;
+    const act=async chosen=>{await post('parking/review',{id:r.id,action:chosen,reason:reason.value});await render(args);};form.append(button('Review',()=>act('review')),button('Approve paid',()=>act('approve')),button('Dispute',()=>act('dispute')),button('Not paid',()=>act('not_paid')));row.append(form);card.append(row);}if(root.WPayLateReview)await root.WPayLateReview.render(args,'parking',card);return;
   }
   throw new Error('error.NOT_FOUND');
  }

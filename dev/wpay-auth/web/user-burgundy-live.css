@@ -1,0 +1,37 @@
+/* Live controls use the supplied Burgundy tokens and layout. */
+.user-burgundy{--panel2:#211019;--panel3:#2b1420;--line2:rgba(209,91,134,.22);--muted:#b6a1ab;--violet:#a82c58}
+.user-burgundy .page-head{display:flex;align-items:center;gap:18px;padding:20px 22px;margin-bottom:12px;border:1px solid rgba(209,91,134,.13);border-radius:13px;background:radial-gradient(circle at 86% 20%,rgba(232,202,125,.075),transparent 18rem),linear-gradient(120deg,#280e1a,#14090f)}
+.user-burgundy .page-head>div{flex:1}.user-burgundy .page-head h1{font:400 34px/1.1 Georgia,serif;margin:4px 0 7px}
+.user-burgundy .reference-description{color:var(--muted);margin:0}.user-burgundy #language{width:auto;max-width:105px}
+.user-burgundy #access-card .brandmark svg,.user-burgundy #sideLogo svg{display:block;width:100%;height:100%}
+.user-burgundy #access-card>h2{font:400 34px/1.1 Georgia,serif;margin:8px 0 12px}
+.user-burgundy #access-card input,.user-burgundy #access-card select{background:rgba(255,255,255,.025);border-radius:9px}
+.user-burgundy #access-card button.primary{background:linear-gradient(135deg,#ad345d,#721d3e);width:100%}
+.user-burgundy .top-user{cursor:pointer}.user-burgundy .live-content .facts{display:grid}
+.user-burgundy .live-content th,.user-burgundy .live-content td{overflow-wrap:anywhere}
+.user-burgundy #message:empty{display:none}.user-burgundy #message:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(500px,90vw);z-index:100;background:#29101d;color:#f4e7ed;border:1px solid var(--line2);border-radius:10px;padding:12px 18px}
+.user-burgundy .overlay{display:none}.user-burgundy .overlay.show{display:block;position:fixed;inset:0;background:#0008;z-index:25}
+.user-burgundy dialog{background:#211019;color:#f4e7ed;border:1px solid var(--line2);border-radius:14px;max-width:min(720px,94vw)}
+.user-burgundy dialog::backdrop{background:#0009}.user-burgundy button:focus-visible,.user-burgundy [role=button]:focus-visible{outline:2px solid #e8ca7d;outline-offset:3px}
+@media(max-width:700px){.user-burgundy .page-head{flex-wrap:wrap}.user-burgundy .page-head h1{font-size:29px}.user-burgundy #language{max-width:85px}.user-burgundy .top-user small{display:none}}
+
+.user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
+.user-burgundy .action-rail button.action{color:inherit;text-align:left;font:inherit}
+
+.user-burgundy .route-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.user-burgundy dialog.modal{width:min(690px,94vw);max-height:91vh;overflow:auto}
+/* Reference theme applied to live workflow nodes; forms retain their handlers. */
+.user-burgundy .live-content{font-size:14px;line-height:1.55;min-width:0}
+.user-burgundy .live-content>.page-hero{margin-bottom:14px}
+.user-burgundy .live-content .workflow-card{margin:12px 0;border:1px solid var(--line2);background:linear-gradient(145deg,#24121c,#180c13)}
+.user-burgundy .live-content .workflow-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;padding:18px;border:1px solid var(--line2);border-radius:12px;background:rgba(255,255,255,.018)}
+.user-burgundy .live-content .workflow-form>p,.user-burgundy .live-content .workflow-form>fieldset{grid-column:1/-1}
+.user-burgundy .live-content .workflow-form label{display:flex;flex-direction:column;gap:6px;color:#d6c3cc;font-size:13px;min-width:0}
+.user-burgundy .live-content .workflow-form input,.user-burgundy .live-content .workflow-form select,.user-burgundy .live-content .workflow-form textarea{width:100%;min-width:0;font-size:14px;color:#f8eff3}
+.user-burgundy .live-content .facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.user-burgundy .live-content .fact strong{font-size:15px;overflow-wrap:anywhere}
+.user-burgundy .live-content .workflow-heading{font:400 24px/1.25 Georgia,serif;margin:26px 0 12px}
+.user-burgundy .live-content th{color:#d7bdc9;font-size:12px}.user-burgundy .live-content td{color:#f1e2e9;font-size:13px;padding:13px 12px}
+.user-burgundy .live-content .notice{margin:12px 0;padding:13px 15px;border-radius:10px;line-height:1.6}
+.user-burgundy .live-content .table-wrap,.user-burgundy .live-content .table-scroll{max-width:100%;overflow-x:auto}
+@media(max-width:650px){.user-burgundy .live-content .workflow-form{grid-template-columns:1fr;padding:12px}.user-burgundy .live-content .facts{grid-template-columns:1fr}.user-burgundy .live-content .page-hero{align-items:flex-start}.user-burgundy .live-content .hero-stat{max-width:42%;overflow-wrap:anywhere}}

@@ -1,0 +1,20 @@
+'use strict';
+const {parseHTML}=require(process.env.WPAY_TEST_DOM_MODULE||'linkedom'),fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const {document}=parseHTML('<html><body><h1 id="title"></h1><main></main></body></html>');
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
+const context={document,Intl,Date,console};vm.createContext(context);
+context.WPayReferencePresentation={bind(page){for(const b of page.querySelectorAll('[data-go]'))b.onclick=()=>{context.destination=b.dataset.go;};}};
+vm.runInContext(fs.readFileSync('dev/wpay-auth/web/user-burgundy-dashboard.js','utf8'),context);
+const data={capacity:{available:'12345',held:'100',reserved:'50'},commission:{gross:'2000',available:'1900',held:'100',usdtEquivalentMinor:'177570',inrPerUsdt:'107'},payins:{successful:3,failed:1,pending:2,today_volume:'9900',today_orders:4},payouts:{successful:2,review:1},parking:{volume:'10000',locked:'500'},deposits:{usdt_minor:'2000000000',pending:1},banks:[{status:'running',upi_id:'<img src=x onerror=alert(1)>',bank_name:'Test Bank'}],trend:[{day:'2026-09-25',payin:'9900',payout:'5000'}],recent:[{reference:'<script>bad()</script>',amount_minor:'9900',date:'2026-09-25',upi_id:'test@upi',state:'successful'}],totalVolumeMinor:'20000'};
+const args={el,container:document.querySelector('main'),title:document.querySelector('#title'),account:{name:'<script>bad()</script>'},request:async path=>{assert.equal(path,'business/user-dashboard');return data;},action:fn=>fn()};
+(async()=>{
+ await context.WPayUserBurgundyDashboard.render(args);
+ assert.equal(document.querySelectorAll('.dash-primary-card').length,4);assert.equal(document.querySelectorAll('.dash-mini').length,8);
+ assert.ok(document.querySelector('main').textContent.includes('₹123.45'));assert.equal(document.querySelectorAll('script,img').length,0);
+ document.querySelector('[data-go="payouts"]').click();assert.equal(context.destination,'payouts');
+ assert.ok(document.querySelector('svg[role="img"]').getAttribute('aria-label').includes('India'));
+ const calls=[];await context.WPayUserBurgundyDashboard.payins({...args,post:async(path,body)=>{calls.push({path,body});return {records:[{orderId:'wpay-order',upiId:'user@upi',amountMinor:'100',status:'successful',createdAt:'2026-09-25T20:30:00Z',observations:[{utr:'123456789012'}]}],hasMore:true};}});
+ const table=document.querySelector('table');assert.ok(table.textContent.includes('26 Sept 2026'));assert.ok(!table.textContent.includes('20:30'));assert.ok(!table.textContent.includes('123456789012'));assert.ok(table.textContent.includes('user@upi'));
+ assert.equal(calls[0].path,'operations/transactions');
+ console.log('User Burgundy dashboard, navigation, escaping and date-only pay-in history PASS');
+})().catch(e=>{console.error(e);process.exitCode=1;});
