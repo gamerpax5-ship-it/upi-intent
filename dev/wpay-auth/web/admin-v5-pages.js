@@ -597,12 +597,22 @@
   }
   async function lateReviews(o){
     const {post,action,el,container,title}=o;title.textContent="Late payment reviews";container.replaceChildren();
-    const data=await post("payout/late/search",{offset:0}),metrics=el("div",undefined,"admin-primary-kpis");metrics.append(metric(el,"Requests",data.requests.length,"Late payout proof reviews"),metric(el,"Pending",data.requests.filter(x=>x.status==="pending").length,"Awaiting decision"),metric(el,"Held value",money(data.requests.filter(x=>x.status==="pending").reduce((n,x)=>n+BigInt(x.held_minor||0),0n)),"Amount held for review"));container.append(metrics,el("p","Late proof never automatically credits funds. Existing assignments stay unchanged until review is explicitly approved or rejected.","notice"));
-    const rows=data.requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"View UTR / proof",()=>proof(r)));if(r.status==="pending")actions.append(button(el,"Approve",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));return [r.resource_id,r.user_name,money(r.amount_minor),money(r.held_minor),r.reserve_mode,r.reason,r.conflict||"—",r.status,actions];});container.append(table(el,["Payout","User","Amount","Held","Reserve mode","Reason","Conflict","Status","Action"],rows));
-    function proof(r){action(async()=>{const p=await post("payout/late/proof",{id:r.id}),d=document.createElement("dialog"),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),link=el("a","Download proof","primary");link.href=url;link.download=p.name;d.append(el("h2","Late payment proof"),el("p","UTR: "+p.utr+" · Scan: "+p.scanState,"notice"),link,button(el,"Close",()=>{URL.revokeObjectURL(url);d.close();}));container.append(d);d.showModal();});}
-    function decide(r,decision){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Decision reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const save=el("button",decision==="approve"?"Approve payment":"Reject request",decision==="approve"?"primary":"danger");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/late/decide",{id:r.id,action:decision,reason:reason.value});d.close();await lateReviews(o);});};d.append(el("h2","Late payment decision"),form);container.append(d);d.showModal();}
+    const [payoutData,parkingData]=await Promise.all([post("payout/late/search",{offset:0}),post("parking/late/search",{offset:0})]);
+    const records=[
+      ...(payoutData.requests||[]).map(r=>({...r,kind:"payout"})),
+      ...(parkingData.requests||[]).map(r=>({...r,kind:"parking"}))
+    ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    container.append(el("p","Late proof is review-only: existing tasks remain unchanged until explicit Admin approval or rejection. Reviewer can inspect UTR + proof, held amount, reserve mode and conflicts.","notice"));
+    const rows=records.map(r=>{
+      const proofCell=el("div");proofCell.append(el("strong","UTR / proof"),button(el,"View",()=>proof(r)));
+      const actions=el("div",undefined,"admin-row-actions");
+      if(r.status==="pending")actions.append(button(el,"Approve",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));
+      return [pill(el,r.kind),r.resource_id+" · "+r.user_name,money(r.amount_minor),money(r.held_minor),r.reserve_mode||"—",proofCell,r.reason+(r.conflict?" · "+r.conflict:""),pill(el,r.status),actions];
+    });
+    container.append(table(el,["Kind","Resource / User","Amount","Held","Reserve","UTR / proof","Reason / conflict","Status","Action"],rows));
+    function proof(r){action(async()=>{const route=r.kind==="parking"?"parking/late/proof":"payout/late/proof",p=await post(route,{id:r.id}),d=document.createElement("dialog"),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),link=el("a","Download proof","primary");link.href=url;link.download=p.name;d.append(el("h2",(r.kind==="parking"?"Parking":"Payout")+" late proof"),el("p","UTR: "+p.utr+" · Scan: "+p.scanState,"notice"),link,button(el,"Close",()=>{URL.revokeObjectURL(url);d.close();}));container.append(d);d.showModal();});}
+    function decide(r,decision){dialog(el,container,(decision==="approve"?"Approve ":"Reject ")+(r.kind==="parking"?"Parking":"Payout")+" late proof",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Decision reason",decision==="approve"?"Late payment evidence accepted":"Late payment evidence rejected"),save=el("button",decision==="approve"?"Approve payment":"Reject request",decision==="approve"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post(r.kind==="parking"?"parking/late/decide":"payout/late/decide",{id:r.id,action:decision,reason:reason.value});d.close();await lateReviews(o);});};});}
   }
-
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;
     title.textContent="Pairing History";
