@@ -63,14 +63,14 @@
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
     ['UTR Capture',can('utr_center.view')?'v5.utr':null],
-    ['APK / Agent',dest('apk.view','administration.apk')]
+    ['APK / Agent',can('apk.view')?'v5.apk':null]
    ]],
    ['TEAM & ACCESS','employee',[
     ['Employees',dest('employee_management.view','operations.employees')],
     ['Admin authority',byDest('operations.admins')?.destinationId]
    ]],
    ['FINANCE & REPORTS','report',[
-    ['Ledger',dest('ledger.view','administration.ledger')],
+    ['Ledger',can('ledger.view')?'v5.ledger':null],
     ['Profit overview',byDest('admin-finance.overview')?.destinationId],
     ['Pay-in fees & commissions',byDest('admin-finance.payin')?.destinationId],
     ['Payout fees & commissions',byDest('admin-finance.payout')?.destinationId],
@@ -79,8 +79,8 @@
     ['Salary management',byDest('admin-finance.salary')?.destinationId],
     ['Expense management',byDest('admin-finance.expenses')?.destinationId],
     ['Profit & expenses',can('reports.view')?'v5.profit-expenses':null],
-    ['Reports',dest('reports.view','administration.reports')],
-    ['Audit log',byDest('admin-finance.audit')?.destinationId]
+    ['Reports',can('reports.view')?'v5.reports':null],
+    ['Audit log',can('settings.view')?'v5.audit':null]
    ]],
    ['DEVELOPER','settings',[
     ['API credentials',can('api_credentials.view')?'v5.credentials':null],
@@ -88,7 +88,7 @@
     ['API logs',can('api_logs.view')?'v5.api-logs':null]
    ]],
    ['SUPPORT & PLATFORM','settings',[
-    ['Support',dest('support_admin.view','administration.support')],
+    ['Support',can('support_admin.view')?'v5.support':null],
     ['Notifications',can('notifications.view')?'v5.notifications':null],
     ['Security',dest('account_security.view','administration.account-security')],
     ['Settings',can('settings.view')?'v5.settings':null],
