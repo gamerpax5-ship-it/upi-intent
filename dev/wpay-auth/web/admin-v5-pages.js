@@ -532,14 +532,20 @@
 
   async function apkPage(o){
     const {request,el,container,title}=o;title.textContent="APK / Agent";container.replaceChildren();
-    const data=await request("apk"),metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Package",data.package,"Android Agent"),metric(el,"Version",data.version+" / "+data.build,"Current artifact"),metric(el,"Minimum Android",data.minimumAndroidApi,"API level"),metric(el,"File size",data.bytes,"Bytes"),metric(el,"Signing",data.signing?.identity||"—","Verified signer"),metric(el,"Refreshed",data.refreshedAt?new Date(data.refreshedAt).toLocaleString("en-IN"):"—","Artifact metadata"));
-    container.append(metrics,el("p","APK artifact metadata is hash-bound and read-only here. OTP capture logic is not modified by this Admin UI work.","notice"));
-    const link=el("a","Download WPAY Agent","primary");link.href="/wpay-auth/roles/admin/apk/download";link.download="WPAY-Agent.apk";container.append(link);
+    const data=await request("apk"),metrics=el("div",undefined,"grid metrics");
+    metrics.append(metric(el,"Package",data.package,"Android Agent"),metric(el,"Latest checked build",data.version+" / "+data.build,data.refreshedAt?new Date(data.refreshedAt).toLocaleString("en-IN"):"Current artifact"),metric(el,"Signing",data.signing?.identity||"Unavailable","Artifact signer identity"),metric(el,"Branch trigger","main only","Hosted branch changes do not trigger APK build"));
+    container.append(metrics);
+    const card=el("section",undefined,"card panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Release pipeline"),el("p","Live workflow / artifact summary"));head.append(copy);card.append(head);
+    const line=(label,detail,state)=>{const r=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",label),el("div",detail,"small muted"));r.append(left,pill(el,state));return r;};
+    card.append(
+      line("Android unit tests","Gradle testDebugUnitTest before build","configured"),
+      line("Debug APK build","assembleDebug in current workflow","configured"),
+      line("Release APK signing","Current workflow does not run release signing","not configured"),
+      line("Publish artifact metadata","WPAY-Agent.apk + WPAY-Agent.json on main","configured"),
+      line("Hosted branch auto-trigger","Not configured; push trigger is main + android paths","not configured")
+    );
+    const dl=el("a","Download latest APK","primary");dl.href="/wpay-auth/roles/admin/apk/download";dl.download="WPAY-Agent.apk";card.append(el("p","OTP capture code is not changed by this Admin UI work.","notice"),dl);container.append(card);
   }
-
-
-
   async function financeSnapshot(o){
     return o.post("panel/admin-finance",{offset:0});
   }
