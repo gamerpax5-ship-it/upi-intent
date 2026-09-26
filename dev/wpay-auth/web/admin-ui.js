@@ -28,14 +28,14 @@
     ['Merchants',dest('merchants.view','administration.merchants')],
     ['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null],
     ['User collection access',byDest('administration.user-access')?.destinationId],
-    ['User deposits',dest('deposits.view','administration.deposits')]
+    ['User deposits',can('deposits.view')?'v5.deposits':null]
    ]],
    ['COLLECTIONS & ROUTING','route',[
     ['Bank & UPI',can('bank_upi.view')?'v5.bank-upi':null],
     ['UPI Analytics',can('bank_upi.view')?'v5.upi-analytics':null],
     ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
-    ['Assignments & routing',dest('routing.view','administration.routing')],
-    ['User assignments',dest('assignments.view','administration.business-assignments')],
+    ['Assignments & routing',can('routing.view')?'v5.routing':null],
+    ['User assignments',can('assignments.view')?'v5.assignments':null],
     ['Transactions',dest('transactions.view','administration.transactions')],
     ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
     ['Statements & reconciliation',dest('statement_reconciliation.view','operations.statements')]
@@ -58,8 +58,8 @@
     ['Holds / frozen',dest('holds.view','administration.holds')]
    ]],
    ['APK SETUP','apk',[
-    ['Activation codes',dest('devices.view','operations.activation')],
-    ['Devices',dest('devices.view','operations.devices')],
+    ['Activation codes',can('devices.view')?'v5.activation':null],
+    ['Devices',can('devices.view')?'v5.devices':null],
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
     ['UTR Capture',dest('utr_center.view','operations.transactions')],
