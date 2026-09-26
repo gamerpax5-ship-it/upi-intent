@@ -24,19 +24,21 @@
     ['Analytics',can('overview.view')?'v5.analytics':null]
    ]],
    ['ACCOUNTS & APPROVALS','users',[
-    ['Users',dest('users.view','administration.users')],
-    ['Merchants',dest('merchants.view','administration.merchants')],
+    ['Users',can('users.view')?'v5.users':null],
+    ['Merchants',can('merchants.view')?'v5.merchants':null],
     ['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null],
-    ['User collection access',byDest('administration.user-access')?.destinationId],
-    ['User deposits',dest('deposits.view','administration.deposits')]
+    ['User collection access',can('users.commercial.update')?'v5.collection-access':null],
+    ['User deposits',can('deposits.view')?'v5.deposits':null]
    ]],
    ['COLLECTIONS & ROUTING','route',[
-    ['Bank & UPI',dest('bank_upi.view','administration.admin-upi','administration.bank-upi')],
+    ['Bank & UPI',can('bank_upi.view')?'v5.bank-upi':null],
     ['UPI Analytics',can('bank_upi.view')?'v5.upi-analytics':null],
-    ['User assignments',dest('assignments.view','administration.business-assignments')],
-    ['Assignments & routing',dest('routing.view','administration.routing')],
-    ['Transactions',dest('transactions.view','administration.transactions')],
-    ['Statements',dest('statement_reconciliation.view','operations.statements')]
+    ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
+    ['Assignments & routing',can('routing.view')?'v5.routing':null],
+    ['User assignments',can('assignments.view')?'v5.assignments':null],
+    ['Transactions',can('transactions.view')?'v5.transactions':null],
+    ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
+    ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null]
    ]],
    ['PARKING','bank',[
     ['Beneficiaries',can('parking.view')?'v5.parking-beneficiaries':null],
@@ -44,51 +46,53 @@
     ['Review queue',can('parking.view')?'v5.parking-review':null]
    ]],
    ['PAYOUTS & TREASURY','finance',[
-    ['Payout approval',dest('payout_operations.view','payout.orders')],
-    ['Payout review',dest('payout_operations.view','payout.orders')],
-    ['Post-approval disputes',byDest('payout.disputes')?.destinationId],
-    ['Late payment reviews',byDest('payout.late-reviews')?.destinationId],
-    ['Payout bank capabilities',byDest('payout.capabilities')?.destinationId],
-    ['Merchant USDT',byDest('payout.merchant-usdt-admin')?.destinationId],
-    ['Commission withdrawals',byDest('payout.withdrawals')?.destinationId],
-    ['Commission holds',byDest('payout.holds')?.destinationId],
-    ['Holds / frozen',dest('holds.view','administration.holds')]
+    ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null],
+    ['Payout review',can('payout_operations.view')?'v5.payout-review':null],
+    ['Payout bank capabilities',can('payout_operations.view')?'v5.payout-capabilities':null],
+    ['Post-approval disputes',can('payout_operations.view')?'v5.payout-disputes':null],
+    ['Late payment reviews',can('payout_operations.view')?'v5.late-reviews':null],
+    ['Merchant USDT',can('payout_operations.view')?'v5.merchant-usdt':null],
+    ['Commission withdrawals',can('commission_withdrawal.view')?'v5.withdrawals':null],
+    ['User commissions',can('reports.view')?'v5.user-commissions':null],
+    ['Commission holds',can('commission_hold.view')?'v5.commission-holds':null],
+    ['Holds / frozen',can('holds.view')?'v5.holds':null]
    ]],
    ['APK SETUP','apk',[
-    ['Activation codes',dest('devices.view','operations.activation')],
-    ['Devices',dest('devices.view','operations.devices')],
+    ['Activation codes',can('devices.view')?'v5.activation':null],
+    ['Devices',can('devices.view')?'v5.devices':null],
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
-    ['UTR Center',dest('utr_center.view','operations.transactions')],
-    ['APK / Agent',dest('apk.view','administration.apk')]
+    ['UTR Capture',can('utr_center.view')?'v5.utr':null],
+    ['APK / Agent',can('apk.view')?'v5.apk':null]
    ]],
    ['TEAM & ACCESS','employee',[
-    ['Employees',dest('employee_management.view','operations.employees')],
-    ['Admin authority',byDest('operations.admins')?.destinationId]
+    ['Employees',can('employee_management.view')?'v5.employees':null],
+    ['Admin authority',byDest('operations.admins')?'v5.admins':null]
    ]],
    ['FINANCE & REPORTS','report',[
-    ['Ledger',dest('ledger.view','administration.ledger')],
-    ['Profit overview',byDest('admin-finance.overview')?.destinationId],
-    ['Pay-in fees & commissions',byDest('admin-finance.payin')?.destinationId],
-    ['Payout fees & commissions',byDest('admin-finance.payout')?.destinationId],
-    ['Fixed payout revenue',byDest('admin-finance.fixed')?.destinationId],
-    ['USDT exchange',byDest('admin-finance.usdt')?.destinationId],
-    ['Salary management',byDest('admin-finance.salary')?.destinationId],
-    ['Expense management',byDest('admin-finance.expenses')?.destinationId],
-    ['Reports',dest('reports.view','administration.reports')],
-    ['Audit log',byDest('admin-finance.audit')?.destinationId]
+    ['Ledger',can('ledger.view')?'v5.ledger':null],
+    ['Profit overview',can('reports.view')?'v5.profit-overview':null],
+    ['Pay-in fees & commissions',can('reports.view')?'v5.finance-payin':null],
+    ['Payout fees & commissions',can('reports.view')?'v5.finance-payout':null],
+    ['Fixed payout revenue',can('reports.view')?'v5.finance-fixed':null],
+    ['USDT exchange',can('reports.view')?'v5.finance-usdt':null],
+    ['Salary management',can('reports.view')?'v5.finance-salary':null],
+    ['Expense management',can('reports.view')?'v5.finance-expenses':null],
+    ['Profit & expenses',can('reports.view')?'v5.profit-expenses':null],
+    ['Reports',can('reports.view')?'v5.reports':null],
+    ['Audit log',can('settings.view')?'v5.audit':null]
    ]],
    ['DEVELOPER','settings',[
-    ['API credentials',dest('api_credentials.view','administration.api-credentials')],
-    ['Webhooks',dest('webhooks.view','administration.webhooks')],
-    ['API logs',dest('api_logs.view','administration.api-logs')]
+    ['API credentials',can('api_credentials.view')?'v5.credentials':null],
+    ['Webhooks',can('webhooks.view')?'v5.webhooks':null],
+    ['API logs',can('api_logs.view')?'v5.api-logs':null]
    ]],
    ['SUPPORT & PLATFORM','settings',[
-    ['Support',dest('support_admin.view','administration.support')],
-    ['Notifications',dest('notifications.view','completion.notifications')],
-    ['Account settings',dest('account_security.view','administration.account-security')],
-    ['Settings',dest('settings.view','administration.settings')],
-    ['Profile',dest('profile.view','completion.profile')]
+    ['Support',can('support_admin.view')?'v5.support':null],
+    ['Notifications',can('notifications.view')?'v5.notifications':null],
+    ['Security',can('account_security.view')?'v5.security':null],
+    ['Settings',can('settings.view')?'v5.settings':null],
+    ['Profile',can('profile.view')?'v5.profile':null]
    ]]
   ];
   const navigationRoot=$('navigation');navigationRoot.replaceChildren();
