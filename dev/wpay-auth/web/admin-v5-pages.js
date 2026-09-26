@@ -201,7 +201,9 @@
       const actions=el("div",undefined,"admin-row-actions");
       actions.append(
         button(el,"Proof",async()=>{const p=await post("parking/proof",{id:r.id}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}),
+        button(el,"Review",()=>decision(r,"review")),
         button(el,"Approve",()=>decision(r,"approve"),"primary"),
+        button(el,"Dispute",()=>decision(r,"dispute"),"danger"),
         button(el,"Not paid",()=>decision(r,"not_paid"),"danger")
       );
       return [r.reference,r.userName,money(r.amountMinor),r.state,r.scanState||"—",actions];
@@ -209,7 +211,7 @@
     container.append(table(el,["Reference","User","Amount","State","Scan","Action"],rows));
     function decision(r,chosen){
       const d=document.createElement("dialog"),f=document.createElement("form"),l=el("label","Reason"),i=el("input");i.required=true;l.append(i);f.append(l);
-      const save=el("button",chosen==="approve"?"Approve paid":"Not paid",chosen==="approve"?"primary":"danger");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
+      const label={review:"Move to review",approve:"Approve paid",dispute:"Dispute",not_paid:"Not paid"}[chosen]||chosen,save=el("button",label,chosen==="approve"?"primary":chosen==="review"?"":"danger");save.type="submit";f.append(save,button(el,"Cancel",()=>d.close()));
       f.onsubmit=e=>{e.preventDefault();action(async()=>{await post("parking/review",{id:r.id,action:chosen,reason:i.value});d.close();await parkingView(o,mode);});};d.append(el("h2","Parking decision"),f);container.append(d);d.showModal();
     }
   }
