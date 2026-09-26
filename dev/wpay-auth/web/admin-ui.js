@@ -27,7 +27,7 @@
     ['Users',dest('users.view','administration.users')],
     ['Merchants',dest('merchants.view','administration.merchants')],
     ['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null],
-    ['User collection access',byDest('administration.user-access')?.destinationId],
+    ['User collection access',can('users.commercial.update')?'v5.collection-access':null],
     ['User deposits',can('deposits.view')?'v5.deposits':null]
    ]],
    ['COLLECTIONS & ROUTING','route',[
@@ -36,7 +36,7 @@
     ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
     ['Assignments & routing',can('routing.view')?'v5.routing':null],
     ['User assignments',can('assignments.view')?'v5.assignments':null],
-    ['Transactions',dest('transactions.view','administration.transactions')],
+    ['Transactions',can('transactions.view')?'v5.transactions':null],
     ['Pay-in disputes',can('utr_center.view')?'v5.payin-disputes':null],
     ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null]
    ]],
@@ -49,8 +49,8 @@
     ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null],
     ['Payout review',can('payout_operations.view')?'v5.payout-review':null],
     ['Payout bank capabilities',can('payout_operations.view')?'v5.payout-capabilities':null],
-    ['Post-approval disputes',byDest('payout.disputes')?.destinationId],
-    ['Late payment reviews',byDest('payout.late-reviews')?.destinationId],
+    ['Post-approval disputes',can('payout_operations.view')?'v5.payout-disputes':null],
+    ['Late payment reviews',can('payout_operations.view')?'v5.late-reviews':null],
     ['Merchant USDT',can('payout_operations.view')?'v5.merchant-usdt':null],
     ['Commission withdrawals',can('commission_withdrawal.view')?'v5.withdrawals':null],
     ['User commissions',can('reports.view')?'v5.user-commissions':null],
