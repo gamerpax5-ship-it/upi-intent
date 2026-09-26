@@ -7,7 +7,7 @@ test('Admin topbar stays on V5 Notifications and Profile pages',()=>{
  assert.match(ui,/profile\.view'[\s\S]*?api\.navigate\('v5\.profile'\)/);
  assert.doesNotMatch(ui,/notifications\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
  assert.doesNotMatch(ui,/profile\.view'[\s\S]*?api\.navigate\(p\.destinationId\)/);
- assert.match(ui,/go\('reports\.view','Reports','v5\.reports'\)/);
+ assert.match(ui,/go\('overview\.view','Analytics','v5\.analytics'\)/);
  for(const destination of ['v5.approvals','v5.bank-upi','v5.deposits','v5.payout-approval','v5.payout-disputes','v5.late-reviews','v5.withdrawals'])assert.match(ui,new RegExp(destination.replaceAll('.','\\\\.')));
  const v5=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
  assert.match(v5,/Open Account settings[\s\S]*?navigate\("v5\.profile"\)/);
@@ -18,7 +18,7 @@ test('Admin V5 Employee page requires explicit tenant selection and respects cre
  assert.match(backend,/canCreate:[\s\S]*?employee_management\.create/);
  assert.match(backend,/canUpdate:[\s\S]*?employee_management\.update/);
  assert.match(ui,/if\(data\.canCreate\)tools\.append\(button\(el,"\+ Create employee"/);
- assert.match(ui,/data\.canUpdate\?button\(el,"Edit"/);
+ assert.match(ui,/data\.canUpdate\?button\(el,"Edit access"/);
  assert.match(ui,/i\.checked=emp\?\(emp\.admin_scope\?\.tenantIds\|\|\[\]\)\.includes\(t\):false/);
  assert.doesNotMatch(ui,/emp\?\.admin_scope\?\.tenantIds\|\|data\.tenantIds/);
 });
