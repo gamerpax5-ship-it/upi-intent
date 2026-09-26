@@ -112,18 +112,24 @@
     const statusLabel=el('label','Status'),status=el('select');for(const value of ['active','suspended','disabled']){const option=el('option',value);option.value=value;status.append(option);}status.value=employee?.status||'active';statusLabel.append(status);if(employee)form.append(statusLabel);
     const checkGroup=(label,values,selected,required=[])=>{const group=el('fieldset');group.append(el('legend',label));const entries=values.map(([value,text])=>{const l=el('label',text),input=el('input');input.type='checkbox';input.checked=selected.includes(value);input.disabled=required.includes(value);l.prepend(input);group.append(l);return [value,input];});form.append(group);return ()=>entries.filter(([,n])=>n.checked).map(([v])=>v);};
     const selectedPermissions=employee?.permissions||data.requiredPermissions;
-    const permissionGetters=[];
+    const permissionGetters=[],matrix=el('div',undefined,'permission-matrix'),matrixTools=el('div',undefined,'toolbar'),selectAll=el('button','All delegable pages','btn sm'),clearAll=el('button','Clear','btn sm ghost');selectAll.type=clearAll.type='button';matrixTools.append(selectAll,clearAll);form.append(matrixTools,matrix);
+    const allInputs=[];
     if(data.permissionGroups?.length){
      for(const groupData of data.permissionGroups){
-      const group=el('fieldset');group.append(el('legend',groupData.label));
-      const entries=[];
+      const group=el('section',undefined,'permission-section'),head=el('div',undefined,'permission-section-head');head.append(el('strong',groupData.label));group.append(head);const list=el('div',undefined,'permission-list-v4'),entries=[];
       for(const p of groupData.permissions){
-       const l=el('label',p.label),input=el('input');input.type='checkbox';input.checked=selectedPermissions.includes(p.id);input.disabled=!p.selectable||data.requiredPermissions.includes(p.id);
-       l.prepend(input);if(p.restricted||!p.selectable)l.append(el('small',p.restricted?' · restricted':' · not delegable from this Admin'));group.append(l);entries.push([p.id,input]);
+       const l=el('label',undefined,'permission-item'+((p.restricted||!p.selectable)?' restricted':'')),input=el('input'),span=el('span');
+       input.type='checkbox';input.checked=selectedPermissions.includes(p.id);input.disabled=!p.selectable||data.requiredPermissions.includes(p.id);span.append(document.createTextNode(p.label));if(p.restricted||!p.selectable)span.append(el('small',p.restricted?'Restricted backend action':'Not delegable from this Admin'));
+       l.append(input,span);list.append(l);entries.push([p.id,input]);allInputs.push(input);
       }
-      form.append(group);permissionGetters.push(()=>entries.filter(([,n])=>n.checked).map(([v])=>v));
+      group.append(list);matrix.append(group);permissionGetters.push(()=>entries.filter(([,n])=>n.checked).map(([v])=>v));
      }
-    }else permissionGetters.push(checkGroup('Permissions',data.permissions.map(p=>[p.id,p.label]),selectedPermissions,data.requiredPermissions));
+    }else{
+     const group=el('section',undefined,'permission-section'),list=el('div',undefined,'permission-list-v4'),entries=[];
+     for(const p of data.permissions){const l=el('label',undefined,'permission-item'),input=el('input'),span=el('span',p.label);input.type='checkbox';input.checked=selectedPermissions.includes(p.id);input.disabled=data.requiredPermissions.includes(p.id);l.append(input,span);list.append(l);entries.push([p.id,input]);allInputs.push(input);}
+     group.append(list);matrix.append(group);permissionGetters.push(()=>entries.filter(([,n])=>n.checked).map(([v])=>v));
+    }
+    selectAll.onclick=()=>allInputs.filter(i=>!i.disabled).forEach(i=>i.checked=true);clearAll.onclick=()=>allInputs.filter(i=>!i.disabled).forEach(i=>i.checked=false);
     const permissions=()=>[...new Set(permissionGetters.flatMap(fn=>fn()))],tenantIds=checkGroup('Operational tenants',data.tenantIds.map(t=>[t,t]),employee?.admin_scope?.tenantIds||data.tenantIds);
     form.append(el('p','Saving permission or status changes invalidates every existing Employee session. Employees always enroll in authenticator MFA.','notice'));
     const save=el('button','Save Employee');save.type='submit';form.append(save,button('Cancel',()=>reload()));
