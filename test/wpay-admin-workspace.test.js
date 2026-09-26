@@ -13,6 +13,15 @@ test('Admin topbar stays on V5 Notifications and Profile pages',()=>{
  assert.match(v5,/Open Account settings[\s\S]*?navigate\("v5\.profile"\)/);
  assert.doesNotMatch(v5,/Open Account settings[\s\S]*?administration\.account-security/);
 });
+test('Admin V5 Employee page requires explicit tenant selection and respects create/update capabilities',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8'),backend=fs.readFileSync(require.resolve('../lib/wpay/operations/employees.js'),'utf8');
+ assert.match(backend,/canCreate:[\s\S]*?employee_management\.create/);
+ assert.match(backend,/canUpdate:[\s\S]*?employee_management\.update/);
+ assert.match(ui,/if\(data\.canCreate\)tools\.append\(button\(el,"\+ Create employee"/);
+ assert.match(ui,/data\.canUpdate\?button\(el,"Edit"/);
+ assert.match(ui,/i\.checked=emp\?\(emp\.admin_scope\?\.tenantIds\|\|\[\]\)\.includes\(t\):false/);
+ assert.doesNotMatch(ui,/emp\?\.admin_scope\?\.tenantIds\|\|data\.tenantIds/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
