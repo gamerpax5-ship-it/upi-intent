@@ -38,6 +38,13 @@ test('Admin live shell keeps the V5 login and a single Overview navigation entry
  assert.match(css,/\.wpay-admin #account-home\{display:none!important\}/);
  assert.match(html,/id="account-home"/);
 });
+test('Admin V5 navigation preserves the uploaded HTML flow and page metadata',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8');
+ for(const label of ['DASHBOARD','ACCOUNTS & APPROVALS','COLLECTIONS & ROUTING','PARKING','PAYOUTS & TREASURY','APK SETUP','TEAM & ACCESS','FINANCE & REPORTS','DEVELOPER','SUPPORT & PLATFORM'])assert.ok(ui.includes(label));
+ for(const page of ['UPI daily limits','User assignments','Payout bank capabilities','Commission holds','Profit overview','Pay-in fees & commissions','Payout fees & commissions','Fixed payout revenue','USDT exchange','Salary management','Expense management'])assert.ok(ui.includes(page));
+ assert.ok(ui.includes("'Pay-in disputes':['DISPUTES','Live 48-hour Merchant pay-in dispute workflow"));
+ assert.ok(ui.includes("Profile:['ACCOUNT','Admin account and security controls.']"));
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
