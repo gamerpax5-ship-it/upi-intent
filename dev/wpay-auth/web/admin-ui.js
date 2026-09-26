@@ -24,19 +24,21 @@
     ['Analytics',can('overview.view')?'v5.analytics':null]
    ]],
    ['ACCOUNTS & APPROVALS','users',[
-    ['Users',dest('users.view','administration.users')],
-    ['Merchants',dest('merchants.view','administration.merchants')],
+    ['Users',can('users.view')?'v5.users':null],
+    ['Merchants',can('merchants.view')?'v5.merchants':null],
     ['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null],
-    ['User collection access',byDest('administration.user-access')?.destinationId],
-    ['User deposits',dest('deposits.view','administration.deposits')]
+    ['User collection access',can('users.commercial.update')?'v5.collection-access':null],
+    ['User deposits',can('deposits.view')?'v5.deposits':null]
    ]],
    ['COLLECTIONS & ROUTING','route',[
-    ['Bank & UPI',dest('bank_upi.view','administration.admin-upi','administration.bank-upi')],
+    ['Bank & UPI',can('bank_upi.view')?'v5.bank-upi':null],
     ['UPI Analytics',can('bank_upi.view')?'v5.upi-analytics':null],
-    ['User assignments',dest('assignments.view','administration.business-assignments')],
-    ['Assignments & routing',dest('routing.view','administration.routing')],
-    ['Transactions',dest('transactions.view','administration.transactions')],
-    ['Statements',dest('statement_reconciliation.view','operations.statements')]
+    ['UPI daily limits',can('bank_upi.view')?'v5.upi-limits':null],
+    ['Assignments & routing',can('routing.view')?'v5.routing':null],
+    ['User assignments',can('assignments.view')?'v5.assignments':null],
+    ['Transactions',can('transactions.view')?'v5.transactions':null],
+    ['Pay-in disputes',can('payin_dispute.view')?'v5.payin-disputes':null],
+    ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null]
    ]],
    ['PARKING','bank',[
     ['Beneficiaries',can('parking.view')?'v5.parking-beneficiaries':null],
@@ -44,51 +46,53 @@
     ['Review queue',can('parking.view')?'v5.parking-review':null]
    ]],
    ['PAYOUTS & TREASURY','finance',[
-    ['Payout approval',dest('payout_operations.view','payout.orders')],
-    ['Payout review',dest('payout_operations.view','payout.orders')],
-    ['Post-approval disputes',byDest('payout.disputes')?.destinationId],
-    ['Late payment reviews',byDest('payout.late-reviews')?.destinationId],
-    ['Payout bank capabilities',byDest('payout.capabilities')?.destinationId],
-    ['Merchant USDT',byDest('payout.merchant-usdt-admin')?.destinationId],
-    ['Commission withdrawals',byDest('payout.withdrawals')?.destinationId],
-    ['Commission holds',byDest('payout.holds')?.destinationId],
-    ['Holds / frozen',dest('holds.view','administration.holds')]
+    ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null],
+    ['Payout review',can('payout_operations.view')?'v5.payout-review':null],
+    ['Payout bank capabilities',can('payout_operations.view')?'v5.payout-capabilities':null],
+    ['Post-approval disputes',can('payout_operations.view')?'v5.payout-disputes':null],
+    ['Late payment reviews',can('payout_operations.view')?'v5.late-reviews':null],
+    ['Merchant USDT',can('payout_operations.view')?'v5.merchant-usdt':null],
+    ['Commission withdrawals',can('commission_withdrawal.view')?'v5.withdrawals':null],
+    ['User commissions',can('reports.view')?'v5.user-commissions':null],
+    ['Commission holds',can('commission_hold.view')?'v5.commission-holds':null],
+    ['Holds / frozen',can('holds.view')?'v5.holds':null]
    ]],
    ['APK SETUP','apk',[
-    ['Activation codes',dest('devices.view','operations.activation')],
-    ['Devices',dest('devices.view','operations.devices')],
+    ['Activation codes',can('devices.view')?'v5.activation':null],
+    ['Devices',can('devices.view')?'v5.devices':null],
     ['Pairing history',can('devices.view')?'v5.pairing-history':null],
     ['OTP Events',dest('apk_otp_events.view_all','operations.otp')],
-    ['UTR Center',dest('utr_center.view','operations.transactions')],
-    ['APK / Agent',dest('apk.view','administration.apk')]
+    ['UTR Capture',can('utr_center.view')?'v5.utr':null],
+    ['APK / Agent',can('apk.view')?'v5.apk':null]
    ]],
    ['TEAM & ACCESS','employee',[
-    ['Employees',dest('employee_management.view','operations.employees')],
-    ['Admin authority',byDest('operations.admins')?.destinationId]
+    ['Employees',can('employee_management.view')?'v5.employees':null],
+    ['Admin authority',byDest('operations.admins')?'v5.admins':null]
    ]],
    ['FINANCE & REPORTS','report',[
-    ['Ledger',dest('ledger.view','administration.ledger')],
-    ['Profit overview',byDest('admin-finance.overview')?.destinationId],
-    ['Pay-in fees & commissions',byDest('admin-finance.payin')?.destinationId],
-    ['Payout fees & commissions',byDest('admin-finance.payout')?.destinationId],
-    ['Fixed payout revenue',byDest('admin-finance.fixed')?.destinationId],
-    ['USDT exchange',byDest('admin-finance.usdt')?.destinationId],
-    ['Salary management',byDest('admin-finance.salary')?.destinationId],
-    ['Expense management',byDest('admin-finance.expenses')?.destinationId],
-    ['Reports',dest('reports.view','administration.reports')],
-    ['Audit log',byDest('admin-finance.audit')?.destinationId]
+    ['Ledger',can('ledger.view')?'v5.ledger':null],
+    ['Profit overview',can('reports.view')?'v5.profit-overview':null],
+    ['Pay-in fees & commissions',can('reports.view')?'v5.finance-payin':null],
+    ['Payout fees & commissions',can('reports.view')?'v5.finance-payout':null],
+    ['Fixed payout revenue',can('reports.view')?'v5.finance-fixed':null],
+    ['USDT exchange',can('reports.view')?'v5.finance-usdt':null],
+    ['Salary management',can('reports.view')?'v5.finance-salary':null],
+    ['Expense management',can('reports.view')?'v5.finance-expenses':null],
+    ['Profit & expenses',can('reports.view')?'v5.profit-expenses':null],
+    ['Reports',can('reports.view')?'v5.reports':null],
+    ['Audit log',can('settings.view')?'v5.audit':null]
    ]],
    ['DEVELOPER','settings',[
-    ['API credentials',dest('api_credentials.view','administration.api-credentials')],
-    ['Webhooks',dest('webhooks.view','administration.webhooks')],
-    ['API logs',dest('api_logs.view','administration.api-logs')]
+    ['API credentials',can('api_credentials.view')?'v5.credentials':null],
+    ['Webhooks',can('webhooks.view')?'v5.webhooks':null],
+    ['API logs',can('api_logs.view')?'v5.api-logs':null]
    ]],
    ['SUPPORT & PLATFORM','settings',[
-    ['Support',dest('support_admin.view','administration.support')],
-    ['Notifications',dest('notifications.view','completion.notifications')],
-    ['Account settings',dest('account_security.view','administration.account-security')],
-    ['Settings',dest('settings.view','administration.settings')],
-    ['Profile',dest('profile.view','completion.profile')]
+    ['Support',can('support_admin.view')?'v5.support':null],
+    ['Notifications',can('notifications.view')?'v5.notifications':null],
+    ['Security',can('account_security.view')?'v5.security':null],
+    ['Settings',can('settings.view')?'v5.settings':null],
+    ['Profile',can('profile.view')?'v5.profile':null]
    ]]
   ];
   const navigationRoot=$('navigation');navigationRoot.replaceChildren();
@@ -102,10 +106,22 @@
   const role=account.accountType==='super_admin'?'Super Admin':account.accountType==='employee'?'Employee':'Admin',initials=(account.name||role).split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
   $('admin-account').textContent=account.name||role;$('admin-scope').textContent=role+(account.accountType==='super_admin'?' · Platform authority':' · Scoped authority');$('admin-avatar').textContent=initials;$('admin-top-avatar').textContent=initials;$('admin-top-role').textContent=role;$('admin-top-scope').textContent=account.accountType==='super_admin'?'Platform scope':'Tenant scope';
   const label=[...defs.flatMap(g=>g[2])].find(([,d])=>d===selected)?.[0]||pages.find(p=>p.destinationId===selected)?.label||'Overview';$('admin-crumb').textContent=label;
-  const eyebrow=$('page-eyebrow'),subtitle=$('page-subtitle');if(eyebrow)eyebrow.textContent=groupForLabel(defs,label);if(subtitle)subtitle.textContent=subtitleFor(label);
+  const eyebrow=$('page-eyebrow'),subtitle=$('page-subtitle'),meta=pageMeta(label);if(eyebrow)eyebrow.textContent=meta.eyebrow;if(subtitle)subtitle.textContent=meta.subtitle;
  }
- function groupForLabel(defs,label){for(const [g,,items]of defs)if(items.some(x=>x[0]===label))return g;return 'ADMIN WORKSPACE';}
- function subtitleFor(label){const map={Overview:'Payments, risk, approvals and finance in one operational view.',Analytics:'Today, volume, UPI health, fees and operational trends.','Pending approvals':'All account and payment queues requiring action.','UPI Analytics':'UPI limits, routes, verification and availability.','Beneficiaries':'Parking beneficiaries visible to eligible Users.','Orders':'Parking orders, limits and User visibility.','Review queue':'Parking proof and payment review.','Pairing history':'Activation-code history and linked-device state.','Post-approval disputes':'48-hour successful payout dispute workflow.','Late payment reviews':'Expired payout and Parking proof review.'};return map[label]||'Live WPay operations with server-enforced permissions.';}
+ function pageMeta(label){
+  const map={
+   Overview:['ADMIN OVERVIEW','Full financial and operational command center.'],Analytics:['ANALYTICS','Today’s volume, success, users, UPI health, fees and operating trends.'],
+   Users:['ACCOUNTS','Approve users, manage capacity and commercial terms.'],Merchants:['ACCOUNTS','Approve merchants, fees, balances and settlement rates.'],'Pending approvals':['ACTION CENTER','All outstanding account, UPI, payout and withdrawal approvals.'],'User collection access':['ACCESS POLICY','Free setup and unlimited collection permissions without removing device, UPI or risk controls.'],'User deposits':['FUNDING','Review User USDT funding requests, evidence and capacity credit.'],
+   'Bank & UPI':['COLLECTIONS','Review collection accounts, daily limits and route readiness.'],'UPI Analytics':['COLLECTIONS','UPI volume, utilization, success, routes and availability analytics.'],'UPI daily limits':['COLLECTIONS','Per-UPI India daily limit utilization and owner-controlled limits.'],'Assignments & routing':['COLLECTIONS','Merchant-to-user UPI assignments, limits, priorities and readiness.'],'User assignments':['ROUTING','Merchant-to-User assignment layer, separate from bank-specific UPI routes.'],Transactions:['COLLECTIONS','Unified pay-in and payout transaction activity.'],'Pay-in disputes':['DISPUTES','Live 48-hour Merchant pay-in dispute workflow with evidence review and financial holds.'],'Statements & reconciliation':['RECONCILIATION','Uploaded statement sources and trusted-evidence review.'],
+   Beneficiaries:['PARKING','Create tenant-scoped beneficiaries that Users can confirm in their banking app.'],Orders:['PARKING','Create Parking orders visible only to Users who confirmed the beneficiary.'],'Review queue':['PARKING','Review User Parking payment proof, disputes and capacity restoration.'],
+   'Payout approval':['PAYOUTS','Approve reserved Merchant payout requests before User routing.'],'Payout review':['PAYOUTS','Merchant review with 15-minute automatic timeout approval.'],'Payout bank capabilities':['PAYOUTS','Approve or revoke a verified User bank version for payout work.'],'Post-approval disputes':['PAYOUTS','Real 48-hour successful-payout dispute workflow with capacity and commission holds.'],'Late payment reviews':['REVIEWS','Review expired payout or Parking proof without disturbing current assignments.'],'Merchant USDT':['TREASURY','Admin-rate Merchant USDT settlements and processing states.'],'Commission withdrawals':['TREASURY','User INR / USDT commission withdrawal review.'],'User commissions':['TREASURY','Pay-in and payout commission earnings, holds, reserves and withdrawals.'],'Commission holds':['TREASURY','Separate User commission hold ledger and release workflow.'],'Holds / frozen':['RISK','Operational holds and frozen balances.'],
+   'Activation codes':['APK SETUP','Admin and Employee pairing-code generation and claim status.'],Devices:['APK SETUP','All paired devices with scoped diagnostics and location history.'],'Pairing history':['APK SETUP','Account-owned pairing codes, used/expired/revoked state and scoped device linking.'],'OTP Events':['APK SETUP','Scoped OTP event access for authorized operational roles.'],'UTR Capture':['APK SETUP','Combined APK-captured and uploaded-statement UTR stream with review actions.'],'APK / Agent':['APK SETUP','Published Android Agent build, signing and release pipeline summary.'],
+   Employees:['TEAM','Tenant-scoped Employee access and delegated operations.'],'Admin authority':['TEAM','Super Admin delegated Admin access and permissions.'],
+   Ledger:['FINANCE','Accounting movements, commissions, holds and financial references.'],'Profit overview':['FINANCE','Merchant fees minus User commissions and recorded operating costs.'],'Pay-in fees & commissions':['FINANCE','Merchant pay-in fees, User pay-in commissions and margin.'],'Payout fees & commissions':['FINANCE','Merchant payout fees, User payout commissions and margin.'],'Fixed payout revenue':['FINANCE','Successful payout count and fixed/percentage fee components.'],'USDT exchange':['FINANCE','Confirmed User deposits and completed Merchant settlement totals; FX profit remains unavailable.'],'Salary management':['FINANCE','Record or void salary expense records.'],'Expense management':['FINANCE','Server, maintenance and other operating expenses.'],'Profit & expenses':['FINANCE','Platform fees, User commissions, expenses and operating margin.'],Reports:['REPORTS','Operational period summaries and exports.'],'Audit log':['AUDIT','Security, panel, business and operational audit history.'],
+   'API credentials':['DEVELOPER','Merchant API credential metadata and scopes.'],Webhooks:['DEVELOPER','Delivery status, retries and endpoints.'],'API logs':['DEVELOPER','Merchant API access audit.'],Support:['SUPPORT','User and Merchant support queue.'],Notifications:['PLATFORM','Admin alerts and action signals.'],Security:['SECURITY','Admin/session policy and authority boundaries.'],Settings:['SETTINGS','Commercial defaults and platform behavior.'],Profile:['ACCOUNT','Admin account and security controls.']
+  };
+  const [eyebrow,subtitle]=map[label]||['ADMIN WORKSPACE','Live WPay operations with server-enforced permissions.'];return {eyebrow,subtitle};
+ }
  function connect(value){api=value;
   const menu=$('admin-menu-btn'),veil=$('admin-mobile-veil'),theme=$('admin-theme'),notifications=$('admin-notifications'),profile=$('admin-profile'),sidebarSearch=$('admin-search'),globalSearch=$('admin-global-search'),results=$('admin-search-results');
   if(menu)menu.onclick=()=>document.body.classList.toggle('admin-nav-open');if(veil)veil.onclick=()=>document.body.classList.remove('admin-nav-open');
@@ -113,22 +129,23 @@
   const filterNav=q=>{q=q.trim().toLowerCase();for(const group of $('navigation').querySelectorAll('.nav-group')){let shown=0;for(const b of group.querySelectorAll('.nav-item')){b.hidden=!!q&&!b.textContent.toLowerCase().includes(q);if(!b.hidden)shown++;}group.hidden=!!q&&!shown;}};
   if(sidebarSearch)sidebarSearch.oninput=e=>filterNav(e.target.value);
   if(globalSearch)globalSearch.oninput=e=>{const q=e.target.value.trim().toLowerCase();results.replaceChildren();if(!q){results.classList.add('hidden');return;}const matches=[...$('navigation').querySelectorAll('.nav-item')].filter(b=>b.textContent.toLowerCase().includes(q)).slice(0,10);for(const b of matches){const r=document.createElement('div');r.className='search-result';r.innerHTML='<strong>'+b.textContent+'</strong><small>Admin module</small>';r.onclick=()=>{results.classList.add('hidden');globalSearch.value='';api.navigate(b.dataset.destination);};results.append(r);}results.classList.toggle('hidden',!matches.length);};
-  if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate(p.destinationId);};
-  if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate(p.destinationId);};
+  if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate('v5.notifications');};
+  if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate('v5.profile');};
  }
  async function overview({account,post,action,el,container,title,navigate},days=30){
   title.textContent='Overview';container.replaceChildren(el('p','Loading your operational overview…','admin-empty'));
-  let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card admin-panel'),retry=el('button','Retry overview','primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable.','admin-subtitle'),retry);container.replaceChildren(box);throw error;}container.replaceChildren();
-  const pages=nav.groups.flatMap(g=>g.children),go=(permission,label)=>{const b=el('button',label),p=pages.find(p=>p.permissionId===permission);b.type='button';b.disabled=!p;b.onclick=()=>navigate(p.destinationId);return b;};
-  const hero=el('section',undefined,'admin-command');const heroText=el('div');heroText.append(el('span','OPERATIONS COMMAND CENTER','admin-command-eyebrow'),el('h2','WPay platform at a glance'),el('p','Financial position, collections, approvals and operational health without overwhelming the screen.'));const heroActions=el('div',undefined,'admin-command-actions');const period=el('select');for(const n of [7,30,60]){const o=el('option','Last '+n+' days');o.value=n;period.append(o);}period.value=days;period.onchange=()=>action(()=>overview({account,post,action,el,container,title,navigate},Number(period.value)));heroActions.append(period,go('reports.view','Reports'));hero.append(heroText,heroActions);container.append(hero);
-  const primary=[['Total volume',data.totalVolume,'Successful payment volume'],['Today collection',data.todayCollection,'India day successful pay-ins'],['Merchant available',data.merchantAvailable,'Spendable Merchant INR'],['User capacity',data.totalUserCapacity,'Allocated User capacity'],['Platform fees',data.totalFees,'Merchant pay-in + payout fees'],['Pending actions',Object.values(data.approvals||{}).filter(v=>v!==null&&v!==undefined).reduce((n,v)=>n+Number(v),0),'Approvals and reviews']];
-  const pgrid=el('div',undefined,'admin-primary-kpis');for(const [label,value,hint]of primary){const card=el('article',undefined,'card admin-kpi-compact');card.append(el('span',label,'admin-kpi-label'),el('strong',typeof value==='number'?String(value):money(value)),el('small',hint));pgrid.append(card);}container.append(pgrid);
-  const secondary=el('div',undefined,'admin-secondary-kpis');for(const [label,value,moneyValue=false]of [['Users',data.totalUsers],['Merchants',data.totalMerchants],['Employees',data.totalEmployees],['User commission',data.totalUserCommission,true],['User deposits',data.totalUserDeposits,true],['Running UPI',data.runningUpi],['Available UPI',data.availableUpi],['Success rate',data.successRate===null||data.successRate===undefined?'—':(Number(data.successRate)*100).toFixed(1)+'%']]){const item=el('div');item.append(el('small',label),el('strong',moneyValue?money(value):String(value??'—')));secondary.append(item);}container.append(secondary);
-  const first=el('div',undefined,'admin-columns'),chart=el('section',undefined,'card admin-panel'),queue=el('section',undefined,'card admin-panel');chart.append(el('h2','Collection & payout trend'),el('p','Successful volume · selected period','admin-subtitle'));const legend=el('div','● Pay-in','admin-legend');legend.append(el('span','● Payout'));chart.append(legend);
-  if(data.totalVolume===null)chart.append(el('p','Volume unavailable for your permissions.','admin-empty'));else if(!data.series.length)chart.append(el('p','No successful payments in this period.','admin-empty'));else chart.append(volumeChart(data));
-  queue.append(el('h2','Action center'));for(const [label,value,permission]of [['User approvals',data.approvals.user,'users.view'],['Merchant approvals',data.approvals.merchant,'merchants.view'],['Bank & UPI review',data.approvals.bank,'bank_upi.view'],['Deposit review',data.approvals.deposit,'deposits.view'],['Payout approvals',data.approvals.payout,'payout_operations.view'],['Payout disputes',data.approvals.dispute,'payout_operations.view'],['Late reviews',data.approvals.late,'payout_operations.view'],['Withdrawals',data.approvals.withdrawal,'commission_withdrawal.view']]){if(value===undefined)continue;const row=el('div',undefined,'admin-review');row.append(el('span',label),el('strong',String(value??'—')),go(permission,'Review →'));queue.append(row);}first.append(chart,queue);container.append(first);
-  const second=el('div',undefined,'admin-columns'),payouts=el('section',undefined,'card admin-panel'),health=el('section',undefined,'card admin-panel');payouts.append(el('h2','Recent payouts'));if(!data.recentPayouts?.length)payouts.append(el('p',data.recentPayouts?'No payouts yet.':'Payouts unavailable for your permissions.','admin-empty'));else{const wrap=el('div',undefined,'table-wrap'),table=el('table',undefined,'admin-table'),head=el('thead'),hr=el('tr');for(const h of ['Reference','Merchant','Amount','Fee','Status'])hr.append(el('th',h));head.append(hr);table.append(head);const body=el('tbody');for(const p of data.recentPayouts){const row=el('tr');for(const v of [p.reference,p.merchant,money(p.amount),money(p.fee)])row.append(el('td',v));const status=el('td');status.append(el('span',p.state.replaceAll('_',' '),'admin-state '+p.state));row.append(status);body.append(row);}table.append(body);wrap.append(table);payouts.append(wrap);}
-  health.append(el('h2','Operational health'));for(const [label,value]of [['Active Users',data.activeUsers],['Today Volume',money(data.todayVolume)],['Today Payout',money(data.todayPayoutVolume)],['Successful Payouts',data.successfulPayouts],['Total Settlement',money(data.settlement)]]){const row=el('div',undefined,'admin-profit-row');row.append(el('span',label),el('strong',String(value??'—')));health.append(row);}second.append(payouts,health);container.append(second);
+  let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card panel'),retry=el('button','Retry overview','btn primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable.','muted'),retry);container.replaceChildren(box);throw error;}container.replaceChildren();
+  const pages=nav.groups.flatMap(g=>g.children),go=(permission,label,destination)=>{const b=el('button',label,'btn sm'),p=pages.find(p=>p.permissionId===permission);b.type='button';b.disabled=!p;b.onclick=()=>navigate(destination||p.destinationId);return b;};
+  const hero=el('section',undefined,'command-strip'),main=el('div',undefined,'command-main'),copy=el('div'),actions=el('div',undefined,'command-actions');copy.append(el('div','OPERATIONS COMMAND CENTER','eyebrow'),el('h2','WPay platform at a glance'),el('p','Financial position, collection health and operational queues without overwhelming the screen.'));const analytics=go('overview.view','Analytics','v5.analytics');analytics.classList.add('primary');actions.append(analytics,go('users.view','Action center','v5.approvals'));main.append(copy,actions);hero.append(main);container.append(hero);
+  const primary=[['Total volume',data.totalVolume,'Successful payment volume'],['Today collection',data.todayCollection,'Successful pay-ins today'],['Merchant available',data.merchantAvailable,'Spendable Merchant INR'],['User capacity',data.totalUserCapacity,'Allocated capacity'],['Platform fees',data.totalFees,'Fee income'],['Pending actions',Object.values(data.approvals||{}).filter(v=>v!==null&&v!==undefined).reduce((n,v)=>n+Number(v),0),'Needs Admin review']];
+  const pgrid=el('div',undefined,'primary-kpis');for(const [label,value,hint]of primary){const card=el('article',undefined,'kpi-compact'),ico=el('div','•','ico'),body=el('div');body.append(el('small',label),el('strong',typeof value==='number'?String(value):money(value)),el('em',hint));card.append(ico,body);pgrid.append(card);}container.append(pgrid);
+  const secondary=el('div',undefined,'secondary-kpis');for(const [label,value,moneyValue=false]of [['Total users',data.totalUsers],['Merchants',data.totalMerchants],['Employees',data.totalEmployees],['User commission',data.totalUserCommission,true],['User deposits',data.totalUserDeposits,true],['Running UPI',data.runningUpi],['Available UPI',data.availableUpi],['Success rate',data.successRate===null||data.successRate===undefined?'—':(Number(data.successRate)*100).toFixed(1)+'%']]){const item=el('div');item.append(el('small',label),el('strong',moneyValue?money(value):String(value??'—')));secondary.append(item);}container.append(secondary);
+  const grid=el('div',undefined,'dashboard-grid'),chart=el('section',undefined,'card panel'),queue=el('section',undefined,'card panel');const chartHead=el('div',undefined,'panel-head'),chartCopy=el('div');chartCopy.append(el('h2','Collection & payout trend'),el('p','Last '+days+' days · INR'));chartHead.append(chartCopy);chart.append(chartHead);if(data.totalVolume===null)chart.append(el('p','Volume unavailable for your permissions.','empty'));else if(!data.series.length)chart.append(el('p','No successful payments in this period.','empty'));else chart.append(volumeChart(data));
+  const qHead=el('div',undefined,'panel-head'),qCopy=el('div');qCopy.append(el('h2','Action center'),el('p','Highest priority queues'));qHead.append(qCopy);queue.append(qHead);const list=el('div',undefined,'action-list');
+  for(const [label,value,permission,destination]of [['User approvals',data.approvals.user,'users.view','v5.approvals'],['Merchant approvals',data.approvals.merchant,'merchants.view','v5.approvals'],['UPI reviews',data.approvals.bank,'bank_upi.view','v5.bank-upi'],['Payout approvals',data.approvals.payout,'payout_operations.view','v5.payout-approval'],['Deposit review',data.approvals.deposit,'deposits.view','v5.deposits'],['Payout disputes',data.approvals.dispute,'payout_operations.view','v5.payout-disputes'],['Late reviews',data.approvals.late,'payout_operations.view','v5.late-reviews']]){if(value===undefined)continue;const item=el('div',undefined,'action-card'),icon=el('div','•','action-icon'),body=el('div');body.append(el('strong',label),el('span',String(value??0)+' waiting for action'));item.append(icon,body,go(permission,'Review →',destination));list.append(item);}queue.append(list);grid.append(chart,queue);container.append(grid);
+  const bottom=el('div',undefined,'dashboard-bottom'),activity=el('section',undefined,'card panel'),health=el('section',undefined,'card panel'),aHead=el('div',undefined,'panel-head'),aCopy=el('div');aCopy.append(el('h2','Recent financial activity'),el('p','Latest posted / verification activity'));aHead.append(aCopy,go('transactions.view','View all','v5.transactions'));activity.append(aHead);
+  const rows=(data.recentActivity||[]).map(r=>[r.reference,r.type,money(r.amount),(r.merchant||'—')+' · '+(r.user||'—'),r.status,r.evidence]);activity.append((globalThis.WPayAdminV5Pages?.table?globalThis.WPayAdminV5Pages.table(el,['Reference','Type','Amount','Party','Status','Evidence'],rows):(()=>{const wrap=el('div',undefined,'table-wrap'),t=el('table'),head=el('thead'),hr=el('tr');for(const h of ['Reference','Type','Amount','Party','Status','Evidence'])hr.append(el('th',h));head.append(hr);const body=el('tbody');for(const r of rows){const tr=el('tr');for(const v of r)tr.append(el('td',String(v??'—')));body.append(tr);}t.append(head,body);wrap.append(t);return wrap;})()));
+  const hHead=el('div',undefined,'panel-head'),hCopy=el('div');hCopy.append(el('h2','Operational health'),el('p','Collections + platform'));hHead.append(hCopy);health.append(hHead);for(const [label,value]of [['Running / available UPI',(data.runningUpi??'—')+' / '+(data.availableUpi??'—')],['Active users',data.activeUsers],['Today volume',money(data.todayVolume)],['Today payout',money(data.todayPayoutVolume)],['Successful payouts',data.successfulPayouts],['Settlement',money(data.settlement)]]){const row=el('div',undefined,'summary-row');row.append(el('span',label),el('strong',String(value??'—')));health.append(row);}bottom.append(activity,health);container.append(bottom);
   const foot=el('div',undefined,'admin-bottom');foot.append(el('span','Updated '+new Date(data.asOf).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST'),el('span','Role-scoped metrics only'));container.append(foot);
  }
  function volumeChart(data){
