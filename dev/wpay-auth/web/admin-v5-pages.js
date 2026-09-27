@@ -807,11 +807,23 @@
     grid.append(commercial,policy);container.append(grid);
   }
   async function ledgerPage(o){
-    const {request,post,el,container,title}=o;title.textContent="Ledger";container.replaceChildren();
-    const data=await request("business/ledger"),entries=data.entries||[];
-    container.append(el("p","Live owner-side ledger projection. Immutable journals, balancing entries and idempotency data remain server authority.","notice"));
-    const rows=entries.map(e=>[new Date(e.created_at).toLocaleString("en-IN"),e.owner_id,e.ledger_type,e.direction,money(e.amount_minor),e.reference_type,e.reference_id,e.payout_status||"—"]);
-    container.append(panelTable(el,["Time","Owner","Ledger type","Direction","Amount","Reference type","Reference","Payout state"],rows));
+    const {post,action,el,container,title}=o;title.textContent="Ledger";container.replaceChildren();
+    const state=o.state||{},filter={ownerId:state.ownerId||null,reference:state.reference||"",type:state.type||"",offset:Number(state.offset||0)},data=await post("business/ledger/search",filter),entries=data.entries||[];
+    const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const metrics=el("div",undefined,"grid analytics-metrics"),credits=entries.filter(e=>e.direction==="credit").reduce((n,e)=>n+BigInt(e.amount_minor||0),0n),debits=entries.filter(e=>e.direction==="debit").reduce((n,e)=>n+BigInt(e.amount_minor||0),0n);
+    metrics.append(
+      metric(el,"Entries",entries.length,"Current 50-row page"),
+      metric(el,"Credits",money(credits),"Displayed credit entries"),
+      metric(el,"Debits",money(debits),"Displayed debit entries"),
+      metric(el,"Net displayed",money(credits-debits),"Display-only page total"),
+      metric(el,"Ledger types",new Set(entries.map(e=>e.ledger_type)).size,"On current page"),
+      metric(el,"More rows",data.nextOffset!==null?"Yes":"No","Server pagination")
+    );
+    const toolbar=el("form",undefined,"toolbar"),owner=el("input"),reference=el("input"),type=el("input");owner.className=reference.className=type.className="control";owner.placeholder="Owner UUID (optional)";owner.value=filter.ownerId||"";reference.placeholder="Exact reference";reference.value=filter.reference;type.placeholder="Ledger type";type.value=filter.type;const search=el("button","Apply filters","primary");search.type="submit";toolbar.append(owner,reference,type,search);if(filter.ownerId||filter.reference||filter.type){const clear=button(el,"Clear",()=>action(()=>ledgerPage({...o,state:{}})));toolbar.append(clear);}toolbar.onsubmit=e=>{e.preventDefault();action(()=>ledgerPage({...o,state:{ownerId:owner.value.trim()||null,reference:reference.value.trim(),type:type.value.trim(),offset:0}}));};
+    container.append(metrics,toolbar,el("p","Live scoped ledger projection. Journal idempotency, balancing entries and source accounting remain server authority. Page totals below are not a platform profit calculation.","notice"));
+    const rows=entries.map(e=>[new Date(e.created_at).toLocaleString("en-IN"),e.owner_id,e.account_type,e.ledger_type,e.direction,money(e.amount_minor),e.currency,e.reference_type,e.reference_id,e.payout_status||"—",e.actor_source||"—",e.snapshot?.version??"—"]);
+    container.append(panelTable(el,["Time","Owner","Account","Ledger type","Direction","Amount","Currency","Reference type","Reference","Payout state","Actor source","Terms version"],rows,"Ledger entries","Offset "+filter.offset));
+    const pager=el("div",undefined,"admin-row-actions");if(filter.offset>0)pager.append(button(el,"Previous",()=>action(()=>ledgerPage({...o,state:{...state,offset:Math.max(0,filter.offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>ledgerPage({...o,state:{...state,offset:data.nextOffset}})),"primary"));container.append(pager);
   }
 
   async function reportsPage(o){
@@ -865,21 +877,42 @@
     return o.post("panel/admin-finance",{offset:0});
   }
   async function profitOverviewPage(o){
-    const {el,container,title}=o;title.textContent="Profit overview";const d=await financeSnapshot(o),fees=d.fees||{},m=k=>BigInt(fees[k]||0),merchantFees=m("merchant_platform_fee")+m("merchant_payout_fee"),userCommissions=m("user_commission")+m("user_payout_commission");
-    container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant fees",money(merchantFees),"Posted pay-in + payout fees"),metric(el,"User commissions",money(userCommissions),"Pay-in + payout"),metric(el,"Salary & expenses",money(d.totalCosts||0),"Recorded operating costs"),metric(el,"Operating margin",money(d.operatingMargin||0),"Fees − commissions − costs"));container.append(grid,el("p","USDT exchange profit is excluded until acquisition-cost matching exists.","notice"));
+    const {el,container,title}=o;title.textContent="Profit overview";const d=await financeSnapshot(o),fees=d.fees||{},m=k=>BigInt(fees[k]||0),merchantPayin=m("merchant_platform_fee"),merchantPayout=m("merchant_payout_fee"),merchantFees=merchantPayin+merchantPayout,userPayin=m("user_commission"),userPayout=m("user_payout_commission"),userCommissions=userPayin+userPayout,costs=BigInt(d.totalCosts||0),margin=BigInt(d.operatingMargin||0);
+    container.replaceChildren();const grid=el("div",undefined,"grid analytics-metrics");grid.append(
+      metric(el,"Merchant fees",money(merchantFees),"Pay-in + payout posted fees"),
+      metric(el,"User commissions",money(userCommissions),"Pay-in + payout posted commissions"),
+      metric(el,"Operating costs",money(costs),"Non-void salary + expenses"),
+      metric(el,"Operating margin",money(margin),"Fees − commissions − costs"),
+      metric(el,"Pay-in margin",money(merchantPayin-userPayin),"Pay-in fee less commission"),
+      metric(el,"Payout margin",money(merchantPayout-userPayout),"Payout fee less commission")
+    );
+    const period=el("p","Period: "+new Date(d.from).toLocaleString("en-IN")+" → "+new Date(d.to).toLocaleString("en-IN")+". USDT exchange profit is excluded because acquisition-cost matching is not available.","notice");
+    const breakdown=panelTable(el,["Component","Amount"],[
+      ["Merchant pay-in fees",money(merchantPayin)],["Merchant payout fees",money(merchantPayout)],["User pay-in commissions",money(userPayin)],["User payout commissions",money(userPayout)],["Salary & operating expenses",money(costs)],["Operating margin",money(margin)]
+    ],"Operating margin breakdown","Backend period projection");
+    container.append(grid,period,breakdown);
   }
+
   async function financePayinPage(o){
-    const {el,container,title}=o;title.textContent="Pay-in fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_platform_fee||0),comm=BigInt(f.user_commission||0);container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant pay-in fees",money(fees),"Successful pay-ins"),metric(el,"User pay-in commission",money(comm),"User earnings"),metric(el,"Pay-in margin",money(fees-comm),"Fee less commission"));container.append(grid);
+    const {el,container,title}=o;title.textContent="Pay-in fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_platform_fee||0),comm=BigInt(f.user_commission||0),gross=BigInt(f.merchant_gross||0),consumed=BigInt(f.capacity_consumed||0),margin=fees-comm;container.replaceChildren();
+    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Merchant pay-in fees",money(fees),"Posted platform fees"),metric(el,"User pay-in commission",money(comm),"Posted User earnings"),metric(el,"Pay-in margin",money(margin),"Fee less commission"),metric(el,"Merchant gross",money(gross),"Ledger gross in period"),metric(el,"User capacity consumed",money(consumed),"Collection-side capacity movement"),metric(el,"Period","60d max",new Date(d.from).toLocaleDateString("en-IN")+" – "+new Date(d.to).toLocaleDateString("en-IN")));container.append(grid,el("p","All figures are net ledger movements in the current report window; this page does not reconstruct transaction-level gross from UI assumptions.","notice"));
   }
+
   async function financePayoutPage(o){
-    const {el,container,title}=o;title.textContent="Payout fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_payout_fee||0),comm=BigInt(f.user_payout_commission||0);container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Merchant payout fees",money(fees),"Successful payouts"),metric(el,"User payout commission",money(comm),"User earnings"),metric(el,"Payout margin",money(fees-comm),"Fee less commission"));container.append(grid,el("p","Fixed payout fees are already included in posted Merchant payout fees and are not double-counted.","notice"));
+    const {el,container,title}=o;title.textContent="Payout fees & commissions";const d=await financeSnapshot(o),f=d.fees||{},fees=BigInt(f.merchant_payout_fee||0),comm=BigInt(f.user_payout_commission||0),principal=BigInt(f.merchant_payout_principal||0),margin=fees-comm,p=d.payout||{};container.replaceChildren();
+    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Merchant payout fees",money(fees),"Net posted payout fees"),metric(el,"User payout commission",money(comm),"Net posted User earnings"),metric(el,"Payout margin",money(margin),"Fee less commission"),metric(el,"Payout principal",money(principal),"Net Merchant payout principal"),metric(el,"Net successful payouts",p.count||0,"Successful minus invalid-dispute reversals"),metric(el,"Fixed + percentage",money(BigInt(p.fixed||0)+BigInt(p.percentage||0)),"Net payout fee components"));container.append(grid,el("p","Fixed payout fees are already included in merchant payout fees. payment_invalid post-approval dispute resolutions are netted out by the backend and are not double-counted here.","notice"));
   }
+
   async function financeFixedPage(o){
-    const {el,container,title}=o;title.textContent="Fixed payout revenue";const d=await financeSnapshot(o),p=d.payout||{};container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Successful payouts",p.count||0,"Net successful payouts"),metric(el,"Fixed payout revenue",money(p.fixed||0),"Fixed fee component"),metric(el,"Percentage payout fees",money(p.percentage||0),"Percentage component"));container.append(grid);
+    const {el,container,title}=o;title.textContent="Fixed payout revenue";const d=await financeSnapshot(o),p=d.payout||{},fixed=BigInt(p.fixed||0),percentage=BigInt(p.percentage||0),total=fixed+percentage;container.replaceChildren();
+    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Net successful payouts",p.count||0,"Successful less invalid-dispute reversals"),metric(el,"Fixed payout revenue",money(fixed),"Net fixed component"),metric(el,"Percentage payout fees",money(percentage),"Net percentage component"),metric(el,"Total payout fee components",money(total),"Fixed + percentage"),metric(el,"Average fixed fee",Number(p.count||0)>0?money(fixed/BigInt(p.count)):"—","Net fixed ÷ net successful count"),metric(el,"Period",new Date(d.from).toLocaleDateString("en-IN")+" – "+new Date(d.to).toLocaleDateString("en-IN"),"Current finance window"));container.append(grid,el("p","The backend subtracts fixed and percentage fees for payouts later resolved payment_invalid, so this is net revenue rather than raw successful-event count.","notice"));
   }
+
   async function financeUsdtPage(o){
-    const {el,container,title}=o;title.textContent="USDT exchange";const d=await financeSnapshot(o),fund=d.funding||{},set=d.settlement||{},usdt=v=>{const n=BigInt(v||0),a=n<0n?-n:n,s=a.toString().padStart(7,"0");return (n<0n?"−":"")+s.slice(0,-6)+"."+s.slice(-6)+" USDT";};container.replaceChildren();const grid=el("div",undefined,"admin-primary-kpis");grid.append(metric(el,"Confirmed User deposits",usdt(fund.usdt),"USDT received"),metric(el,"INR capacity credited",money(fund.inr||0),"Funding conversion"),metric(el,"Completed Merchant settlements",usdt(set.usdt),"USDT settlement"),metric(el,"INR settled",money(set.inr||0),"Settlement principal"));container.append(grid,el("p","FX profit is intentionally unavailable; deposit-vs-settlement difference is not treated as profit.","notice"));
+    const {el,container,title}=o;title.textContent="USDT exchange";const d=await financeSnapshot(o),fund=d.funding||{},set=d.settlement||{},usdt=v=>{const n=BigInt(v||0),a=n<0n?-n:n,s=a.toString().padStart(7,"0");return (n<0n?"−":"")+s.slice(0,-6)+"."+s.slice(-6)+" USDT";},fundUsdt=BigInt(fund.usdt||0),settleUsdt=BigInt(set.usdt||0),fundInr=BigInt(fund.inr||0),settleInr=BigInt(set.inr||0);container.replaceChildren();
+    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Confirmed User deposits",usdt(fundUsdt),"USDT received in confirmed funding"),metric(el,"INR capacity credited",money(fundInr),"Confirmed funding conversion"),metric(el,"Completed Merchant settlements",usdt(settleUsdt),"USDT manual settlement records"),metric(el,"INR settled",money(settleInr),"Merchant settlement principal"),metric(el,"USDT flow difference",usdt(fundUsdt-settleUsdt),"Operational flow only"),metric(el,"FX profit","Unavailable","Acquisition-cost matching not implemented"));container.append(grid,el("p","USDT deposit minus settlement difference is not profit. Current backend intentionally returns fxProfit=null because acquisition-cost matching is not implemented. Merchant completion records are manual and explicitly not labeled blockchain-confirmed.","notice"));
   }
+
   async function expensePage(o,mode){
     const {post,action,el,container,title}=o,d=await financeSnapshot(o),salary=mode==="salary";title.textContent=salary?"Salary management":"Expense management";container.replaceChildren(el("p","These records affect reporting only; saving does not transfer money. Voided entries remain auditable.","notice"));
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(d.canManage)tools.append(button(el,salary?"+ Record salary":"+ Record expense",()=>create(),"primary"));}
