@@ -46,6 +46,7 @@ jobs:
       - name: Full legacy and WPay test suite with disposable PostgreSQL
         run: npm test
       - name: Actual WPay migrations, HTTP, approval and mandatory MFA
+        if: ${{ !cancelled() }}
         env:
           WPAY_CI_ISOLATED: github-service-container
         run: node scripts/test-wpay-ci.js
