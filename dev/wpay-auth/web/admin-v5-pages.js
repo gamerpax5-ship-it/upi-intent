@@ -152,7 +152,7 @@
     const data=await post("business/upi-analytics",{days});
     container.replaceChildren();
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const n of [1,7,30]){const b=button(el,n===1?"Today":n+" days",()=>action(()=>upiAnalytics({...o,state:{...(o.state||{}),days:n}})),n===days?"active":"");b.dataset.upiWindow=String(n);tabs.append(b);}tools.append(tabs);}
-    const totalLimit=BigInt(data.totalLimit||0),used=BigInt(data.used||0),util=totalLimit?Number(used*10000n/totalLimit)/100:0,activeRoutes=data.banks.reduce((n,b)=>n+Number(b.route_count||0),0),totalTx=data.banks.reduce((n,b)=>n+Number(b.txTotal||0),0),ok=data.banks.reduce((n,b)=>n+Number(b.successful||0),0),failed=data.banks.reduce((n,b)=>n+Number(b.failed||0),0),pending=data.banks.reduce((n,b)=>n+Number(b.pending||0),0),successRate=ok+failed?ok/(ok+failed)*100:0,volume=data.banks.reduce((n,b)=>n+BigInt(b.volume||b.successful_volume_minor||0),0n);
+    const totalLimit=BigInt(data.totalLimit||0),used=BigInt(data.used||0),util=totalLimit?Number(used*10000n/totalLimit)/100:0,activeRoutes=data.banks.reduce((n,b)=>n+Number(b.route_count||0),0),totalTx=data.banks.reduce((n,b)=>n+Number(b.txTotal||0),0),ok=data.banks.reduce((n,b)=>n+Number(b.successful||0),0),pending=data.banks.reduce((n,b)=>n+Number(b.pending||0),0),successRate=totalTx?ok/totalTx*100:0,volume=data.banks.reduce((n,b)=>n+BigInt(b.volume||b.successful_volume_minor||0),0n);
     const metrics=el("div",undefined,"grid analytics-metrics");
     metrics.append(
       metric(el,"Total UPI",data.banks.length,"All configured accounts"),
@@ -161,15 +161,15 @@
       metric(el,"Collection volume",money(volume),days===1?"Today":days+" day window"),
       metric(el,"Limit used",money(used),util.toFixed(1)+"% utilization"),
       metric(el,"Active routes",activeRoutes,"Merchant assignments"),
-      metric(el,"Success rate",successRate.toFixed(1)+"%","Successful ÷ successful + failed"),
+      metric(el,"Success rate",successRate.toFixed(1)+"%","Successful ÷ all orders in window"),
       metric(el,"Needs review",data.banks.filter(x=>["submitted","review"].includes(x.status)).length,"UPI review queue")
     );container.append(metrics);
     if(!data.banks.length){container.append(el("div","No UPI analytics are available for the current scope.","empty"));return;}
     const byUtil=[...data.banks].sort((a,b)=>{const bl=BigInt(b.sharedLimit||0),al=BigInt(a.sharedLimit||0),bp=bl?Number(BigInt(b.used||0)*10000n/bl):0,ap=al?Number(BigInt(a.used||0)*10000n/al):0;return bp-ap;});
     const grid=el("div",undefined,"grid two-col"),utilCard=el("section",undefined,"card panel"),health=el("section",undefined,"card panel");const uHead=el("div",undefined,"panel-head"),uCopy=el("div");uCopy.append(el("h2","UPI utilization"),el("p","Shared daily limit consumption · highest first"));uHead.append(uCopy);utilCard.append(uHead);const bars=el("div",undefined,"mini-bar-list");for(const b of byUtil){const limit=BigInt(b.sharedLimit||0),spent=BigInt(b.used||0),p=limit?Number(spent*10000n/limit)/100:0,row=el("div",undefined,"mini-bar-row"),label=el("label",(b.details?.upiId||b.id)+" · "+(b.owner_name||"—")),progress=el("div",undefined,"progress"),fill=el("span");fill.style.width=Math.min(100,p)+"%";progress.append(fill);row.append(label,progress,el("strong",p.toFixed(1)+"%"));bars.append(row);}utilCard.append(bars);
-    const hHead=el("div",undefined,"panel-head"),hCopy=el("div");hCopy.append(el("h2","Route & transaction health"),el("p",days===1?"Today":"Last "+days+" days"));hHead.append(hCopy);health.append(hHead);for(const [l,v]of [["Running / available",data.running+" / "+data.available],["Frozen UPI",data.banks.filter(x=>x.frozen).length],["Active routes",activeRoutes],["Transactions",totalTx],["Successful",ok],["Failed",failed],["Pending / verification",pending]]){const row=el("div",undefined,"admin-profit-row");row.append(el("span",l),el("strong",String(v)));health.append(row);}grid.append(utilCard,health);container.append(grid);
-    const rows=data.banks.map(b=>{const limit=BigInt(b.sharedLimit||0),spent=BigInt(b.used||0),remaining=limit>spent?limit-spent:0n;return [(b.details?.upiId||b.id)+" · "+(b.owner_name||"—"),b.frozen?"frozen":b.status,b.route_count||0,b.txTotal||0,b.successful||0,b.failed||0,b.pending||0,b.successRate==null?"—":Number(b.successRate).toFixed(1)+"%",money(b.volume||b.successful_volume_minor||0),money(remaining)];});
-    container.append(panelTable(el,["UPI / owner","State","Routes","Transactions","Successful","Failed","Pending","Success rate","Volume","Limit remaining"],rows,"UPI performance","Live scoped analytics · "+(days===1?"Today":days+" days")));
+    const hHead=el("div",undefined,"panel-head"),hCopy=el("div");hCopy.append(el("h2","Route & transaction health"),el("p",days===1?"Today":"Last "+days+" days"));hHead.append(hCopy);health.append(hHead);for(const [l,v]of [["Running / available",data.running+" / "+data.available],["Frozen UPI",data.banks.filter(x=>x.frozen).length],["Active routes",activeRoutes],["Transactions",totalTx],["Successful",ok],["Pending / verification",pending],["Other / non-success",Math.max(0,totalTx-ok-pending)]]){const row=el("div",undefined,"admin-profit-row");row.append(el("span",l),el("strong",String(v)));health.append(row);}grid.append(utilCard,health);container.append(grid);
+    const rows=data.banks.map(b=>{const limit=BigInt(b.sharedLimit||0),spent=BigInt(b.used||0),remaining=limit>spent?limit-spent:0n;return [(b.details?.upiId||b.id)+" · "+(b.owner_name||"—"),b.frozen?"frozen":b.status,b.route_count||0,b.txTotal||0,b.successful||0,Math.max(0,Number(b.txTotal||0)-Number(b.successful||0)-Number(b.pending||0)),b.pending||0,b.successRate==null?"—":Number(b.successRate).toFixed(1)+"%",money(b.volume||b.successful_volume_minor||0),money(remaining)];});
+    container.append(panelTable(el,["UPI / owner","State","Routes","Transactions","Successful","Other","Pending","Success rate","Volume","Limit remaining"],rows,"UPI performance","Live scoped analytics · "+(days===1?"Today":days+" days")));
   }
 
   async function parkingView(o,mode){
@@ -214,11 +214,22 @@
     let data;
     try{data=await post("business/admin-upi",{offset:0,search:""});}
     catch{const plain=await request("business/banks");data={banks:plain.banks.map(b=>({...b,owner_name:b.owner_id,used:"0",sharedLimit:b.daily_limit_minor}))};}
+    const total=data.banks.reduce((n,b)=>n+BigInt(b.sharedLimit||b.daily_limit_minor||0),0n),used=data.banks.reduce((n,b)=>n+BigInt(b.used||0),0n),remaining=total>used?total-used:0n;
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(
+      metric(el,"Configured UPI",data.banks.length,"Current scoped bank versions"),
+      metric(el,"Combined daily limit",money(total),"User-owned limits"),
+      metric(el,"Used today",money(used),"Reservations + collected volume"),
+      metric(el,"Remaining",money(remaining),"Across visible UPI accounts"),
+      metric(el,"At ≥80%",data.banks.filter(b=>{const l=BigInt(b.sharedLimit||b.daily_limit_minor||0),u=BigInt(b.used||0);return l>0n&&u*100n>=l*80n;}).length,"High utilization"),
+      metric(el,"Exhausted",data.banks.filter(b=>{const l=BigInt(b.sharedLimit||b.daily_limit_minor||0),u=BigInt(b.used||0);return l>0n&&u>=l;}).length,"No remaining bank limit")
+    );
     const rows=data.banks.map(b=>{
-      const limit=BigInt(b.sharedLimit||b.daily_limit_minor||0),spent=BigInt(b.used||0),remaining=limit-spent,p=limit?Number(spent*10000n/limit)/100:0;
-      return [b.details?.upiId||b.id,b.owner_name||b.owner_id,money(limit),money(spent),money(remaining>0n?remaining:0n),p.toFixed(1)+"%",b.frozen?"frozen":b.status];
+      const limit=BigInt(b.sharedLimit||b.daily_limit_minor||0),spent=BigInt(b.used||0),left=limit>spent?limit-spent:0n,p=limit?Number(spent*10000n/limit)/100:0;
+      const state=b.frozen?"frozen":b.status,health=limit===0n?"no limit":spent>=limit?"exhausted":p>=80?"high usage":"available";
+      return [b.details?.upiId||b.id,b.owner_name||b.owner_id,money(limit),money(spent),money(left),p.toFixed(1)+"%",health,state];
     });
-    container.append(el("p","Per-UPI daily limit is owner-managed in the latest backend. Admin can review utilization here; account approval, UPI verification, route min/max and freeze/state checks remain separate.","notice"),panelTable(el,["UPI","Owner","Daily limit","Used today","Remaining","Utilization","State"],rows));
+    container.append(metrics,el("p","Daily limit ownership remains with the User. Admin gets operational visibility only; UPI approval, verification, freeze/state, route min/max and capacity checks remain separate controls.","notice"),panelTable(el,["UPI","Owner","Daily limit","Used today","Remaining","Utilization","Limit health","State"],rows,"UPI daily utilization",data.banks.length+" scoped accounts"));
   }
 
   async function payinDisputes(o){
@@ -316,24 +327,48 @@
   }
 
   async function routingPage(o){
-    const {post,action,el,container,title}=o;title.textContent="Assignments & routing";const data=await post("business/admin-upi",{offset:0,search:""}),bankById=new Map(data.banks.map(b=>[b.id,b]));
+    const {request,post,action,el,container,title}=o;title.textContent="Assignments & routing";
+    const [data,health]=await Promise.all([post("business/admin-upi",{offset:0,search:""}),request("business/routing")]),bankById=new Map(data.banks.map(b=>[b.id,b])),accountName=id=>data.accounts.find(a=>a.id===id)?.name||id;
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canRoute)tools.append(button(el,"+ Assign route",()=>create(),"primary"));}
-    container.replaceChildren(el("p","Routing uses account status, approval, security readiness, bank state, daily limits, configured ticket limits and capacity policy. Lower priority value routes first.","notice"));
-    const rows=data.routes.map(r=>{const bank=bankById.get(r.bank_id),ready=r.readiness?.eligible===true,actions=el("div",undefined,"admin-row-actions");if(data.canRoute)actions.append(button(el,r.status==="active"?"Disable":"Enable",()=>toggle(r)));return [r.merchant_name||r.merchant_id,(bank?.details?.upiId||r.bank_id)+" · "+(bank?.owner_name||r.user_id),r.priority,money(r.min_minor)+" – "+money(r.max_minor),r.status,ready?"ready":"blocked",actions];});
-    container.append(panelTable(el,["Merchant","UPI / User","Priority","Payment range","State","Readiness","Action"],rows));
-    function create(){dialog(el,container,"Assign UPI route",(body,d)=>{const form=el("form",undefined,"form-grid"),banks=data.banks.filter(b=>!b.frozen&&["running","approved","verified","stopped"].includes(b.status)),merchants=data.accounts.filter(a=>a.account_type==="merchant"),bank=selectField(el,form,"bank","UPI account",banks.map(b=>[b.id,(b.details?.upiId||b.id)+" · "+b.owner_name])),merchant=selectField(el,form,"merchant","Merchant",merchants.map(m=>[m.id,m.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),reason=field(el,form,"reason","Reason","Merchant routing assignment"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();};const save=el("button","Create route","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const selected=bankById.get(bank.value);await post("business/admin-upi/route",{id:null,bankId:bank.value,version:selected.version,merchantId:merchant.value,priority:Number(priority.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true,reason:reason.value});d.close();await routingPage(o);});};});}
+    const active=data.routes.filter(r=>r.status==="active"),ready=active.filter(r=>r.readiness?.eligible===true),blocked=active.filter(r=>r.readiness?.eligible!==true),activeReservations=health.reservations.filter(r=>r.state==="active");
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(
+      metric(el,"UPI routes",data.routes.length,"Bank-specific Merchant bindings"),
+      metric(el,"Active routes",active.length,"Enabled bindings"),
+      metric(el,"Ready now",ready.length,"Backend eligibility passed"),
+      metric(el,"Blocked",blocked.length,"One or more routing checks failed"),
+      metric(el,"Active reservations",activeReservations.length,"Currently reserved collection capacity"),
+      metric(el,"Reconciliation alerts",health.reconciliation.filter(r=>BigInt(r.deficit_minor||0)>0n).length,"User capacity deficits")
+    );
+    container.replaceChildren(metrics,el("p","Bank-specific routing is evaluated by the backend against account approval, funding/security readiness, UPI state, shared daily limit, ticket range and User capacity. Lower priority value is evaluated first. This is intentionally separate from the generic Merchant-to-User assignment layer.","notice"));
+    const rows=data.routes.map(r=>{const bank=bankById.get(r.bank_id),readyNow=r.readiness?.eligible===true,reasons=readyNow?"Ready":(r.readiness?.reasons||["not_ready"]).join(", ").replaceAll("_"," "),actions=el("div",undefined,"admin-row-actions");if(data.canRoute)actions.append(button(el,r.status==="active"?"Disable":"Enable",()=>toggle(r),r.status==="active"?"danger":"primary"));return [r.merchant_name||r.merchant_id,(bank?.details?.upiId||r.bank_id)+" · "+(bank?.owner_name||r.user_id),r.priority,money(r.min_minor)+" – "+money(r.max_minor),r.status,readyNow?"ready":"blocked",reasons,actions];});
+    container.append(panelTable(el,["Merchant","UPI / User","Priority","Payment range","State","Readiness","Reason","Action"],rows,"Merchant → UPI routes",active.length+" active · "+ready.length+" ready"));
+    if(health.reservations.length){
+      container.append(panelTable(el,["Reference","Merchant","User","Amount","State","Expires"],health.reservations.slice(0,25).map(r=>[r.order_reference,accountName(r.merchant_id),accountName(r.user_id),money(r.amount_minor),r.state,r.expires_at?new Date(r.expires_at).toLocaleString("en-IN"):"—"]),"Recent routing reservations","Backend reservation state"));
+    }
+    function create(){dialog(el,container,"Assign UPI route",(body,d)=>{const form=el("form",undefined,"form-grid"),banks=data.banks.filter(b=>!b.frozen&&["running","approved","verified","stopped"].includes(b.status)),merchants=data.accounts.filter(a=>a.account_type==="merchant"),bank=selectField(el,form,"bank","UPI account",banks.map(b=>[b.id,(b.details?.upiId||b.id)+" · "+b.owner_name])),merchant=selectField(el,form,"merchant","Merchant",merchants.map(m=>[m.id,m.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),reason=field(el,form,"reason","Reason","Merchant routing assignment"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();};const save=el("button","Create route","primary");save.type="submit";form.append(el("p","Creating a route does not bypass User capacity, funding, UPI state or shared-limit checks.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const selected=bankById.get(bank.value);await post("business/admin-upi/route",{id:null,bankId:bank.value,version:selected.version,merchantId:merchant.value,priority:Number(priority.value),minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true,reason:reason.value});d.close();await routingPage(o);});};});}
     function toggle(r){dialog(el,container,(r.status==="active"?"Disable ":"Enable ")+"route",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",r.status==="active"?"Operational route disabled":"Operational route enabled"),bank=bankById.get(r.bank_id),save=el("button",r.status==="active"?"Disable":"Enable",r.status==="active"?"danger":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/admin-upi/route",{id:r.id,bankId:r.bank_id,version:bank.version,merchantId:r.merchant_id,priority:r.priority,minMinor:r.min_minor,maxMinor:r.max_minor,enabled:r.status!=="active",reason:reason.value});d.close();await routingPage(o);});};});}
   }
 
   async function assignmentsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="User assignments";container.replaceChildren();
-    const data=await request("business/assignments"),name=id=>data.accounts.find(a=>a.id===id)?.name||id;
+    const data=await request("business/assignments"),name=id=>data.accounts.find(a=>a.id===id)?.name||id,users=data.accounts.filter(a=>a.account_type==="user"),merchants=data.accounts.filter(a=>a.account_type==="merchant"),active=data.assignments.filter(a=>a.status==="active");
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canUpdate)tools.append(button(el,"+ Assign User",()=>create(),"primary"));}
-    container.append(el("p","User Assignment is separate from a bank-specific UPI route. Capacity and account eligibility are shown here; the routing page evaluates concrete bank/UPI candidates.","notice"));
-    const rows=data.assignments.map(a=>{const actions=el("div",undefined,"admin-row-actions");if(data.canUpdate&&a.status==="active")actions.append(button(el,"Release",()=>release(a),"danger"));return [name(a.merchant_id),name(a.user_id),a.priority,money(a.min_minor)+" – "+money(a.max_minor),data.capacity[a.user_id]?.available?money(data.capacity[a.user_id].available):"—",a.status,actions];});
-    container.append(panelTable(el,["Merchant","User","Priority","Amount range","User available","State","Action"],rows));
-    function create(){dialog(el,container,"Assign Merchant to User",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",data.accounts.filter(a=>a.account_type==="merchant").map(a=>[a.id,a.name])),user=selectField(el,form,"user","User",data.accounts.filter(a=>a.account_type==="user").map(a=>[a.id,a.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();},save=el("button","Assign","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:null,merchantId:merchant.value,userId:user.value,priority:Number(priority.value),weight:1,minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true});d.close();await assignmentsPage(o);});};});}
-    function release(a){dialog(el,container,"Release assignment",(body,d)=>{const form=document.createElement("form"),save=el("button","Release","danger");save.type="submit";form.append(el("p","This disables the Merchant-to-User assignment. Bank-specific UPI routes remain independently controlled.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:a.id,merchantId:a.merchant_id,userId:a.user_id,priority:a.priority,weight:a.weight||1,minMinor:a.min_minor,maxMinor:a.max_minor,enabled:false});d.close();await assignmentsPage(o);});};});}
+    const totalAvailable=users.reduce((n,u)=>n+BigInt(data.capacity[u.id]?.available||0),0n),assignedUsers=new Set(active.map(a=>a.user_id)),assignedMerchants=new Set(active.map(a=>a.merchant_id));
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(
+      metric(el,"Active assignments",active.length,"Generic Merchant → User layer"),
+      metric(el,"Assigned merchants",assignedMerchants.size,"With at least one active User"),
+      metric(el,"Assigned users",assignedUsers.size,"Receiving assignment traffic"),
+      metric(el,"Approved users",users.length,"Eligible account directory"),
+      metric(el,"User capacity",money(totalAvailable),"Current available capacity"),
+      metric(el,"Can update",data.canUpdate?"Yes":"No","Permission-enforced")
+    );
+    container.append(metrics,el("p","User Assignment is a generic Merchant-to-User relationship and does not select a concrete UPI. Bank-specific UPI routes are managed separately and still enforce UPI approval/state, shared daily limits, ticket limits and capacity at reservation time.","notice"));
+    const rows=data.assignments.map(a=>{const actions=el("div",undefined,"admin-row-actions"),available=data.capacity[a.user_id]?.available;if(data.canUpdate&&a.status==="active")actions.append(button(el,"Release",()=>release(a),"danger"));return [name(a.merchant_id),name(a.user_id),a.priority,money(a.min_minor)+" – "+money(a.max_minor),available==null?"—":money(available),a.status,actions];});
+    container.append(panelTable(el,["Merchant","User","Priority","Amount range","User available","State","Action"],rows,"Merchant → User assignments",active.length+" active · "+merchants.length+" approved merchants"));
+    function create(){dialog(el,container,"Assign Merchant to User",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",merchants.map(a=>[a.id,a.name])),user=selectField(el,form,"user","User",users.map(a=>[a.id,a.name])),priority=field(el,form,"priority","Priority","50"),min=field(el,form,"min","Minimum INR","100"),max=field(el,form,"max","Maximum INR","10000"),minor=v=>{const [w,f=""]=String(v).split(".");return (BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();},save=el("button","Assign","primary");save.type="submit";form.append(el("p","This creates the generic User assignment only. It does not automatically create or approve a bank-specific UPI route.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:null,merchantId:merchant.value,userId:user.value,priority:Number(priority.value),weight:1,minMinor:minor(min.value),maxMinor:minor(max.value),enabled:true});d.close();await assignmentsPage(o);});};});}
+    function release(a){dialog(el,container,"Release assignment",(body,d)=>{const form=document.createElement("form"),save=el("button","Release","danger");save.type="submit";form.append(el("p","This disables only the generic Merchant-to-User assignment. Bank-specific UPI routes remain independently controlled.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/assignments/update",{id:a.id,merchantId:a.merchant_id,userId:a.user_id,priority:a.priority,weight:a.weight||1,minMinor:a.min_minor,maxMinor:a.max_minor,enabled:false});d.close();await assignmentsPage(o);});};});}
   }
 
   async function devicesPage(o){
