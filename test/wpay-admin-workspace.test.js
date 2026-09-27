@@ -119,6 +119,26 @@ test('Admin creation metadata matches password-only Admin login policy',()=>{
  assert.ok(ui.includes('must reset it on first sign-in, then use email + password for Admin login.'));
  assert.doesNotMatch(ui,/New Admins receive a one-time temporary credential and must complete reset \+ MFA/);
 });
+test('Admin exact V5 shell keeps reference icon vocabulary and topbar composition',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),css=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.css'),'utf8'),html=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin.html'),'utf8');
+ for(const iconName of ['overview','analytics','users','merchant','approvals','bank','routing','transactions','statements','dispute','payout','usdt','withdraw','hold','parking','activation','device','otp','utr','apk','employees','admin','ledger','finance','reports','audit','key','webhook','logs','support','bell','security','settings','profile','location','battery','network','volume','fee','capacity','deposit','upianalytics','beneficiary','orders','commission','access','history','late','dispute2','password','success'])assert.ok(ui.includes(iconName+":'"));
+ assert.ok(ui.includes('class="svg-icon"'));
+ assert.doesNotMatch(ui,/admin-svg-icon/);
+ assert.doesNotMatch(html,/admin-svg-icon/);
+ assert.match(css,/\.admin-language-hidden\{display:none!important\}/);
+ for(const mapping of ["['Analytics',can('overview.view')?'v5.analytics':null,'analytics']","['Pending approvals',(can('users.view')||can('merchants.view'))?'v5.approvals':null,'approvals']","['OTP Events',dest('apk_otp_events.view_all','operations.otp'),'otp']","['Notifications',can('notifications.view')?'v5.notifications':null,'bell']"])assert.ok(ui.includes(mapping));
+});
+test('Admin Overview uses exact V5 SVG icons instead of placeholder dots',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8');
+ assert.ok(ui.includes("['volume','Total volume'"));
+ assert.ok(ui.includes("['deposit','Today collection'"));
+ assert.ok(ui.includes("['merchant','Merchant available'"));
+ assert.ok(ui.includes("['capacity','User capacity'"));
+ assert.ok(ui.includes("['fee','Platform fees'"));
+ assert.ok(ui.includes("['approvals','Pending actions'"));
+ assert.ok(ui.includes("ico.innerHTML=icon(iconName)"));
+ assert.ok(ui.includes("ico.innerHTML=icon(iconName);body.append"));
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
