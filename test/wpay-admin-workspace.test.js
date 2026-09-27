@@ -139,6 +139,39 @@ test('Admin Overview uses exact V5 SVG icons instead of placeholder dots',()=>{
  assert.ok(ui.includes("ico.innerHTML=icon(iconName)"));
  assert.ok(ui.includes("ico.innerHTML=icon(iconName);body.append"));
 });
+test('Admin Dashboard keeps exact V5 Overview structure with live read-only health data',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),backend=fs.readFileSync(require.resolve('../lib/wpay/panels/admin-overview.js'),'utf8');
+ for(const marker of ['OPERATIONS COMMAND CENTER','WPay platform at a glance','primary-kpis','secondary-kpis','Collection & payout trend','Last 14 days · INR','Deep analytics','Action center','Recent financial activity','Operational health','UPI shared limit used','Active devices','Parking open orders','UTR pending review','USDT rate','Unread notifications'])assert.ok(ui.includes(marker));
+ for(const field of ['todayFees','todayUserCommission','pendingPayouts','transactionHealth','overallSuccessRate','topMerchants'])assert.ok(backend.includes(field));
+ assert.ok(backend.includes('[7,14,30,60]'));
+ assert.doesNotMatch(ui,/admin-bottom/);
+});
+test('Admin Analytics matches exact V5 metrics chart donut and utilization layout',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['grid analytics-metrics','Today volume','Success rate','Running UPI','Active users','Today collection','Successful payout','Platform fees','User commission','Today payout volume','Pending payouts','Active devices','UTR captured today','Volume trend','Transaction health','donut-wrap','Top merchants by volume','UPI shared-limit usage','mini-bar-list'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('post("panel/admin-overview",{days:14})'));
+ assert.ok(ui.includes('post("business/upi-analytics",{days:1})'));
+ assert.ok(ui.includes('post("operations/device-setup",{})'));
+ assert.ok(ui.includes('post("operations/utr-source",{})'));
+});
+test('Admin Accounts and Approvals section keeps exact V5 account-card and modal structure',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['account-card-grid','account-card-top','account-identity','account-card-stats','Current terms','access-badges','View / manage','Edit rates','Collection access','Reactivation backend action not exposed','password-ready','Create & approve now','grid two-col','Operational links','Recent transactions','Edit rates / fees'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('q.oninput=()=>{clearTimeout(filterTimer)'));
+ assert.ok(ui.includes('st.onchange=()=>action(()=>directory'));
+ assert.ok(ui.includes('post("panel/directory/create"'));
+ assert.ok(ui.includes('post("approval"'));
+ assert.ok(ui.includes('post("panel/directory/update"'));
+ assert.ok(ui.includes('post("business/user-access/update"'));
+});
+test('Admin Pending approvals Collection access and Deposits match exact V5 section flow',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['Total pending','Unified action queue','Free Setup','Unlimited Collection','First deposit policy','Unlimited Collection capacity ko bypass karta hai, security ko nahi','First confirmed deposit minimum is 2,000 USDT','Requested USDT','INR credit','Tx reference','Manual confirm','Recheck provider','Reverse confirmed deposit'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('post("funding/list"'));
+ assert.ok(ui.includes('post("funding/recheck"'));
+ assert.ok(ui.includes('post("funding/review"'));
+ assert.doesNotMatch(ui,/Confirmed deposit[\s\S]{0,300}Needs review[\s\S]{0,300}USDT requested/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
