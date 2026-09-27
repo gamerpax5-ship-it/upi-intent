@@ -173,29 +173,80 @@
   if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate('v5.notifications');};
   if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate('v5.profile');};
  }
- async function overview({account,post,action,el,container,title,navigate},days=14){
+ async function overview({account,request,post,action,el,container,title,navigate},days=14){
   title.textContent='Overview';container.replaceChildren(el('p','Loading your operational overview…','admin-empty'));
-  let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card panel'),retry=el('button','Retry overview','btn primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable.','muted'),retry);container.replaceChildren(box);throw error;}container.replaceChildren();
-  const pages=nav.groups.flatMap(g=>g.children),go=(permission,label,destination)=>{const b=el('button',label,'btn sm'),p=pages.find(p=>p.permissionId===permission);b.type='button';b.disabled=!p;b.onclick=()=>navigate(destination||p.destinationId);return b;};
-  const hero=el('section',undefined,'command-strip'),main=el('div',undefined,'command-main'),copy=el('div'),actions=el('div',undefined,'command-actions');copy.append(el('div','OPERATIONS COMMAND CENTER','eyebrow'),el('h2','WPay platform at a glance'),el('p','Financial position, collection health and operational queues without overwhelming the screen.'));const analytics=go('overview.view','Analytics','v5.analytics'),actionCenter=go('users.view','Action center','v5.approvals');analytics.classList.add('primary');analytics.insertAdjacentHTML('afterbegin',icon('analytics')+' ');actionCenter.insertAdjacentHTML('afterbegin',icon('approvals')+' ');actions.append(analytics,actionCenter);main.append(copy,actions);hero.append(main);container.append(hero);
-  const pendingTotal=Object.values(data.approvals||{}).filter(v=>v!==null&&v!==undefined).reduce((n,v)=>n+Number(v),0),primary=[['volume','Total volume',data.totalVolume,'Successful payment volume'],['deposit','Today collection',data.todayCollection,'Successful pay-ins today'],['merchant','Merchant available',data.merchantAvailable,'Spendable Merchant INR'],['capacity','User capacity',data.totalUserCapacity,'Allocated capacity'],['fee','Platform fees',data.totalFees,'Fee income'],['approvals','Pending actions',pendingTotal,'Needs Admin review']];
+  const safe=promise=>Promise.resolve(promise).catch(()=>null);
+  let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card panel'),retry=el('button','Retry overview','btn primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,request,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable.','muted'),retry);container.replaceChildren(box);throw error;}
+  const [upi,devices,parking,utr,defaults,notifications]=await Promise.all([
+    safe(post('business/upi-analytics',{days:1})),
+    safe(post('operations/device-setup',{})),
+    safe(request('parking/admin')),
+    safe(post('operations/utr/pending',{status:'pending',offset:0})),
+    safe(request('panel/merchant-default-rate')),
+    safe(post('panel/notifications',{offset:0,limit:100}))
+  ]);
+  container.replaceChildren();
+  const pages=nav.groups.flatMap(g=>g.children),go=(permission,label,destination,primary=false)=>{const b=el('button',label,'btn'+(primary?' primary':'')+(label==='Deep analytics'||label==='View all'?' sm':'')),p=pages.find(p=>p.permissionId===permission);b.type='button';b.disabled=!p;b.onclick=()=>navigate(destination||p.destinationId);return b;};
+
+  const hero=el('section',undefined,'command-strip'),main=el('div',undefined,'command-main'),copy=el('div'),actions=el('div',undefined,'command-actions');
+  copy.append(el('div','OPERATIONS COMMAND CENTER','eyebrow'),el('h2','WPay platform at a glance'),el('p','Financial position, collection health and operational queues without overwhelming the screen.'));
+  const analytics=go('overview.view','Analytics','v5.analytics',true),actionCenter=go('users.view','Action center','v5.approvals');analytics.insertAdjacentHTML('afterbegin',icon('analytics')+' ');actionCenter.insertAdjacentHTML('afterbegin',icon('approvals')+' ');actions.append(analytics,actionCenter);main.append(copy,actions);hero.append(main);container.append(hero);
+
+  const pendingTotal=Object.values(data.approvals||{}).filter(v=>v!==null&&v!==undefined).reduce((n,v)=>n+Number(v),0),primary=[
+    ['volume','Total volume',data.totalVolume,'Successful payment volume'],
+    ['deposit','Today collection',data.todayCollection,'Successful pay-ins today'],
+    ['merchant','Merchant available',data.merchantAvailable,'Spendable Merchant INR'],
+    ['capacity','User capacity',data.totalUserCapacity,'Allocated capacity'],
+    ['fee','Platform fees',data.totalFees,'Fee income'],
+    ['approvals','Pending actions',pendingTotal,'Needs Admin review']
+  ];
   const pgrid=el('div',undefined,'primary-kpis');for(const [iconName,label,value,hint]of primary){const card=el('article',undefined,'kpi-compact'),ico=el('div',undefined,'ico'),body=el('div');ico.innerHTML=icon(iconName);body.append(el('small',label),el('strong',typeof value==='number'?String(value):money(value)),el('em',hint));card.append(ico,body);pgrid.append(card);}container.append(pgrid);
-  const secondary=el('div',undefined,'secondary-kpis');for(const [label,value,moneyValue=false]of [['Total users',data.totalUsers],['Merchants',data.totalMerchants],['Employees',data.totalEmployees],['User commission',data.totalUserCommission,true],['User deposits',data.totalUserDeposits,true],['Running UPI',data.runningUpi],['Available UPI',data.availableUpi],['Success rate',data.successRate===null||data.successRate===undefined?'—':(Number(data.successRate)*100).toFixed(1)+'%']]){const item=el('div');item.append(el('small',label),el('strong',moneyValue?money(value):String(value??'—')));secondary.append(item);}container.append(secondary);
-  const grid=el('div',undefined,'dashboard-grid'),chart=el('section',undefined,'card panel'),queue=el('section',undefined,'card panel');const chartHead=el('div',undefined,'panel-head'),chartCopy=el('div');chartCopy.append(el('h2','Collection & payout trend'),el('p','Last '+days+' days · INR'));chartHead.append(chartCopy);chart.append(chartHead);if(data.totalVolume===null)chart.append(el('p','Volume unavailable for your permissions.','empty'));else if(!data.series.length)chart.append(el('p','No successful payments in this period.','empty'));else chart.append(volumeChart(data));
-  const qHead=el('div',undefined,'panel-head'),qCopy=el('div');qCopy.append(el('h2','Action center'),el('p','Highest priority queues'));qHead.append(qCopy);if(pendingTotal){const pending=el('span',pendingTotal+' pending','pill amber');qHead.append(pending);}queue.append(qHead);const list=el('div',undefined,'action-list');
-  for(const [iconName,label,value,permission,destination]of [['users','User approvals',data.approvals.user,'users.view','v5.approvals'],['merchant','Merchant approvals',data.approvals.merchant,'merchants.view','v5.approvals'],['bank','UPI reviews',data.approvals.bank,'bank_upi.view','v5.bank-upi'],['payout','Payout approvals',data.approvals.payout,'payout_operations.view','v5.payout-approval'],['deposit','Deposit review',data.approvals.deposit,'deposits.view','v5.deposits'],['dispute2','Payout disputes',data.approvals.dispute,'payout_operations.view','v5.payout-disputes'],['late','Late reviews',data.approvals.late,'payout_operations.view','v5.late-reviews']]){if(value===undefined)continue;const item=el('div',undefined,'action-card'),ico=el('div',undefined,'action-icon'),body=el('div');ico.innerHTML=icon(iconName);body.append(el('strong',label),el('span',String(value??0)+' waiting for action'));item.append(ico,body,go(permission,'Review →',destination));list.append(item);}queue.append(list);grid.append(chart,queue);container.append(grid);
-  const bottom=el('div',undefined,'dashboard-bottom'),activity=el('section',undefined,'card panel'),health=el('section',undefined,'card panel'),aHead=el('div',undefined,'panel-head'),aCopy=el('div');aCopy.append(el('h2','Recent financial activity'),el('p','Latest posted / verification activity'));aHead.append(aCopy,go('transactions.view','View all','v5.transactions'));activity.append(aHead);
-  const rows=(data.recentActivity||[]).map(r=>[r.reference,r.type,money(r.amount),(r.merchant||'—')+' · '+(r.user||'—'),r.status,r.evidence]);activity.append((globalThis.WPayAdminV5Pages?.table?globalThis.WPayAdminV5Pages.table(el,['Reference','Type','Amount','Party','Status','Evidence'],rows):(()=>{const wrap=el('div',undefined,'table-wrap'),t=el('table'),head=el('thead'),hr=el('tr');for(const h of ['Reference','Type','Amount','Party','Status','Evidence'])hr.append(el('th',h));head.append(hr);const body=el('tbody');for(const r of rows){const tr=el('tr');for(const v of r)tr.append(el('td',String(v??'—')));body.append(tr);}t.append(head,body);wrap.append(t);return wrap;})()));
-  const hHead=el('div',undefined,'panel-head'),hCopy=el('div');hCopy.append(el('h2','Operational health'),el('p','Collections + APK Setup'));hHead.append(hCopy);health.append(hHead);for(const [label,value]of [['Running / available UPI',(data.runningUpi??'—')+' / '+(data.availableUpi??'—')],['Active users',data.activeUsers],['Today volume',money(data.todayVolume)],['Today payout',money(data.todayPayoutVolume)],['Successful payouts',data.successfulPayouts],['Settlement',money(data.settlement)]]){const row=el('div',undefined,'summary-row');row.append(el('span',label),el('strong',String(value??'—')));health.append(row);}bottom.append(activity,health);container.append(bottom);
-  const foot=el('div',undefined,'admin-bottom');foot.append(el('span','Updated '+new Date(data.asOf).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST'),el('span','Role-scoped metrics only'));container.append(foot);
+
+  const secondary=el('div',undefined,'secondary-kpis');for(const [label,value,moneyValue=false]of [
+    ['Total users',data.totalUsers],['Merchants',data.totalMerchants],['Employees',data.totalEmployees],['User commission',data.totalUserCommission,true],
+    ['User deposits',data.totalUserDeposits,true],['Running UPI',data.runningUpi],['Available UPI',data.availableUpi],['Success rate',data.overallSuccessRate==null?'—':(Number(data.overallSuccessRate)*100).toFixed(1)+'%']
+  ]){const item=el('div');item.append(el('small',label),el('strong',moneyValue?money(value):String(value??'—')));secondary.append(item);}container.append(secondary);
+
+  const grid=el('div',undefined,'dashboard-grid'),chart=el('section',undefined,'card panel'),queue=el('section',undefined,'card panel');
+  const chartHead=el('div',undefined,'panel-head'),chartCopy=el('div');chartCopy.append(el('h2','Collection & payout trend'),el('p','Last 14 days · INR'));chartHead.append(chartCopy,go('overview.view','Deep analytics','v5.analytics'));chart.append(chartHead);if(data.totalVolume===null)chart.append(el('p','Volume unavailable for your permissions.','empty'));else if(!data.series.length)chart.append(el('p','No successful payments in this period.','empty'));else chart.append(volumeChart(data));
+
+  const qHead=el('div',undefined,'panel-head'),qCopy=el('div');qCopy.append(el('h2','Action center'),el('p','Highest priority queues'));qHead.append(qCopy,el('span',pendingTotal+' pending','pill amber'));queue.append(qHead);const list=el('div',undefined,'action-list');
+  for(const [iconName,label,value,permission,destination]of [
+    ['users','User approvals',data.approvals.user,'users.view','v5.approvals'],['merchant','Merchant approvals',data.approvals.merchant,'merchants.view','v5.approvals'],
+    ['bank','UPI reviews',data.approvals.bank,'bank_upi.view','v5.bank-upi'],['payout','Payout approvals',data.approvals.payout,'payout_operations.view','v5.payout-approval'],
+    ['deposit','Deposit review',data.approvals.deposit,'deposits.view','v5.deposits'],['dispute2','Payout disputes',data.approvals.dispute,'payout_operations.view','v5.payout-disputes'],
+    ['late','Late reviews',data.approvals.late,'payout_operations.view','v5.late-reviews']
+  ]){if(value===undefined)continue;const item=el('div',undefined,'action-card'),ico=el('div',undefined,'action-icon'),body=el('div');ico.innerHTML=icon(iconName);body.append(el('strong',label),el('span',String(value??0)+' waiting for action'));item.append(ico,body,go(permission,'Review →',destination));list.append(item);}queue.append(list);grid.append(chart,queue);container.append(grid);
+
+  const bottom=el('div',undefined,'dashboard-bottom'),activity=el('section',undefined,'card panel'),health=el('section',undefined,'card panel');
+  const aHead=el('div',undefined,'panel-head'),aCopy=el('div');aCopy.append(el('h2','Recent financial activity'),el('p','Latest posted / verification activity'));aHead.append(aCopy,go('transactions.view','View all','v5.transactions'));activity.append(aHead);
+  const tableWrap=el('div',undefined,'table-wrap'),table=el('table'),thead=el('thead'),hr=el('tr');for(const h of ['Reference','Type','Amount','Party','Status','Evidence'])hr.append(el('th',h));thead.append(hr);const tbody=el('tbody');
+  for(const r of data.recentActivity||[]){const tr=el('tr'),ref=el('td'),refStrong=el('strong',r.reference),refDate=el('div',r.happened?new Date(r.happened).toLocaleString('en-IN'):'—','small muted'),party=el('td'),merchant=el('div',r.merchant||'—'),user=el('div',r.user||'—','small muted');ref.append(refStrong,refDate);party.append(merchant,user);tr.append(ref,el('td',String(r.type||'—')),el('td',money(r.amount)),party,el('td',String(r.status||'—')),el('td',String(r.evidence||'—')));tbody.append(tr);}
+  if(!tbody.children.length){const tr=el('tr'),td=el('td');td.colSpan=6;td.append(el('div','No matching records.','empty'));tr.append(td);tbody.append(tr);}table.append(thead,tbody);tableWrap.append(table);activity.append(tableWrap);
+
+  const hHead=el('div',undefined,'panel-head'),hCopy=el('div');hCopy.append(el('h2','Operational health'),el('p','Collections + APK Setup'));hHead.append(hCopy);health.append(hHead);
+  const used=upi?money(upi.used):'—',limit=upi?money(upi.totalLimit):'—',linked=devices?devices.devices.filter(x=>x.linked).length:null,totalDevices=devices?.devices?.length??null,openParking=parking?parking.orders.filter(x=>x.state==='open').length:null,utrPending=utr?.records?.length??null;
+  const rates=(defaults?.tenants||[]).map(x=>x.rate).filter(Boolean),rate=rates.length?(rates.every(x=>x===rates[0])?'₹'+rates[0]:'Multiple'):'—',unread=notifications?.rows?notifications.rows.filter(x=>!x.read).length:null;
+  for(const [label,value]of [
+    ['UPI shared limit used',used+' / '+limit],
+    ['Active devices',linked==null?'—':linked+' / '+totalDevices],
+    ['Parking open orders',openParking??'—'],
+    ['UTR pending review',utrPending??'—'],
+    ['USDT rate',rate],
+    ['Unread notifications',unread??'—']
+  ]){const row=el('div',undefined,'summary-row');row.append(el('span',label),el('strong',String(value)));health.append(row);}bottom.append(activity,health);container.append(bottom);
  }
  function volumeChart(data){
-  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 650 225');svg.classList.add('admin-chart');svg.setAttribute('role','img');svg.setAttribute('aria-label','Daily successful pay-in and payout amounts in INR');
-  const add=(tag,attrs,text)=>{const e=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text)e.textContent=text;svg.append(e);return e;};
-  const keys=[...new Set(data.series.map(r=>r.day))],max=Math.max(1,...data.series.map(r=>Number(r.amount)/100));
-  for(let i=0;i<5;i++){const y=15+i*43;add('line',{x1:57,x2:635,y1:y,y2:y,stroke:'#23334b'});add('text',{x:0,y:y+4},Math.round(max*(4-i)/4).toLocaleString('en-IN'));}
-  for(const [kind,color]of [['payin','#a487ff'],['payout','#25cabc']]){const map=new Map(data.series.filter(r=>r.kind===kind).map(r=>[r.day,Number(r.amount)/100]));const points=keys.map((k,i)=>[57+i*578/Math.max(1,keys.length-1),187-(map.get(k)||0)*172/max]);add('polyline',{points:points.map(p=>p.join(',')).join(' '),fill:'none',stroke:color,'stroke-width':2.5});for(const [x,y]of points)add('circle',{cx:x,cy:y,r:3,fill:color});}
-  keys.forEach((k,i)=>{if(i===0||i===keys.length-1||i%Math.max(1,Math.ceil(keys.length/5))===0)add('text',{x:57+i*578/Math.max(1,keys.length-1),y:215,'text-anchor':i===keys.length-1?'end':'start'},k.slice(5));});return svg;
+  const ns='http://www.w3.org/2000/svg',wrap=document.createElement('div'),chart=document.createElement('div'),svg=document.createElementNS(ns,'svg');chart.className='chart';svg.setAttribute('viewBox','0 0 760 260');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('role','img');svg.setAttribute('aria-label','Daily successful pay-in and payout amounts in INR');
+  const add=(tag,attrs,text)=>{const e=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;svg.append(e);return e;};
+  const keys=[...new Set((data.series||[]).map(r=>r.day))],max=Math.max(1,...(data.series||[]).map(r=>Number(r.amount)/100)),p=38,w=760,h=260;
+  const x=i=>p+i*(w-p*2)/Math.max(1,keys.length-1),y=v=>h-p-v*(h-p*2)/max;
+  for(let i=0;i<5;i++){const yy=p+i*(h-p*2)/4;add('line',{class:'grid-line',x1:p,x2:w-p,y1:yy,y2:yy});}
+  const seriesPoints={};
+  for(const [kind,cls]of [['payin','line1'],['payout','line2']]){const map=new Map((data.series||[]).filter(r=>r.kind===kind).map(r=>[r.day,Number(r.amount)/100]));const points=keys.map((k,i)=>[x(i),y(map.get(k)||0)]);seriesPoints[kind]=points;add('polyline',{class:cls,points:points.map(q=>q.join(',')).join(' ')});}
+  if(seriesPoints.payin?.length)add('polygon',{class:'area',points:p+','+(h-p)+' '+seriesPoints.payin.map(q=>q.join(',')).join(' ')+' '+(w-p)+','+(h-p)});
+  keys.forEach((k,i)=>{if(i%3===0||i===keys.length-1)add('text',{x:x(i),y:h-8,'text-anchor':'middle'},k.slice(5));});chart.append(svg);wrap.append(chart);
+  const legend=document.createElement('div');legend.className='legend';const a=document.createElement('span'),b=document.createElement('span'),ia=document.createElement('i'),ib=document.createElement('i');ia.style.background='#9a6bff';ib.style.background='#55d6c8';a.append(ia,document.createTextNode('Pay-in volume'));b.append(ib,document.createTextNode('Payout volume'));legend.append(a,b);wrap.append(legend);return wrap;
  }
- root.WPayAdminUi={sync,connect,overview};
+ root.WPayAdminUi={sync,connect,overview,icon,volumeChart};
 })(globalThis);
