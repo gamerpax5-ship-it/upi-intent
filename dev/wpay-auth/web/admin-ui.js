@@ -135,6 +135,7 @@
     ['Settings',can('settings.view')?'v5.settings':null,'settings'],
     ['Profile',can('profile.view')?'v5.profile':null,'profile']
    ]]
+  ];
   const navigationRoot=$('navigation');navigationRoot.replaceChildren();
   for(const [groupName,ico,items] of defs){
    const visible=items.filter(([,d])=>d);if(!visible.length)continue;
