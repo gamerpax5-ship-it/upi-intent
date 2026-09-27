@@ -711,54 +711,90 @@
 
   async function credentialsPage(o){
     const {post,action,el,container,title}=o;title.textContent="API credentials";container.replaceChildren();
-    const [data,merchants]=await Promise.all([post("panel/credentials",{offset:0}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0})]),merchantName=id=>merchants.rows.find(x=>x.id===id)?.name||id;
+    const state=o.state||{},offset=Number(state.offset||0),[data,merchants]=await Promise.all([post("panel/credentials",{offset,limit:50}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0,limit:100})]),rows=data.rows||[],merchantName=id=>merchants.rows.find(x=>x.id===id)?.name||id,active=rows.filter(k=>!k.revoked_at);
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create credential",()=>create(),"primary"));}
-    container.append(el("p","Credential metadata is tenant-scoped. Create/revoke is Super Admin-restricted. Secret material is shown once.","notice"));
-    const rows=data.rows.map(k=>{const actions=el("div",undefined,"admin-row-actions");if(data.canRevoke&&!k.revoked_at)actions.append(button(el,"Revoke",()=>revoke(k),"danger"));return [k.prefix,k.merchant_name||merchantName(k.merchant_id),k.label,(k.scopes||[]).join(", "),pill(el,k.revoked_at?"revoked":"active"),k.last_used_at?new Date(k.last_used_at).toLocaleString("en-IN"):"—",actions];});
-    container.append(panelTable(el,["Prefix","Merchant","Label","Scopes","Status","Last used","Action"],rows));
-    function create(){dialog(el,container,"Create API credential",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",merchants.rows.map(m=>[m.id,m.name])),label=field(el,form,"label","Label","Production integration"),scope=selectField(el,form,"scope","Scopes",[["read","orders:read"],["write","orders:read + orders:write"]],"read"),save=el("button","Create credential","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/credentials/create",{merchantId:merchant.value,label:label.value,scopes:scope.value==="write"?["orders:read","orders:write"]:["orders:read"]});d.close();const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Save credential secret"),el("p","This secret is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret)),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();credentialsPage(o);}));container.append(secret);secret.showModal();});};});}
-    function revoke(k){dialog(el,container,"Revoke API credential",(body,d)=>{body.append(el("p","Revoking this credential is permanent for this key. Existing Merchant sessions are also invalidated.","notice"),button(el,"Revoke",()=>action(async()=>{await post("panel/credentials/revoke",{id:k.id});d.close();await credentialsPage(o);}),"danger"));});}
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Credentials",rows.length,"Current page"),
+      metric(el,"Active",active.length,"Usable keys"),
+      metric(el,"Revoked",rows.length-active.length,"Historical credentials"),
+      metric(el,"Used before",rows.filter(k=>k.last_used_at).length,"Observed API use"),
+      metric(el,"Can create",data.canCreate?"Yes":"No","Super Admin + permission"),
+      metric(el,"Can revoke",data.canRevoke?"Yes":"No","Super Admin + permission")
+    );
+    container.append(metrics,el("p","Credential metadata is tenant-scoped. Create/revoke is Super Admin-restricted. Secret material is shown only at creation. Revocation permanently disables the key and invalidates existing Merchant sessions.","notice"));
+    const tableRows=rows.map(k=>{const actions=el("div",undefined,"admin-row-actions");if(data.canRevoke&&!k.revoked_at)actions.append(button(el,"Revoke",()=>revoke(k),"danger"));return [k.prefix,k.merchant_name||merchantName(k.merchant_id),k.label,(k.scopes||[]).join(", "),k.created_at?new Date(k.created_at).toLocaleString("en-IN"):"—",pill(el,k.revoked_at?"revoked":"active"),k.last_used_at?new Date(k.last_used_at).toLocaleString("en-IN"):"Never",actions];});
+    container.append(panelTable(el,["Prefix","Merchant","Label","Scopes","Created","Status","Last used","Action"],tableRows,"API credentials","Offset "+offset));
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>credentialsPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>credentialsPage({...o,state:{offset:data.nextOffset}})),"primary"));container.append(pager);
+    function create(){dialog(el,container,"Create API credential",(body,d)=>{const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",merchants.rows.map(m=>[m.id,m.name])),label=field(el,form,"label","Label","Production integration"),scope=selectField(el,form,"scope","Scopes",[["read","orders:read"],["write","orders:read + orders:write"]],"read"),save=el("button","Create credential","primary");save.type="submit";form.append(el("p","Write scope is accepted only if the target Merchant itself has gateway-create permission.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/credentials/create",{merchantId:merchant.value,label:label.value,scopes:scope.value==="write"?["orders:read","orders:write"]:["orders:read"]});d.close();const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Save credential secret"),el("p","This secret is shown once. It cannot be recovered from the credential list later.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret),"primary"),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();credentialsPage(o);}));container.append(secret);secret.showModal();});};});}
+    function revoke(k){dialog(el,container,"Revoke API credential",(body,d)=>{body.append(el("p","Revoking this credential is permanent for this key and also increments the Merchant session epoch, invalidating existing Merchant sessions.","notice"),button(el,"Revoke",()=>action(async()=>{await post("panel/credentials/revoke",{id:k.id});d.close();await credentialsPage(o);}),"danger"));});}
   }
+
   async function webhooksPage(o){
     const {post,action,el,container,title}=o;title.textContent="Webhooks";container.replaceChildren();
-    const [data,merchants]=await Promise.all([post("panel/webhooks",{offset:0}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0})]),merchantName=id=>merchants.rows.find(x=>x.id===id)?.name||id,configs=data.endpoints?.rows||[];
+    const state=o.state||{},offset=Number(state.offset||0),[data,merchants]=await Promise.all([post("panel/webhooks",{offset,limit:50}),post("panel/directory",{type:"merchant",status:"approved",search:"",offset:0,limit:100})]),merchantName=id=>merchants.rows.find(x=>x.id===id)?.name||id,configs=data.endpoints?.rows||[],deliveries=data.rows||[];
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canUpdate)tools.append(button(el,"Configure endpoint",()=>configure(),"primary"));}
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Endpoints",configs.length,"Current endpoint page"),
+      metric(el,"Enabled",configs.filter(x=>x.enabled).length,"Delivery enabled"),
+      metric(el,"Deliveries",deliveries.length,"Current outbox page"),
+      metric(el,"Pending",deliveries.filter(x=>x.state==="pending").length,"Retryable queue"),
+      metric(el,"Retry exhausted",deliveries.filter(x=>Number(x.attempts||0)>=8).length,"Manual retry no longer allowed"),
+      metric(el,"Can update",data.canUpdate?"Yes":"No","Permission-controlled")
+    );
+    container.append(metrics,el("p","Changing an endpoint URL rotates webhook secret material and shows it once. Disabling an endpoint moves pending/leased deliveries to unconfigured; re-enabling requeues eligible deliveries. Manual retry is allowed only while state is pending and attempts are below 8.","notice"));
     const grid=el("div",undefined,"grid two-col"),left=el("section",undefined,"card panel"),right=el("section",undefined,"card panel"),lh=el("div",undefined,"panel-head"),lc=el("div");lc.append(el("h2","Webhook configuration"),el("p","Merchant endpoint metadata"));lh.append(lc);left.append(lh);
-    left.append(table(el,["Merchant","Endpoint","Enabled","Secret version"],configs.map(w=>[w.merchant_name||merchantName(w.merchant_id),w.url,pill(el,w.enabled?"enabled":"disabled"),"v-"+String(w.id).slice(0,8)])));
-    const rh=el("div",undefined,"panel-head"),rc=el("div");rc.append(el("h2","Delivery history"),el("p","Retry pending deliveries"));rh.append(rc);right.append(rh);
-    const deliveries=data.rows.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(data.canUpdate&&r.state==="pending"&&r.attempts<8)actions.append(button(el,"Retry",()=>retry(r),"primary"));return [r.merchant_name||merchantName(r.merchant_id),r.event_type,pill(el,r.state),r.attempts,r.last_code||"—",actions];});
-    right.append(table(el,["Merchant","Event","State","Attempts","HTTP","Action"],deliveries));grid.append(left,right);container.append(grid);
+    left.append(table(el,["Merchant","Endpoint","Enabled","Created"],configs.map(w=>[w.merchant_name||merchantName(w.merchant_id),w.url,pill(el,w.enabled?"enabled":"disabled"),w.created_at?new Date(w.created_at).toLocaleString("en-IN"):"—"])));
+    const rh=el("div",undefined,"panel-head"),rc=el("div");rc.append(el("h2","Delivery history"),el("p","Current outbox page"));rh.append(rc);right.append(rh);
+    const deliveryRows=deliveries.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(data.canUpdate&&r.state==="pending"&&r.attempts<8)actions.append(button(el,"Retry",()=>retry(r),"primary"));return [r.merchant_name||merchantName(r.merchant_id),r.event_type,r.order_id||"—",pill(el,r.state),r.attempts,r.last_code||"—",r.next_attempt_at?new Date(r.next_attempt_at).toLocaleString("en-IN"):"—",r.created_at?new Date(r.created_at).toLocaleString("en-IN"):"—",actions];});
+    right.append(table(el,["Merchant","Event","Order","State","Attempts","HTTP","Next attempt","Created","Action"],deliveryRows));grid.append(left,right);container.append(grid);
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>webhooksPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>webhooksPage({...o,state:{offset:data.nextOffset}})),"primary"));container.append(pager);
 
     function configure(){
       dialog(el,container,"Configure webhook",(body,d)=>{
         const form=el("form",undefined,"form-grid"),merchant=selectField(el,form,"merchant","Merchant",merchants.rows.map(m=>[m.id,m.name])),url=field(el,form,"url","HTTPS endpoint","https://example.com/wpay","url"),enabled=selectField(el,form,"enabled","State",[["true","Enabled"],["false","Disabled"]],"true"),save=el("button","Save","primary");
-        const loadCurrent=()=>{const current=configs.find(x=>x.merchant_id===merchant.value);if(current){url.value=current.url;enabled.value=String(!!current.enabled);}else{url.value="https://example.com/wpay";enabled.value="true";}};merchant.onchange=loadCurrent;loadCurrent();form.append(save);body.append(form);
-        form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/webhooks/configure",{merchantId:merchant.value,url:url.value,enabled:enabled.value==="true"});d.close();if(result.secret){const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Webhook secret rotated"),el("p","Save this secret now. It is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret)),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();webhooksPage(o);}));container.append(secret);secret.showModal();}else await webhooksPage(o);});};
+        const loadCurrent=()=>{const current=configs.find(x=>x.merchant_id===merchant.value);if(current){url.value=current.url;enabled.value=String(!!current.enabled);}else{url.value="https://example.com/wpay";enabled.value="true";}};merchant.onchange=loadCurrent;loadCurrent();form.append(el("p","Changing the URL may rotate the webhook secret. Save the returned secret immediately if one is shown.","notice"),save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{const result=await post("panel/webhooks/configure",{merchantId:merchant.value,url:url.value,enabled:enabled.value==="true"});d.close();if(result.secret){const secret=document.createElement("dialog"),code=el("code",result.secret,"code-secret");secret.append(el("h2","Webhook secret rotated"),el("p","Save this secret now. It is shown once.","notice"),code,button(el,"Copy",()=>navigator.clipboard?.writeText(result.secret),"primary"),button(el,"Hide",()=>{code.textContent="Hidden";secret.close();webhooksPage(o);}));container.append(secret);secret.showModal();}else await webhooksPage(o);});};
       });
     }
     function retry(r){action(async()=>{await post("panel/webhooks/retry",{id:r.id});await webhooksPage(o);});}
   }
+
   async function apiLogsPage(o){
-    const {post,el,container,title}=o;title.textContent="API logs";container.replaceChildren();
-    const data=await post("panel/api-logs",{offset:0});
-    container.append(el("p","Merchant API access audit only. Secrets, request bodies and sensitive payloads are not displayed.","notice"));
-    container.append(panelTable(el,["Time","Merchant","Operation","Log ID"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.merchant_name||r.merchant_id,r.operation,r.id])));
+    const {post,action,el,container,title}=o;title.textContent="API logs";container.replaceChildren();
+    const state=o.state||{},offset=Number(state.offset||0),data=await post("panel/api-logs",{offset,limit:50}),rows=data.rows||[];
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"API events",rows.length,"Current page"),
+      metric(el,"Merchants",new Set(rows.map(r=>r.merchant_id)).size,"Current page"),
+      metric(el,"Operations",new Set(rows.map(r=>r.operation)).size,"Current page"),
+      metric(el,"More rows",data.nextOffset!==null?"Yes":"No","Server pagination")
+    );
+    container.append(metrics,el("p","Merchant API access audit only. Secrets, request bodies, credentials and sensitive payloads are intentionally not displayed.","notice"));
+    container.append(panelTable(el,["Time","Merchant","Operation","Log ID"],rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.merchant_name||r.merchant_id,r.operation,r.id]),"API access audit","Offset "+offset));
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>apiLogsPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>apiLogsPage({...o,state:{offset:data.nextOffset}})),"primary"));container.append(pager);
   }
+
   async function notificationsPage(o){
     const {post,action,el,container,title}=o;title.textContent="Notifications";container.replaceChildren();
-    const data=await post("panel/notifications",{offset:0}),grid=el("div",undefined,"grid two-col"),settings=el("section",undefined,"card panel"),history=el("section",undefined,"card panel");
-    const line=el("div",undefined,"toggle-line"),copy=el("div");copy.append(el("strong","In-app notifications"),el("p","Enable or disable Admin in-app notification delivery."));const label=el("label",undefined,"switch"),input=el("input"),span=el("span");input.type="checkbox";input.checked=!!data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input,span);line.append(copy,label);
-    settings.append(el("h2","Notification preferences"),line);
+    const state=o.state||{},offset=Number(state.offset||0),data=await post("panel/notifications",{offset,limit:50}),rows=data.rows||[],grid=el("div",undefined,"grid two-col"),settings=el("section",undefined,"card panel"),history=el("section",undefined,"card panel");
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Notifications",rows.length,"Current page"),
+      metric(el,"Unread",rows.filter(x=>!x.read).length,"Current page"),
+      metric(el,"In-app",data.preferences.in_app_notifications?"Enabled":"Disabled","Account preference"),
+      metric(el,"Email delivery",data.emailDeliveryConfigured?"Configured":"Not configured","Backend capability"),
+      metric(el,"Can update",data.canUpdate?"Yes":"No","Permission-controlled")
+    );container.append(metrics);
+    const line=el("div",undefined,"toggle-line"),copy=el("div");copy.append(el("strong","In-app notifications"),el("p","Enable or disable Admin in-app security/account-event notifications."));const label=el("label",undefined,"switch"),input=el("input"),span=el("span");input.type="checkbox";input.checked=!!data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input,span);line.append(copy,label);
+    settings.append(el("h2","Notification preferences"),line,el("p","Email notification delivery is not configured by the current backend.","notice"));
     if(data.canUpdate)settings.append(button(el,"Save preference",()=>action(async()=>{await post("panel/preferences",{inAppNotifications:input.checked});await notificationsPage(o);}),"primary"));
     const head=el("div",undefined,"panel-head"),headCopy=el("div");headCopy.append(el("h2","Recent notifications"),el("p","Security and account events"));head.append(headCopy);
-    if(data.canUpdate&&data.rows.some(x=>!x.read))head.append(button(el,"Mark all read",()=>action(async()=>{await post("panel/notifications/read-all",{});await notificationsPage(o);}),"sm"));
+    if(data.canUpdate&&rows.some(x=>!x.read))head.append(button(el,"Mark all read",()=>action(async()=>{await post("panel/notifications/read-all",{});await notificationsPage(o);}),"sm"));
     history.append(head);
-    for(const n of data.rows){
-      const row=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",n.event),el("div",new Date(n.created_at).toLocaleString("en-IN"),"small muted"));row.append(left,pill(el,n.read?"read":"unread"));history.append(row);
-    }
-    if(!data.rows.length)history.append(el("p","No notification events.","admin-empty"));
+    for(const n of rows){const row=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",n.event),el("div",new Date(n.created_at).toLocaleString("en-IN"),"small muted"));row.append(left,pill(el,n.read?"read":"unread"));history.append(row);}
+    if(!rows.length)history.append(el("p",data.preferences.in_app_notifications?"No notification events.":"In-app notifications are disabled, so no events are listed.","admin-empty"));
     grid.append(settings,history);container.append(grid);
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>notificationsPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>notificationsPage({...o,state:{offset:data.nextOffset}})),"primary"));container.append(pager);
   }
+
   async function profilePage(o){
     const {account,request,post,action,handleStage,el,container,title}=o;title.textContent="Profile";container.replaceChildren();
     const data=await request("panel/profile"),grid=el("div",undefined,"grid two-col"),profile=el("section",undefined,"card panel"),security=el("section",undefined,"card panel");
@@ -868,9 +904,18 @@
 
   async function supportPage(o){
     const {post,action,el,container,title}=o;title.textContent="Support";container.replaceChildren();
-    const data=await post("panel/support",{offset:0});
-    const rows=data.rows.map(t=>{const actions=el("div",undefined,"admin-row-actions");if(data.canWrite)actions.append(button(el,"Reply / update",()=>reply(t),"primary"));return [new Date(t.created_at).toLocaleString("en-IN"),t.owner_name||"—",t.subject,t.message,t.status,t.reply||"—",actions];});container.append(panelTable(el,["Created","Owner","Subject","Message","Status","Latest reply","Action"],rows));
-    function reply(t){const d=document.createElement("dialog"),form=document.createElement("form"),statusLabel=el("label","Status"),status=el("select");for(const v of ["open","resolved"]){const op=el("option",v);op.value=v;status.append(op);}status.value=t.status;statusLabel.append(status);form.append(statusLabel);const l=el("label","Reply"),message=el("textarea");message.required=true;l.append(message);form.append(l);const save=el("button","Save reply","primary");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/support/update",{requestId:crypto.randomUUID(),id:t.id,status:status.value,message:message.value});d.close();await supportPage(o);});};d.append(el("h2","Support ticket"),form);container.append(d);d.showModal();}
+    const state=o.state||{},offset=Number(state.offset||0),data=await post("panel/support",{offset,limit:50}),rows=data.rows||[],open=rows.filter(t=>t.status==="open");
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Tickets",rows.length,"Current page"),
+      metric(el,"Open",open.length,"Awaiting or continuing support"),
+      metric(el,"Resolved",rows.length-open.length,"Current page"),
+      metric(el,"Can reply",data.canWrite?"Yes":"No","Permission-controlled"),
+      metric(el,"External delivery",data.externalDelivery?"Configured":"Not configured","Replies remain in WPay")
+    );
+    container.append(metrics,el("p","Support responses are stored in WPay. Current backend reports externalDelivery=false, so saving a reply does not imply email/SMS delivery.","notice"));
+    const tableRows=rows.map(t=>{const actions=el("div",undefined,"admin-row-actions");if(data.canWrite)actions.append(button(el,"Reply / update",()=>reply(t),"primary"));return [new Date(t.created_at).toLocaleString("en-IN"),t.owner_name||"—",t.subject,t.message,pill(el,t.status),t.reply||"—",t.replied_at?new Date(t.replied_at).toLocaleString("en-IN"):"—",actions];});container.append(panelTable(el,["Created","Owner","Subject","Message","Status","Latest reply","Reply time","Action"],tableRows,"Support queue","Offset "+offset));
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>supportPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>supportPage({...o,state:{offset:data.nextOffset}})),"primary"));container.append(pager);
+    function reply(t){dialog(el,container,"Support ticket",(body,d)=>{const form=document.createElement("form"),statusLabel=el("label","Status"),status=el("select");for(const v of ["open","resolved"]){const op=el("option",v);op.value=v;status.append(op);}status.value=t.status;statusLabel.append(status);form.append(statusLabel);const l=el("label","Reply"),message=el("textarea");message.required=true;l.append(message);form.append(l);const save=el("button","Save reply","primary");save.type="submit";form.append(el("p","This saves an internal WPay support response; external delivery is not configured by this endpoint.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/support/update",{requestId:crypto.randomUUID(),id:t.id,status:status.value,message:message.value});d.close();await supportPage(o);});};});}
   }
 
   async function apkPage(o){
