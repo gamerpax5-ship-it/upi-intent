@@ -798,30 +798,42 @@
   async function profilePage(o){
     const {account,request,post,action,handleStage,el,container,title}=o;title.textContent="Profile";container.replaceChildren();
     const data=await request("panel/profile"),grid=el("div",undefined,"grid two-col"),profile=el("section",undefined,"card panel"),security=el("section",undefined,"card panel");
-    profile.append(el("h2","Profile"));
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Account",account.name||"Admin","Current session"),
+      metric(el,"Email",account.email||"—","Sign-in identity"),
+      metric(el,"Profile editing",data.canEdit?"Enabled":"Read only","Permission-controlled"),
+      metric(el,"Password minimum","15 characters","Client + backend policy flow"),
+      metric(el,"Sensitive changes","Current password","Confirmation required")
+    );
+    profile.append(el("h2","Profile"),el("p","Display-name updates use the profile endpoint. Email changes use the dedicated Admin security flow and require your current password.","notice"));
     const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Display name",account.name||""),email=field(el,form,"email","Email",account.email||"","email");
-    const save=el("button","Save profile","primary");save.type="submit";if(!data.canEdit)save.disabled=true;form.append(save);profile.append(form);
-    form.onsubmit=e=>{e.preventDefault();action(async()=>{
-      if(data.canEdit&&name.value.trim()!==(account.name||"")){const r=await post("panel/profile/update",{name:name.value});account.name=r.name;}
-      if(email.value.trim()!==(account.email||""))return confirmCurrentPassword("Change email",async password=>{
-        const result=await post("security/admin-email",{password,newEmail:email.value.trim()});password="";await handleStage(result);
-      });
-      await profilePage(o);
+    name.disabled=!data.canEdit;const save=el("button","Save profile","primary");save.type="submit";form.append(save);profile.append(form);
+    form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;action(async()=>{
+      let changed=false;
+      if(data.canEdit&&name.value.trim()!==(account.name||"")){const r=await post("panel/profile/update",{name:name.value.trim()});account.name=r.name;changed=true;}
+      if(email.value.trim()!==(account.email||"")){
+        await confirmCurrentPassword("Change email",async password=>{
+          const result=await post("security/admin-email",{password,newEmail:email.value.trim()});
+          await handleStage(result);
+        });
+        return;
+      }
+      if(changed)await profilePage(o);
     });};
 
-    security.append(el("h2","Account security"));
-    const passwordForm=el("form"),newPassword=field(el,passwordForm,"newPassword","New password","","password");newPassword.autocomplete="new-password";newPassword.minLength=15;newPassword.maxLength=128;
-    passwordForm.append(el("p","Use at least 15 characters. Existing sessions are revoked after a successful change.","notice"));
-    const change=el("button","Change password","primary");change.type="submit";passwordForm.append(change);security.append(passwordForm);
-    passwordForm.onsubmit=e=>{e.preventDefault();if(!passwordForm.reportValidity())return;action(async()=>confirmCurrentPassword("Change password",async password=>{
-      const result=await post("security/admin-password",{password,newPassword:newPassword.value});newPassword.value="";password="";await handleStage(result);
+    security.append(el("h2","Account security"),el("p","Password changes use the dedicated Admin security endpoint and require your current password. The security handler decides any required session/stage transition.","notice"));
+    const passwordForm=el("form",undefined,"form-grid"),newPassword=field(el,passwordForm,"newPassword","New password","","password");newPassword.autocomplete="new-password";newPassword.minLength=15;newPassword.maxLength=128;
+    const confirmNew=field(el,passwordForm,"confirmPassword","Confirm new password","","password");confirmNew.autocomplete="new-password";confirmNew.minLength=15;confirmNew.maxLength=128;
+    const change=el("button","Change password","primary");change.type="submit";passwordForm.append(el("p","Use at least 15 characters. Both password fields must match before submission.","notice"),change);security.append(passwordForm);
+    passwordForm.onsubmit=e=>{e.preventDefault();if(!passwordForm.reportValidity())return;if(newPassword.value!==confirmNew.value)throw Error("New passwords do not match");action(async()=>confirmCurrentPassword("Change password",async password=>{
+      const result=await post("security/admin-password",{password,newPassword:newPassword.value});newPassword.value="";confirmNew.value="";await handleStage(result);
     }));};
 
-    grid.append(profile,security);container.append(grid);
+    grid.append(profile,security);container.append(metrics,grid);
 
     function confirmCurrentPassword(labelText,submit){
       return new Promise((resolve,reject)=>{
-        const d=document.createElement("dialog"),form=document.createElement("form"),wrap=el("label","Current password"),password=el("input");password.type="password";password.autocomplete="current-password";password.required=true;wrap.append(password);form.append(wrap,el("p","Confirm your current password to continue. Other active sessions may be revoked.","notice"));
+        const d=document.createElement("dialog"),form=document.createElement("form"),wrap=el("label","Current password"),password=el("input");password.type="password";password.autocomplete="current-password";password.required=true;wrap.append(password);form.append(wrap,el("p","Confirm your current password to continue with this sensitive account change.","notice"));
         const buttons=el("div",undefined,"admin-row-actions"),ok=el("button",labelText,"primary"),cancel=el("button","Cancel");ok.type="submit";cancel.type="button";buttons.append(ok,cancel);form.append(buttons);d.append(el("h2",labelText),form);container.append(d);
         let finished=false;const finish=(error)=>{if(finished)return;finished=true;d.close();d.remove();if(error)reject(error);else resolve();};
         cancel.onclick=()=>finish();d.addEventListener("cancel",e=>{e.preventDefault();finish();});
@@ -830,24 +842,56 @@
       });
     }
   }
+
   async function settingsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="Settings";container.replaceChildren();
     const [auth,defaults]=await Promise.all([request("panel/settings"),request("panel/merchant-default-rate")]);
     const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const metrics=el("div",undefined,"grid analytics-metrics"),items=defaults.tenants||[];
+    metrics.append(
+      metric(el,"Workspaces",items.length,"Commercial default scopes"),
+      metric(el,"Writable",defaults.canUpdate?"Yes":"No","Merchant commercial permission"),
+      metric(el,"Admin login",auth.adminLogin,"Server-enforced"),
+      metric(el,"Session idle",auth.sessionIdleMinutes+" min","Server-enforced"),
+      metric(el,"Payment-link TTL","30–900 sec","Backend validation range"),
+      metric(el,"Security policy",auth.securityPolicyEditable?"Editable":"Read only","Platform behavior")
+    );
     const grid=el("div",undefined,"grid two-col"),commercial=el("section",undefined,"card panel"),policy=el("section",undefined,"card panel");
-    const head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Commercial defaults"),el("p","Applied to new Merchant approvals and Admin-managed collection policy"));head.append(copy);commercial.append(head);
-    if(!(defaults.tenants||[]).length)commercial.append(el("p","No writable workspace defaults in your scope.","admin-empty"));
-    for(const item of defaults.tenants||[]){
-      const form=el("form",undefined,"form-grid"),tenant=field(el,form,"tenant","Workspace",item.tenantId),rate=field(el,form,"rate","Merchant INR / USDT",item.rate||"107"),fixed=field(el,form,"fixed","Fixed payout fee INR",item.fixedPayoutFee||"6"),payin=field(el,form,"payin","Default pay-in fee %",item.payinFee||"1.2"),payout=field(el,form,"payout","Default payout fee %",item.payoutFee||"0.8"),ttl=field(el,form,"ttl","Payment link TTL sec",String(item.paymentLinkTtlSeconds||300));tenant.disabled=true;
-      const line=el("div",undefined,"toggle-line full"),left=el("div"),label=el("label",undefined,"switch"),toggle=el("input"),span=el("span");left.append(el("strong","Admin-managed collections"),el("p","When ON, Admin-approved collection routes can operate without User-funded capacity while all other eligibility, UPI, ticket and daily-limit checks remain enforced."));toggle.type="checkbox";toggle.checked=!!item.adminManagedCollections;toggle.disabled=!defaults.canUpdate;label.append(toggle,span);line.append(left,label);form.append(line);
-      const source=el("p","Current source: "+(item.adminManagedCollectionsSource==="admin"?"Admin setting":"environment fallback"),"notice full");form.append(source);
-      if(defaults.canUpdate){const save=el("button","Save defaults","primary");save.type="submit";form.append(save);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/merchant-default-rate/update",{tenantId:item.tenantId,rate:rate.value,fixedPayoutFee:fixed.value,payinFee:payin.value,payoutFee:payout.value,paymentLinkTtlSeconds:ttl.value,adminManagedCollections:toggle.checked});await settingsPage(o);});};}
+    const head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Commercial defaults"),el("p","Used for new Merchant approvals / workspace defaults"));head.append(copy);commercial.append(head);
+    if(!items.length)commercial.append(el("p","No workspace defaults are visible in your scope.","admin-empty"));
+    for(const item of items){
+      const form=el("form",undefined,"form-grid"),
+        tenant=field(el,form,"tenant","Workspace",item.tenantId),
+        rate=field(el,form,"rate","Merchant INR / USDT",item.rate||"107"),
+        fixed=field(el,form,"fixed","Fixed payout fee INR",item.fixedPayoutFee||"6"),
+        payin=field(el,form,"payin","Default pay-in fee %",item.payinFee||"1.2"),
+        payout=field(el,form,"payout","Default payout fee %",item.payoutFee||"0.8"),
+        ttl=field(el,form,"ttl","Payment link TTL sec",String(item.paymentLinkTtlSeconds||300));
+      tenant.disabled=true;rate.type=fixed.type=payin.type=payout.type="number";rate.step=fixed.step=payin.step=payout.step="0.01";ttl.type="number";ttl.min="30";ttl.max="900";ttl.step="1";
+      rate.disabled=fixed.disabled=payin.disabled=payout.disabled=ttl.disabled=!defaults.canUpdate;
+      const line=el("div",undefined,"toggle-line full"),left=el("div"),label=el("label",undefined,"switch"),toggle=el("input"),span=el("span");left.append(el("strong","Admin-managed collections"),el("p","Capacity insufficiency can be bypassed for Admin-managed collection routing only; account, device, UPI, ticket and daily-limit checks still apply."));toggle.type="checkbox";toggle.checked=!!item.adminManagedCollections;toggle.disabled=!defaults.canUpdate;label.append(toggle,span);line.append(left,label);form.append(line);
+      form.append(el("p","Source: "+(item.adminManagedCollectionsSource==="admin"?"Admin setting":"Environment fallback")+(item.updatedAt?" · Updated "+new Date(item.updatedAt).toLocaleString("en-IN"):""),"notice full"));
+      if(defaults.canUpdate){
+        const save=el("button","Save defaults","primary");save.type="submit";form.append(save);
+        form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;action(async()=>{
+          await post("panel/merchant-default-rate/update",{
+            tenantId:item.tenantId,rate:rate.value,fixedPayoutFee:fixed.value,payinFee:payin.value,payoutFee:payout.value,
+            paymentLinkTtlSeconds:ttl.value,adminManagedCollections:toggle.checked
+          });await settingsPage(o);
+        });};
+      }
       commercial.append(form);
     }
-    policy.append(el("h2","Platform behavior"),el("p","Authentication/security timings remain server-enforced.","notice"));
-    for(const [l,v] of [["Admin login",auth.adminLogin],["Employee login",auth.employeeLogin],["Session idle",auth.sessionIdleMinutes+" minutes"],["Session maximum",auth.sessionMaximumHours+" hours"],["Sensitive action confirmation",auth.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));policy.append(row);}
-    grid.append(commercial,policy);container.append(grid);
+    policy.append(el("h2","Platform behavior"),el("p","Authentication/security timings are server-enforced and read-only here.","notice"));
+    for(const [l,v] of [
+      ["Admin login",auth.adminLogin],["Customer login",auth.customerLogin],["Employee login",auth.employeeLogin],
+      ["Temporary password",auth.temporaryPasswordHours+" hours"],["Password reset challenge",auth.resetChallengeMinutes+" minutes"],
+      ["Session idle",auth.sessionIdleMinutes+" minutes"],["Session maximum",auth.sessionMaximumHours+" hours"],
+      ["Sensitive action confirmation",auth.sensitiveActionConfirmationMinutes+" minutes"]
+    ]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));policy.append(row);}
+    grid.append(commercial,policy);container.append(metrics,grid);
   }
+
   async function ledgerPage(o){
     const {post,action,el,container,title}=o;title.textContent="Ledger";container.replaceChildren();
     const state=o.state||{},filter={ownerId:state.ownerId||null,reference:state.reference||"",type:state.type||"",offset:Number(state.offset||0)},data=await post("business/ledger/search",filter),entries=data.entries||[];
@@ -1003,7 +1047,35 @@
   }
 
   async function securityPage(o){
-    const {request,el,container,title,navigate}=o;title.textContent="Security";const data=await request("panel/settings");container.replaceChildren();const grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card admin-panel"),boundaries=el("section",undefined,"card admin-panel");auth.append(el("h2","Authentication policy"));for(const [l,v]of [["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}boundaries.append(el("h2","Authority boundaries"));for(const [l,v]of [["Tenant scoping","Required for Admin data access"],["Recent authentication","Required for high-risk changes"],["Super Admin platform scope","Required for API key/Admin authority"],["Operational OTP reader","Restricted read access"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",v));boundaries.append(row);}boundaries.append(el("p","Use Account settings for password/email changes and recent-auth confirmation.","notice"),button(el,"Open Account settings",()=>navigate("v5.profile"),"primary"));grid.append(auth,boundaries);container.append(grid);
+    const {request,el,container,title,navigate}=o;title.textContent="Security";
+    const data=await request("panel/settings");container.replaceChildren();
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Admin login",data.adminLogin,"Current server policy"),
+      metric(el,"Employee login",data.employeeLogin,"Current server policy"),
+      metric(el,"Session idle",data.sessionIdleMinutes+" min","Idle timeout"),
+      metric(el,"Session maximum",data.sessionMaximumHours+" hr","Absolute session limit"),
+      metric(el,"Sensitive confirmation",data.sensitiveActionConfirmationMinutes+" min","Recent-auth window"),
+      metric(el,"Policy editing",data.securityPolicyEditable?"Enabled":"Disabled","Server-controlled")
+    );
+    const grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card panel"),boundaries=el("section",undefined,"card panel");
+    auth.append(el("h2","Authentication policy"),el("p","These values are returned by the server and are not editable from this Admin page.","notice"));
+    for(const [l,v]of [
+      ["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],
+      ["Temporary password",data.temporaryPasswordHours+" hours"],["Reset challenge",data.resetChallengeMinutes+" minutes"],
+      ["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],
+      ["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]
+    ]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}
+    boundaries.append(el("h2","Authority boundaries"));
+    for(const [l,v]of [
+      ["Tenant scoping","Required for Admin operational data access"],
+      ["Recent authentication","Required for high-risk mutations"],
+      ["Super Admin platform scope","Required for API credential and Admin-authority management"],
+      ["Employee delegation","Cannot exceed delegating Admin grants"],
+      ["OTP event access","Separate permission-controlled operational surface"],
+      ["Security policy editing",data.securityPolicyEditable?"Available":"Not exposed in this Admin API"]
+    ]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",v));boundaries.append(row);}
+    boundaries.append(el("p","Use Profile / Account security for your own email and password changes. Those flows require current-password confirmation through the existing security endpoints.","notice"),button(el,"Open Account settings",()=>navigate("v5.profile"),"primary"));
+    grid.append(auth,boundaries);container.append(metrics,grid);
   }
 
   async function collectionAccessPage(o){
