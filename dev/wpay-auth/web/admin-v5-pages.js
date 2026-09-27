@@ -577,13 +577,32 @@
     const {request,post,action,el,container,title}=o;title.textContent="Merchant USDT";container.replaceChildren();
     const [data,defaults]=await Promise.all([request("payout/merchant-usdt-admin"),request("panel/merchant-default-rate")]),requests=data.requests||[],rates=[...new Set((defaults.tenants||[]).map(x=>x.rate))],defaultLabel=rates.length===1?"₹"+rates[0]:rates.length?"Multiple":"₹107";
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(defaults.canUpdate)tools.append(button(el,"Edit default USDT rate",()=>editDefault()));}
-    const band=el("div",undefined,"kpi-band"),add=(label,value)=>{const x=el("div");x.append(el("small",label),el("strong",String(value)));band.append(x);};add("Default Admin rate",defaultLabel);add("Requested",requests.filter(x=>x.state==="requested").length);add("Processing",requests.filter(x=>x.state==="processing").length);add("Completed",requests.filter(x=>x.state==="completed").length);add("Network","TRON-TRC20");container.append(band);
-    const rows=requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.state==="requested")actions.append(button(el,"Approve",()=>transition(r,"approve"),"primary"),button(el,"Reject",()=>transition(r,"reject"),"danger"));if(r.state==="review")actions.append(button(el,"Approve",()=>transition(r,"approve"),"primary"),button(el,"Reject",()=>transition(r,"reject"),"danger"));if(r.state==="approved")actions.append(button(el,"Process",()=>transition(r,"process")));if(r.state==="processing")actions.append(button(el,"Complete",()=>complete(r),"primary"));return [r.merchantName||r.merchantId,money(r.inrMinor),(BigInt(r.usdtMinor||0)/1000000n).toLocaleString("en-IN")+" USDT","₹"+r.rate,(r.network||"—")+" · "+(r.destinationSummary||"Protected destination"),pill(el,r.state),actions];});
-    container.append(panelTable(el,["Merchant","INR reserved","USDT quote","Rate","Network / destination","State","Action"],rows));
+    const requested=requests.filter(x=>x.state==="requested").length,review=requests.filter(x=>x.state==="review").length,approved=requests.filter(x=>x.state==="approved").length,processing=requests.filter(x=>x.state==="processing").length,completed=requests.filter(x=>x.state==="completed").length,reserved=requests.filter(x=>!["completed","rejected","cancelled"].includes(x.state)).reduce((n,x)=>n+BigInt(x.inrMinor||0),0n);
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Default Admin rate",defaultLabel,"New Merchant approvals"),
+      metric(el,"Requested",requested,"Awaiting review"),
+      metric(el,"Review / approved",review+approved,"Decision / processing queue"),
+      metric(el,"Processing",processing,"Manual settlement underway"),
+      metric(el,"Completed",completed,"Recorded settlements"),
+      metric(el,"INR reserved",money(reserved),"Open Merchant settlement requests")
+    );
+    container.append(metrics,el("p","Merchant USDT settlement is a manual Admin workflow. Completion records a reference and timestamp, releases the INR reserve and posts settlement principal. It is explicitly marked blockchainConfirmed=false; duplicate transfer references are still blocked.","notice"));
+    const rows=requests.map(r=>{
+      const actions=el("div",undefined,"admin-row-actions");
+      if(r.state==="requested")actions.append(button(el,"Move to review",()=>transition(r,"review")),button(el,"Approve",()=>transition(r,"approve"),"primary"),button(el,"Reject",()=>transition(r,"reject"),"danger"));
+      else if(r.state==="review")actions.append(button(el,"Approve",()=>transition(r,"approve"),"primary"),button(el,"Reject",()=>transition(r,"reject"),"danger"));
+      else if(r.state==="approved")actions.append(button(el,"Process",()=>transition(r,"process"),"primary"),button(el,"Reject",()=>transition(r,"reject"),"danger"));
+      else if(r.state==="processing")actions.append(button(el,"Complete",()=>complete(r),"primary"));
+      const usdt=(BigInt(r.usdtMinor||0)/1000000n).toLocaleString("en-IN")+" USDT";
+      return [r.merchantName||r.merchantId,money(r.inrMinor),usdt,"₹"+r.rate,(r.network||"—")+" · "+(r.destinationSummary||"Protected destination"),r.createdAt?new Date(r.createdAt).toLocaleString("en-IN"):"—",r.completedAt?new Date(r.completedAt).toLocaleString("en-IN"):"—",pill(el,r.state),actions];
+    });
+    container.append(panelTable(el,["Merchant","INR reserved","USDT quote","Rate","Network / destination","Created","Completed","State","Action"],rows,"Merchant USDT settlements",requests.length+" loaded"));
+
     function editDefault(){dialog(el,container,"Edit default Merchant USDT rate",(body,d)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(defaults.tenants||[]).map(x=>[x.tenantId,x.tenantId]),defaults.tenants?.[0]?.tenantId),rate=field(el,form,"rate","INR per USDT",defaults.tenants?.[0]?.rate||"107"),save=el("button","Save default rate","primary");const current=()=>defaults.tenants.find(x=>x.tenantId===tenant.value)||defaults.tenants?.[0]||{};tenant.onchange=()=>{rate.value=current().rate||"107";};save.type="submit";form.append(el("p","This default pre-fills new Merchant approvals. Existing Merchant commercial versions are not silently rewritten.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const dflt=current();await post("panel/merchant-default-rate/update",{tenantId:tenant.value,rate:rate.value,fixedPayoutFee:dflt.fixedPayoutFee||"6",payinFee:dflt.payinFee||"1.2",payoutFee:dflt.payoutFee||"0.8",paymentLinkTtlSeconds:String(dflt.paymentLinkTtlSeconds||300),adminManagedCollections:!!dflt.adminManagedCollections});d.close();await merchantUsdt(o);});};});}
-    function transition(r,command){dialog(el,container,"Merchant USDT · "+command,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason","Admin "+command),save=el("button",command,command==="reject"?"danger":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/merchant-usdt/transition",{id:r.id,action:command,reason:reason.value});d.close();await merchantUsdt(o);});};});}
-    function complete(r){dialog(el,container,"Complete Merchant USDT",(body,d)=>{const form=el("form",undefined,"form-grid"),reason=field(el,form,"reason","Reason","Manual settlement completed"),reference=field(el,form,"reference","Completion reference"),network=field(el,form,"network","Network",r.network||"TRON-TRC20"),at=field(el,form,"completedAt","Completed at (UTC)",new Date().toISOString().replace(/\.\d{3}Z$/,"Z")),save=el("button","Complete","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/merchant-usdt/transition",{id:r.id,action:"complete",reason:reason.value,reference:reference.value,network:network.value,completedAt:at.value});d.close();await merchantUsdt(o);});};});}
+    function transition(r,command){dialog(el,container,command.replaceAll("_"," ")+" Merchant USDT",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",command==="review"?"Manual review started":command==="approve"?"Settlement approved":command==="process"?"Settlement processing":"Settlement rejected"),save=el("button",command[0].toUpperCase()+command.slice(1),command==="reject"?"danger":"primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/merchant-usdt/transition",{id:r.id,action:command,reason:reason.value});d.close();await merchantUsdt(o);});};});}
+    function complete(r){dialog(el,container,"Complete Merchant USDT",(body,d)=>{const form=el("form",undefined,"form-grid"),reference=field(el,form,"reference","TRON transaction reference / hash"),network=field(el,form,"network","Network",r.network||"TRON-TRC20"),completed=field(el,form,"completed","Completed at",new Date().toISOString()),reason=field(el,form,"reason","Reason","Manual Admin settlement completed"),save=el("button","Complete settlement","primary");network.disabled=true;save.type="submit";form.append(el("p","This records a manual Admin completion and does not claim blockchain verification. The backend validates reference format, timestamp and duplicate economic reference.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/merchant-usdt/transition",{id:r.id,action:"complete",reason:reason.value,reference:reference.value,network:network.value,completedAt:completed.value});d.close();await merchantUsdt(o);});};});}
   }
+
   async function withdrawals(o){
     const {post,action,el,container,title}=o;title.textContent="Commission withdrawals";container.replaceChildren();
     const data=await post("payout/withdrawal/search",{offset:0,limit:50}),requests=data.withdrawals||[];
@@ -833,21 +852,30 @@
 
   async function payoutDisputes(o){
     const {post,action,el,container,title}=o;title.textContent="Post-approval disputes";container.replaceChildren();
-    const data=await post("payout/dispute/search",{offset:0,limit:25});
-    container.append(el("p","Real 48-hour post-approval dispute: Merchant statement coverage must span payment time through near-current review time. Opening holds User capacity + payout commission. Invalid outcome reverses the exact reversible settlement entries.","notice"));
-    const rows=data.orders.map(d=>{
-      const actions=el("div",undefined,"admin-row-actions");
-      const proofs=el("div",undefined,"admin-row-actions");
-      if(d.statementId)proofs.append(button(el,"Statement",()=>download(d,d.statementId)));
-      if(d.responseProofId)proofs.append(button(el,"User proof",()=>download(d,d.responseProofId)));
+    const data=await post("payout/dispute/search",{offset:0,limit:25}),orders=data.orders||[],open=orders.filter(d=>d.status==="pending"),valid=orders.filter(d=>d.status==="payment_valid"),invalid=orders.filter(d=>d.status==="payment_invalid"),held=open.reduce((n,d)=>n+BigInt(d.amountMinor||0),0n),commission=open.reduce((n,d)=>n+BigInt(d.commissionMinor||0),0n);
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Open disputes",open.length,"Pending Admin resolution"),
+      metric(el,"Capacity held",money(held),"User exposure on pending disputes"),
+      metric(el,"Commission held",money(commission),"User payout commission hold"),
+      metric(el,"Payment valid",valid.length,"Resolved valid"),
+      metric(el,"Payment invalid",invalid.length,"Exact reversal outcome"),
+      metric(el,"Loaded disputes",orders.length,"Latest scoped records")
+    );
+    container.append(metrics,el("p","Post-approval dispute is available for recent successful payouts. While pending, User capacity and payout commission are held. payment_invalid reverses the exact reversible settlement entries; payment_valid releases the holds without rewriting history.","notice"));
+    const rows=orders.map(d=>{
+      const actions=el("div",undefined,"admin-row-actions"),proofs=el("div",undefined,"admin-row-actions");
+      if(d.statementId)proofs.append(button(el,"Merchant statement",()=>download(d,d.statementId)));
+      if(d.responseProofId)proofs.append(button(el,"User response",()=>download(d,d.responseProofId)));
       if(d.status==="pending")actions.append(button(el,"Payment valid",()=>resolve(d,"payment_valid"),"primary"),button(el,"Payment invalid",()=>resolve(d,"payment_invalid"),"danger"));
       const identity=el("div");identity.append(el("strong",d.reference),el("div",d.id,"small muted"));
-      return [identity,(d.merchantName||d.merchantId)+" · "+(d.userName||d.userId),money(d.amountMinor)+" · commission "+money(d.commissionMinor||0),(d.coverageFrom?new Date(d.coverageFrom).toLocaleString("en-IN"):"—")+" → "+(d.coverageThrough?new Date(d.coverageThrough).toLocaleString("en-IN"):"—"),d.reason,proofs,pill(el,d.status),actions];
+      const coverage=(d.coverageFrom?new Date(d.coverageFrom).toLocaleString("en-IN"):"—")+" → "+(d.coverageThrough?new Date(d.coverageThrough).toLocaleString("en-IN"):"—");
+      return [identity,(d.merchantName||d.merchantId)+" · "+(d.userName||d.userId),money(d.amountMinor),money(d.commissionMinor||0),coverage,d.reason,proofs,pill(el,d.status),actions];
     });
-    container.append(panelTable(el,["Payout","Merchant / User","Amount / commission","Coverage","Reason","Proofs","Status","Action"],rows));
+    container.append(panelTable(el,["Payout","Merchant / User","Amount","Commission hold","Statement coverage","Reason","Proofs","Status","Action"],rows,"Post-approval disputes",open.length+" pending"+(data.hasMore?" · more available":"")));
     function download(d,proofId){action(async()=>{const p=await post("payout/proof",{id:d.id,proofId}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:p.contentType||"application/octet-stream"})),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});}
-    function resolve(d,decision){dialog(el,container,decision==="payment_valid"?"Payment valid":"Payment invalid",(body,dlg)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Resolution reason","Reviewed Merchant statement and User response"),save=el("button",decision==="payment_valid"?"Payment valid":"Payment invalid",decision==="payment_valid"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/dispute/resolve",{id:d.id,action:decision,reason:reason.value});dlg.close();await payoutDisputes(o);});};});}
+    function resolve(d,decision){dialog(el,container,decision==="payment_valid"?"Resolve as payment valid":"Resolve as payment invalid",(body,dlg)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Resolution reason","Reviewed Merchant statement and User response"),save=el("button",decision==="payment_valid"?"Payment valid":"Payment invalid",decision==="payment_valid"?"primary":"danger");save.type="submit";form.append(el("p",decision==="payment_invalid"?"This exact-reverses the reversible settlement accounting path and releases dispute holds.":"This releases dispute holds and leaves the successful settlement intact.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/dispute/resolve",{id:d.id,action:decision,reason:reason.value});dlg.close();await payoutDisputes(o);});};});}
   }
+
   async function lateReviews(o){
     const {post,action,el,container,title}=o;title.textContent="Late payment reviews";container.replaceChildren();
     const [payoutData,parkingData]=await Promise.all([post("payout/late/search",{offset:0}),post("parking/late/search",{offset:0})]);
@@ -855,17 +883,27 @@
       ...(payoutData.requests||[]).map(r=>({...r,kind:"payout"})),
       ...(parkingData.requests||[]).map(r=>({...r,kind:"parking"}))
     ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-    container.append(el("p","Late proof is review-only: existing tasks remain unchanged until explicit Admin approval or rejection. Reviewer can inspect UTR + proof, held amount, reserve mode and conflicts.","notice"));
+    const pending=records.filter(r=>r.status==="pending"),held=pending.reduce((n,r)=>n+BigInt(r.held_minor||0),0n),conflicts=pending.filter(r=>r.conflict).length,flagged=pending.filter(r=>r.scan_state&&r.scan_state!=="clean").length;
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Pending reviews",pending.length,"Awaiting explicit Admin decision"),
+      metric(el,"Held amount",money(held),"Queue hold only"),
+      metric(el,"Conflicts",conflicts,"Existing state/balance conflicts"),
+      metric(el,"Scan flagged",flagged,"Non-clean proof scans"),
+      metric(el,"Payout late reviews",records.filter(r=>r.kind==="payout").length,"All loaded"),
+      metric(el,"Parking late reviews",records.filter(r=>r.kind==="parking").length,"All loaded")
+    );
+    container.append(metrics,el("p","Late proof is review-only until explicit approval. Existing assignments/tasks are not silently changed. Payout reviews may use an existing reservation hold or an extra reserve; Parking holds only the amount still safely available.","notice"));
     const rows=records.map(r=>{
-      const proofCell=el("div");proofCell.append(el("strong","UTR / proof"),button(el,"View",()=>proof(r)));
+      const proofCell=el("div",undefined,"admin-row-actions");proofCell.append(button(el,"View proof",()=>proof(r)));
       const actions=el("div",undefined,"admin-row-actions");
       if(r.status==="pending")actions.append(button(el,"Approve",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));
-      return [pill(el,r.kind),r.resource_id+" · "+r.user_name,money(r.amount_minor),money(r.held_minor),r.reserve_mode||"—",proofCell,r.reason+(r.conflict?" · "+r.conflict:""),pill(el,r.status),actions];
+      return [pill(el,r.kind),r.resource_id+" · "+r.user_name,money(r.amount_minor),money(r.held_minor),r.reserve_mode||"none",r.scan_state||"—",r.reason,r.conflict||"—",pill(el,r.status),proofCell,actions];
     });
-    container.append(panelTable(el,["Kind","Resource / User","Amount","Held","Reserve","UTR / proof","Reason / conflict","Status","Action"],rows));
-    function proof(r){action(async()=>{const route=r.kind==="parking"?"parking/late/proof":"payout/late/proof",p=await post(route,{id:r.id}),d=document.createElement("dialog"),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes])),link=el("a","Download proof","primary");link.href=url;link.download=p.name;d.append(el("h2",(r.kind==="parking"?"Parking":"Payout")+" late proof"),el("p","UTR: "+p.utr+" · Scan: "+p.scanState,"notice"),link,button(el,"Close",()=>{URL.revokeObjectURL(url);d.close();}));container.append(d);d.showModal();});}
-    function decide(r,decision){dialog(el,container,(decision==="approve"?"Approve ":"Reject ")+(r.kind==="parking"?"Parking":"Payout")+" late proof",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Decision reason",decision==="approve"?"Late payment evidence accepted":"Late payment evidence rejected"),save=el("button",decision==="approve"?"Approve payment":"Reject request",decision==="approve"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post(r.kind==="parking"?"parking/late/decide":"payout/late/decide",{id:r.id,action:decision,reason:reason.value});d.close();await lateReviews(o);});};});}
+    container.append(panelTable(el,["Kind","Resource / User","Amount","Held","Reserve mode","Proof scan","Reason","Conflict","Status","Proof","Action"],rows,"Late payment review queue",pending.length+" pending"));
+    function proof(r){action(async()=>{const route=r.kind==="parking"?"parking/late/proof":"payout/late/proof",p=await post(route,{id:r.id}),d=document.createElement("dialog"),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:"application/octet-stream"})),link=el("a","Download proof","primary");link.href=url;link.download=p.name;d.append(el("h2",(r.kind==="parking"?"Parking":"Payout")+" late proof"),el("p","UTR: "+p.utr+" · Scan: "+p.scanState,"notice"),link,button(el,"Close",()=>{URL.revokeObjectURL(url);d.close();}));container.append(d);d.showModal();});}
+    function decide(r,decision){dialog(el,container,(decision==="approve"?"Approve ":"Reject ")+(r.kind==="parking"?"Parking":"Payout")+" late proof",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Decision reason",decision==="approve"?"Late payment evidence accepted":"Late payment evidence rejected"),save=el("button",decision==="approve"?"Approve payment":"Reject request",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"Backend rechecks state, held amount and conflicts atomically before settling.":"Rejecting releases any extra payout reserve created for this late review.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post(r.kind==="parking"?"parking/late/decide":"payout/late/decide",{id:r.id,action:decision,reason:reason.value});d.close();await lateReviews(o);});};});}
   }
+
   async function pairingHistory(o){
     const {post,action,el,container,title}=o;title.textContent="Pairing History";
     const [history,setup]=await Promise.all([post("operations/pairing-history",{offset:o.state?.offset||0}),post("operations/device-setup",{})]);
