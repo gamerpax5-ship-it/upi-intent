@@ -501,24 +501,34 @@
   async function utrCapture(o){
     const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();
     const [sources,pending]=await Promise.all([post("operations/utr-source",{}),post("operations/utr/pending",{status:"pending",offset:0})]);
-    const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,...await post("operations/utr-source",{linkId:link.id})};}catch{return {link,observations:[]};}}));
-    const captures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"}))).sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt));
+    const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
+    const captures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"}))).sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt)),failedSources=sourceResults.filter(x=>!x.ok);
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const [key,label]of [["all","All"],["apk","APK captured"],["statement","Statement"],["pending","Pending review"]]){const b=button(el,label,()=>draw(key),key==="all"?"active":"");b.dataset.utrFilter=key;tabs.append(b);}tools.append(tabs);}
-    const metrics=el("div",undefined,"grid metrics");metrics.append(metric(el,"Total UTR captures",captures.length,"APK + uploaded statements"),metric(el,"APK captured",captures.filter(x=>x.sourceKind==="apk").length,"SMS/device source"),metric(el,"Statement captured",captures.filter(x=>x.sourceKind==="statement").length,"Uploaded statement source"),metric(el,"Pending review",pending.records.length,"Claims awaiting decision"));
-    container.append(metrics,el("p","APK/statement captures and submitted UTR claims are different evidence surfaces. Manual Admin approval remains explicitly different from bank-verified evidence.","notice"));
-    const stream=el("section",undefined,"card admin-panel"),pendingPanel=el("section",undefined,"card admin-panel");stream.append(el("h2","Captured UTR stream"));pendingPanel.append(el("h2","Pending UTR decisions"));container.append(stream,pendingPanel);
-    const pendingRows=()=>pending.records.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canReview)actions.append(button(el,"Verify evidence",()=>verify(r)));if(r.canApprove)actions.append(button(el,"Manual approve",()=>decision(r,"approve"),"primary"));if(r.canReview)actions.append(button(el,"Reject",()=>decision(r,"reject"),"danger"));return [new Date(r.submittedAt).toLocaleString("en-IN"),r.utr,r.reference,r.merchant,r.user,money(r.amountMinor),r.paymentStatus,r.status,actions];});
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"UTR captures",captures.length,"Readable scoped observations"),
+      metric(el,"APK captured",captures.filter(x=>x.sourceKind==="apk").length,"Device transaction source"),
+      metric(el,"Statement captured",captures.filter(x=>x.sourceKind==="statement").length,"Scoped statement source"),
+      metric(el,"Pending review",pending.records.length,"Submitted claims awaiting decision"),
+      metric(el,"Source links",linked.length,"Verified scoped links"),
+      metric(el,"Unavailable sources",failedSources.length,"Read failed without fabricating data")
+    );
+    container.append(metrics,el("p","APK/statement observations and submitted payment claims are separate evidence surfaces. Captured UTR alone does not post accounting. Independent verification or an explicit Admin decision remains required by the existing backend.","notice"));
+    if(!sources.sourceConnected)container.append(el("p","The scoped legacy UTR reader is not currently connected. Existing claims can still be reviewed, but source observations may be unavailable.","notice warn"));
+    if(failedSources.length)container.append(el("p",failedSources.length+" scoped UTR source link(s) could not be read. They are shown as unavailable rather than treated as empty proof.","notice warn"));
+    const stream=el("section",undefined,"card panel"),pendingPanel=el("section",undefined,"card panel");stream.append(el("h2","Captured UTR stream"));pendingPanel.append(el("h2","Pending UTR decisions"));container.append(stream,pendingPanel);
+    const pendingRows=()=>pending.records.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canReview)actions.append(button(el,"Verify evidence",()=>verify(r)));if(r.canApprove)actions.append(button(el,"Manual approve",()=>decision(r,"approve"),"primary"));if(r.canReview)actions.append(button(el,"Reject",()=>decision(r,"reject"),"danger"));return [new Date(r.submittedAt).toLocaleString("en-IN"),r.utr,r.reference,r.merchant,r.user,money(r.amountMinor),pill(el,r.paymentStatus),pill(el,r.status),actions];});
     pendingPanel.append(table(el,["Submitted","UTR","Reference","Merchant","User","Amount","Payment","Review","Actions"],pendingRows()));
     function draw(filter){
       if(tools)for(const b of tools.querySelectorAll("[data-utr-filter]"))b.classList.toggle("active",b.dataset.utrFilter===filter);
-      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.utr,x.amount,x.sourceKind==="apk"?"APK":"Statement",x.deviceOrStatement,x.userId||"—",x.merchantId||"—",x.bankReference||"—",x.sourceStatus||"captured"]);
-      stream.replaceChildren(el("h2","Captured UTR stream"),table(el,["Captured","UTR","Amount","Source","Device / statement","User","Merchant","Bank","Status"],rows));
+      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.utr,x.amount,x.sourceKind==="apk"?"APK":"Statement",x.deviceOrStatement,x.userId||"—",x.merchantId||"—",x.bankReference||"—",x.sourceStatus||"captured",x.evidenceState||"unbound_observation",x.accountingState||"not_posted"]);
+      stream.replaceChildren(el("h2","Captured UTR stream"),table(el,["Captured","UTR","Amount","Source","Device / statement","User","Merchant","Bank","Status","Evidence","Accounting"],rows));
       pendingPanel.hidden=filter!=="all"&&filter!=="pending";
     }
-    function verify(r){dialog(el,container,"Verify evidence · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Review reason","Verify submitted UTR against independent evidence"),save=el("button","Verify evidence","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/verify",{orderId:r.orderId,utr:r.utr,reason:reason.value});d.close();await utrCapture(o);});};});}
-    function decision(r,decision){dialog(el,container,(decision==="approve"?"Manual approve":"Reject")+" · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Manual approve":"Reject",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"Admin approval is recorded as admin_approved and is not bank verification.":"Rejected claim closes the payment when current state allows.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:r.claimId,action:decision,reason:reason.value});d.close();await utrCapture(o);});};});}
+    function verify(r){dialog(el,container,"Verify evidence · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Review reason","Verify submitted UTR against independent evidence"),save=el("button","Verify evidence","primary");save.type="submit";form.append(el("p","This only queues/retries independent verification. It does not mark the payment successful by itself.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/verify",{orderId:r.orderId,utr:r.utr,reason:reason.value});d.close();await utrCapture(o);});};});}
+    function decision(r,decision){dialog(el,container,(decision==="approve"?"Manual approve":"Reject")+" · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Manual approve":"Reject",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"Admin approval is recorded as admin_approved and remains distinct from bank-verified evidence.":"Rejected claim closes the payment when the backend state allows it.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:r.claimId,action:decision,reason:reason.value});d.close();await utrCapture(o);});};});}
     draw("all");
   }
+
   async function statementsPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="Statements & reconciliation";container.replaceChildren();
     const [data,recovery]=await Promise.all([request("operations/statements"),post("operations/transactions",{offset:0,status:"recovery_review"})]);
@@ -827,20 +837,30 @@
 
   async function apkPage(o){
     const {request,el,container,title}=o;title.textContent="APK / Agent";container.replaceChildren();
-    const data=await request("apk"),metrics=el("div",undefined,"grid metrics");
-    metrics.append(metric(el,"Package",data.package,"Android Agent"),metric(el,"Latest checked build",data.version+" / "+data.build,data.refreshedAt?new Date(data.refreshedAt).toLocaleString("en-IN"):"Current artifact"),metric(el,"Signing",data.signing?.identity||"Unavailable","Artifact signer identity"),metric(el,"Branch trigger","main only","Hosted branch changes do not trigger APK build"));
+    const data=await request("apk"),metrics=el("div",undefined,"grid analytics-metrics"),size=data.bytes?Math.round(data.bytes/1024/1024*100)/100+" MB":"—";
+    metrics.append(
+      metric(el,"Version",data.version||"—","Published Agent version"),
+      metric(el,"Build",data.build??"—","Android versionCode"),
+      metric(el,"Package",data.package||"—","Android application ID"),
+      metric(el,"Artifact size",size,"Validated APK bytes"),
+      metric(el,"Signing",data.signing?.verified?"Verified":"Unavailable",data.signing?.identity||"Signer identity unavailable"),
+      metric(el,"Built",data.builtAt?new Date(data.builtAt).toLocaleString("en-IN"):"—",data.sourceCommit?"Commit "+String(data.sourceCommit).slice(0,12):"Build metadata")
+    );
     container.append(metrics);
-    const card=el("section",undefined,"card panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Release pipeline"),el("p","Live workflow / artifact summary"));head.append(copy);card.append(head);
+    const card=el("section",undefined,"card panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Published Android artifact"),el("p","Server-validated APK metadata"));head.append(copy);card.append(head);
     const line=(label,detail,state)=>{const r=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",label),el("div",detail,"small muted"));r.append(left,pill(el,state));return r;};
     card.append(
-      line("Android unit tests","Gradle testDebugUnitTest before build","configured"),
-      line("Debug APK build","assembleDebug in current workflow","configured"),
-      line("Release APK signing","Current workflow does not run release signing","not configured"),
-      line("Publish artifact metadata","WPAY-Agent.apk + WPAY-Agent.json on main","configured"),
-      line("Hosted branch auto-trigger","Not configured; push trigger is main + android paths","not configured")
+      line("Artifact validation",data.available?"APK + metadata available":"Unavailable",data.available?"verified":"unavailable"),
+      line("SHA-256",data.sha256||"Unavailable",data.sha256?"verified":"unavailable"),
+      line("Signing scheme",data.signing?.scheme||"Unavailable",data.signing?.verified?"verified":"unavailable"),
+      line("Android API","Minimum "+(data.minimumAndroidApi??"—")+" · Target "+(data.targetAndroidApi??"—"),"metadata"),
+      line("Publication source",data.source||"Unavailable","metadata"),
+      line("Workflow trigger","Current repository workflow: main branch + android-app/workflow paths","configured")
     );
-    const dl=el("a","Download latest APK","primary");dl.href="/wpay-auth/roles/admin/apk/download";dl.download="WPAY-Agent.apk";card.append(el("p","OTP capture code is not changed by this Admin UI work.","notice"),dl);container.append(card);
+    const dl=el("a","Download latest APK","primary");dl.href=data.downloadPath||"/wpay-auth/apk/download";dl.download="WPAY-Agent.apk";
+    card.append(el("p","Download uses the canonical artifact path returned by the APK metadata endpoint. The server validates APK hash, size, version metadata and signer evidence before reporting the artifact available. OTP capture/detection code is not modified by this Admin UI change.","notice"),dl);container.append(card);
   }
+
   async function financeSnapshot(o){
     return o.post("panel/admin-finance",{offset:0});
   }
