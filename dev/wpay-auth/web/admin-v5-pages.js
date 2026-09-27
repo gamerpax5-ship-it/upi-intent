@@ -100,8 +100,8 @@
     for(const x of (withdrawals.withdrawals||[]).filter(x=>["requested","review"].includes(x.state)))rows.push({kind:"Withdrawal",id:x.id,name:x.userId||x.id,created:x.createdAt||x.created_at,destination:"v5.withdrawals"});
     const band=el("div",undefined,"kpi-band"),add=(label,value)=>{const x=el("div");x.append(el("small",label),el("strong",String(value)));band.append(x);};
     add("Total pending",rows.length);add("Users",rows.filter(x=>x.kind==="User").length);add("Merchants",rows.filter(x=>x.kind==="Merchant").length);add("UPI",rows.filter(x=>x.kind==="Bank / UPI").length);add("Finance",rows.filter(x=>["Payout","Withdrawal"].includes(x.kind)).length);
-    const section=el("section",undefined,"card admin-panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Unified action queue"),el("p","Approvals stay in their own backend domain; this page only groups the work."));head.append(copy);section.append(head);
-    section.append(table(el,["Type","Record","Name","Created","Action"],rows.map(r=>[pill(el,r.kind),r.id,r.name,r.created?new Date(r.created).toLocaleString("en-IN"):"—",button(el,"Open module",()=>navigate(r.destination),"primary")])));
+    const section=el("section",undefined,"card panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Unified action queue"),el("p","Approvals stay in their own backend domain; this page only groups the work."));head.append(copy);section.append(head);
+    section.append(table(el,["Type","Record","Name","Created","Action"],rows.map(r=>[pill(el,r.kind),r.id,r.name,r.created?new Date(r.created).toLocaleString("en-IN"):"—",button(el,"Open module",()=>navigate(r.destination),"btn sm primary")])));
     container.replaceChildren(band,section);
   }
 
@@ -262,32 +262,32 @@
   async function deposits(o){
     const {post,action,el,container,title}=o;title.textContent="User deposits";container.replaceChildren();
     const data=await post("funding/list",{state:"",offset:0});
-    container.append(el("p","First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller. Admin may use manual review without a transaction hash when evidence is reviewed, while manual approval remains explicitly non-blockchain-verified.","notice"));
+    container.append(el("p","First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller. Admin may use manual_confirm without a transaction hash when evidence is reviewed, and may optionally enter the actual received USDT amount. Manual review remains explicitly non-blockchain-verified.","notice"));
     const quoteInr=r=>{
       if(r.credit_minor)return money(r.credit_minor);
       const raw=String(r.snapshot?.rate??"0"),[w,f=""]=raw.split("."),ratePaise=BigInt(w||0)*100n+BigInt(f.padEnd(2,"0").slice(0,2)||0),minor=BigInt(r.snapshot?.amountMinor||0);
       return money(minor*ratePaise/1000000n);
     };
     const rows=data.requests.map(r=>{
-      const actions=el("div",undefined,"admin-row-actions");
+      const actions=el("div",undefined,"row-actions");
       if(!["confirmed","rejected","reversed"].includes(r.state)){
-        if(data.actions.includes("approve"))actions.append(button(el,"Manual confirm",()=>manual(r,"manual_confirm"),"primary"));
-        if(data.actions.includes("review"))actions.append(button(el,"Recheck provider",()=>action(async()=>{await post("funding/recheck",{requestId:r.id});await deposits(o);})));
-        if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>manual(r,"manual_reject"),"danger"));
-      }else if(r.state==="confirmed"&&data.actions.includes("approve"))actions.append(button(el,"Reverse",()=>reverse(r),"danger"));
-      const tx=(r.claims||[])[0]?.tx_hash||"No hash";
-      return [r.name+" · "+r.id,(BigInt(r.snapshot?.amountMinor||0)/1000000n).toLocaleString("en-IN")+" USDT",quoteInr(r)+" · ₹"+String(r.snapshot?.rate??"—")+" / USDT",(r.snapshot?.network||"—")+" · "+(r.snapshot?.address||"—"),tx,r.state,r.source||"none",actions];
+        if(data.actions.includes("approve"))actions.append(button(el,"Manual confirm",()=>manual(r,"manual_confirm"),"btn sm success"));
+        if(data.actions.includes("review"))actions.append(button(el,"Recheck provider",()=>action(async()=>{await post("funding/recheck",{requestId:r.id});await deposits(o);}),"btn sm"));
+        if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>manual(r,"manual_reject"),"btn sm danger"));
+      }else if(r.state==="confirmed"&&data.actions.includes("approve"))actions.append(button(el,"Reverse",()=>reverse(r),"btn sm danger"));
+      const user=el("div");user.append(el("strong",r.name),el("div",r.id,"small muted"));
+      return [user,(BigInt(r.snapshot?.amountMinor||0)/1000000n).toLocaleString("en-IN")+" USDT",quoteInr(r),"₹"+String(r.snapshot?.rate??"—"),(r.claims||[])[0]?.tx_hash||"No hash",pill(el,r.state),pill(el,r.source||"none"),actions];
     });
-    container.append(panelTable(el,["User","USDT","INR credit / rate","Network / address","Tx reference","State","Source","Action"],rows));
+    const panel=panelTable(el,["User","Requested USDT","INR credit","Rate","Tx reference","State","Source","Action"],rows);panel.style.marginTop="12px";container.append(panel);
     function manual(r,command){
       const d=document.createElement("dialog"),form=document.createElement("form"),reasonLabel=el("label","Review reason"),reason=el("input");reason.required=true;reasonLabel.append(reason);form.append(reasonLabel);
       let amount;if(command==="manual_confirm"){const l=el("label","Actual received USDT (optional)"),i=el("input");i.type="number";i.step="0.000001";l.append(i);form.append(l);amount=i;}
-      const save=el("button",command==="manual_confirm"?"Confirm review":"Reject",command==="manual_confirm"?"primary":"danger");save.type="submit";form.append(el("p","Manual review provenance remains distinct from blockchain verification.","notice"),save,button(el,"Cancel",()=>d.close()));
+      const save=el("button",command==="manual_confirm"?"Manual confirm":"Reject",command==="manual_confirm"?"btn success":"btn danger");save.type="submit";form.append(el("p",command==="manual_confirm"?"No blockchain hash is required for this manual-review path. It remains marked blockchainVerified=false.":"Manual rejection remains auditable.","notice warn"),save,button(el,"Cancel",()=>d.close(),"btn"));
       form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("funding/review",{requestId:r.id,action:command,reason:reason.value,...(amount?.value?{amountUsdt:amount.value}:{})});d.close();await deposits(o);});};d.append(el("h2",command==="manual_confirm"?"Manual deposit confirmation":"Reject deposit"),form);container.append(d);d.showModal();
     }
     function reverse(r){
       const d=document.createElement("dialog"),form=document.createElement("form"),rl=el("label","Reversal reason"),reason=el("input"),refLabel=el("label","Evidence reference"),reference=el("input");reason.required=reference.required=true;reference.value="admin-reversal-"+r.id;rl.append(reason);refLabel.append(reference);form.append(rl,refLabel);
-      const save=el("button","Reverse confirmed deposit","danger");save.type="submit";form.append(el("p","This posts an exact capacity reversal and may create a reconciliation deficit if capacity was already consumed.","notice"),save,button(el,"Cancel",()=>d.close()));
+      const save=el("button","Reverse confirmed deposit","btn danger");save.type="submit";form.append(el("p","This posts an exact capacity reversal and may create a reconciliation deficit if capacity was already consumed.","notice warn"),save,button(el,"Cancel",()=>d.close(),"btn"));
       form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("funding/review",{requestId:r.id,action:"reverse",reason:reason.value,evidenceReference:reference.value,attributionReference:"",network:"",token:"",address:"",amountUsdt:"",txHash:"",eventIndex:0,reviewedFinal:false});d.close();await deposits(o);});};d.append(el("h2","Reverse deposit"),form);container.append(d);d.showModal();
     }
   }
@@ -643,10 +643,28 @@
   async function collectionAccessPage(o){
     const {request,post,action,el,container,title}=o;title.textContent="User collection access";container.replaceChildren();
     const data=await request("business/user-access"),policy=el("div",undefined,"policy-grid");
-    for(const [name,body]of [["Free Setup","Allows APK/device and bank/UPI setup even when funded available capacity is zero."],["Unlimited Collection","Exempts collection routing from capacity insufficiency only. Account, device, UPI, ticket and daily limits still apply."],["First deposit policy","Without Free Setup, first confirmed deposit requires at least 2,000 USDT. After confirmed history, later top-ups may be smaller."]]){const c=el("article",undefined,"policy-card");c.append(el("strong",name),el("p",body));policy.append(c);}container.append(policy);
-    const rows=data.users.map(u=>{const available=BigInt(u.available_minor||0),setup=u.free_setup||available>0n,actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Manage access",()=>edit(u)));return [u.name+" · "+u.id,money(available),u.free_setup?"enabled":"disabled",u.unlimited_collection?"enabled":"disabled",setup?"setup allowed":"funding required",u.unlimited_collection?"Capacity exempt":"Capacity backed",actions];});
-    container.append(panelTable(el,["User","Capacity","Free setup","Unlimited collection","Setup status","Collection mode","Action"],rows),el("p","Unlimited Collection bypasses capacity, not security: User active/approved, device eligibility, UPI approval/verification, route min/max and per-UPI daily limit checks still apply.","notice"));
-    function edit(u){dialog(el,container,"Collection access · "+u.name,(body,d)=>{const form=document.createElement("form"),toggle=(labelText,checked)=>{const line=el("div",undefined,"toggle-line"),copy=el("div"),wrap=el("label",undefined,"switch"),input=el("input"),span=el("span");copy.append(el("strong",labelText));input.type="checkbox";input.checked=checked;wrap.append(input,span);line.append(copy,wrap);form.append(line);return input;},free=toggle("Free Setup",u.free_setup),unlimited=toggle("Unlimited Collection",u.unlimited_collection),reason=field(el,form,"reason","Reason",u.reason||"Admin collection access update"),save=el("button","Save access","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:u.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});d.close();await collectionAccessPage(o);});};});}
+    for(const [name,copy]of [
+      ["Free Setup","Allows APK/device and bank/UPI setup even when funded available capacity is zero."],
+      ["Unlimited Collection","Exempts collection routing from capacity insufficiency only. Account, device, UPI, ticket and daily limits still apply."],
+      ["First deposit policy","Without Free Setup, first confirmed deposit requires at least 2,000 USDT. After confirmed history, later top-ups may be smaller."]
+    ]){const card=el("article",undefined,"policy-card");card.append(el("strong",name),el("p",copy));policy.append(card);}container.append(policy);
+    const rows=data.users.map(u=>{
+      const available=BigInt(u.available_minor||0),setup=u.free_setup||available>0n,actions=el("div",undefined,"row-actions"),user=el("div"),name=el("strong",u.name),id=el("div",u.id,"small muted");
+      user.append(name,id);actions.append(button(el,"Manage access",()=>edit(u),"btn sm"));
+      return [user,money(available),pill(el,u.free_setup?"enabled":"disabled"),pill(el,u.unlimited_collection?"enabled":"disabled"),pill(el,setup?"setup allowed":"funding required"),pill(el,u.unlimited_collection?"Capacity exempt":"Capacity backed"),actions];
+    });
+    const panel=panelTable(el,["User","Capacity","Free setup","Unlimited collection","Setup status","Collection mode","Action"],rows);panel.style.marginTop="12px";
+    const warning=el("p",undefined,"notice warn");warning.innerHTML="<b>Unlimited Collection capacity ko bypass karta hai, security ko nahi:</b> User active/approved, device eligibility, UPI approval/verification, route min/max aur per-UPI daily limit checks phir bhi apply hote hain.";warning.style.marginTop="12px";
+    container.append(panel,warning);
+    function edit(u){
+      dialog(el,container,"Collection access · "+u.name,(body,d)=>{
+        const form=document.createElement("form"),toggle=(labelText,description,checked)=>{
+          const line=el("div",undefined,"toggle-line"),copy=el("div"),wrap=el("label",undefined,"switch"),input=el("input"),span=el("span");
+          copy.append(el("strong",labelText),el("p",description));input.type="checkbox";input.checked=checked;wrap.append(input,span);line.append(copy,wrap);form.append(line);return input;
+        },free=toggle("Free Setup","Permit APK/device and bank/UPI setup without funded available capacity.",u.free_setup),unlimited=toggle("Unlimited Collection","Ignore capacity-insufficient routing only; all other eligibility and UPI limits remain enforced.",u.unlimited_collection),reason=field(el,form,"reason","Reason",u.reason||"Admin collection policy update","text",true),save=el("button","Save access","btn primary");
+        save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("business/user-access/update",{userId:u.id,freeSetup:free.checked,unlimitedCollection:unlimited.checked,reason:reason.value});d.close();await collectionAccessPage(o);});};
+      });
+    }
   }
 
   async function transactionsPage(o){
