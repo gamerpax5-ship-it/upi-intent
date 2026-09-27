@@ -478,3 +478,44 @@ th,td{padding:10px 11px}
   .wpay-admin .workspace{grid-template-columns:1fr;gap:0}
   .wpay-admin .workspace>aside.sidebar{padding:18px 14px}
 }
+
+
+/* Admin V5 modal/card isolation and responsive account directory. */
+.wpay-admin dialog{
+  width:min(760px,calc(100vw - 32px));
+  max-height:88vh;
+  overflow:auto;
+  background:#100d20;
+  color:var(--text);
+  border:1px solid rgba(154,107,255,.28);
+  border-radius:22px;
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+.wpay-admin dialog::backdrop{background:rgba(2,1,8,.76);backdrop-filter:blur(7px)}
+.wpay-admin dialog h2,.wpay-admin dialog h3,.wpay-admin dialog h4{color:var(--text)}
+.wpay-admin dialog label{margin:0;color:#c8c1d8}
+.wpay-admin dialog input,
+.wpay-admin dialog select,
+.wpay-admin dialog textarea{
+  margin-top:0;
+  min-height:0;
+  border:1px solid var(--line);
+  background:#0f0c1d;
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 11px;
+}
+.wpay-admin dialog form>button{margin:0}
+.wpay-admin .account-card-grid{grid-template-columns:repeat(auto-fit,minmax(360px,1fr))}
+.wpay-admin .account-card{min-width:0}
+.wpay-admin .account-identity{min-width:0}
+.wpay-admin .account-identity>div:last-child{min-width:0}
+.wpay-admin .account-card h3,
+.wpay-admin .account-card p,
+.wpay-admin .summary-row strong{overflow-wrap:anywhere}
+.wpay-admin .account-card-actions .btn{white-space:normal}
+@media(max-width:620px){
+  .wpay-admin .account-card-grid{grid-template-columns:1fr}
+  .wpay-admin dialog{width:calc(100vw - 20px);padding:14px}
+}
