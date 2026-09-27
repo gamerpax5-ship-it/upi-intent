@@ -355,15 +355,21 @@
   }
 
   async function profitExpenses(o){
-    const {post,el,container,title}=o;
-    title.textContent="Profit & expenses";container.replaceChildren();
-    const data=await post("panel/admin-finance",{offset:0}),fee=data.fees,n=k=>BigInt(fee[k]||0),fees=n("merchant_platform_fee")+n("merchant_payout_fee"),comm=n("user_commission")+n("user_payout_commission"),costs=BigInt(data.totalCosts||0),margin=BigInt(data.operatingMargin||0);
-    const metrics=el("div",undefined,"admin-primary-kpis");
-    metrics.append(metric(el,"Merchant fees",money(fees),"Pay-in + payout posted fees"),metric(el,"User commissions",money(comm),"Pay-in + payout earnings"),metric(el,"Salary & expenses",money(costs),"Recorded operating costs"),metric(el,"Operating margin",money(margin),"Fees − commissions − costs"));
-    container.append(metrics,el("p","USDT exchange profit is excluded until acquisition-cost matching exists. Saving salary/expense records never transfers money.","notice"));
-    container.append(table(el,["Date","Category","Payee","Amount","Reference","State"],data.expenses.map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded"])));
+    const {post,el,container,title}=o;title.textContent="Profit & expenses";container.replaceChildren();
+    const data=await post("panel/admin-finance",{offset:0}),fee=data.fees||{},n=k=>BigInt(fee[k]||0),payinFees=n("merchant_platform_fee"),payoutFees=n("merchant_payout_fee"),fees=payinFees+payoutFees,payinComm=n("user_commission"),payoutComm=n("user_payout_commission"),comm=payinComm+payoutComm,costs=BigInt(data.totalCosts||0),margin=BigInt(data.operatingMargin||0);
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Merchant fees",money(fees),"Pay-in + payout posted fees"),
+      metric(el,"User commissions",money(comm),"Pay-in + payout earnings"),
+      metric(el,"Salary & expenses",money(costs),"Non-void operating costs"),
+      metric(el,"Operating margin",money(margin),"Fees − commissions − costs"),
+      metric(el,"Pay-in margin",money(payinFees-payinComm),"Fee less commission"),
+      metric(el,"Payout margin",money(payoutFees-payoutComm),"Fee less commission")
+    );
+    container.append(metrics,el("p","Period: "+new Date(data.from).toLocaleString("en-IN")+" → "+new Date(data.to).toLocaleString("en-IN")+". USDT FX profit is excluded because acquisition-cost matching is unavailable. Expense records affect reporting only.","notice"));
+    const expenseTotals=data.expenseTotals||[];
+    container.append(panelTable(el,["Expense category","Amount"],expenseTotals.map(x=>[x.category,money(x.amount)]),"Expense breakdown","Non-void records"));
+    container.append(panelTable(el,["Date","Category","Payee","Amount","Reference","State"],(data.expenses||[]).map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded"]),"Recent expense records",data.hasMore?"More records available":"Current page"));
   }
-
 
   async function deposits(o){
     const {post,action,el,container,title}=o;title.textContent="User deposits";container.replaceChildren();
@@ -828,16 +834,36 @@
 
   async function reportsPage(o){
     const {post,action,el,container,title}=o;title.textContent="Reports";container.replaceChildren();
-    const data=await post("panel/reports",{offset:0}),metrics=el("div",undefined,"admin-primary-kpis"),tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
-    metrics.append(metric(el,"Rows",data.rows.length,"Visible ledger rows"),metric(el,"Currencies",new Set(data.rows.map(x=>x.currency)).size,"Visible currencies"),metric(el,"Export",data.canExport?"Enabled":"Unavailable","Permission-controlled"),metric(el,"Period",new Date(data.from).toLocaleDateString("en-IN")+" – "+new Date(data.to).toLocaleDateString("en-IN"),"Current report window"));container.append(metrics);
-    const summary=el("div",undefined,"admin-summary-grid");for(const [k,v]of Object.entries(data.totals||{})){const tile=el("article",undefined,"admin-summary-tile");tile.append(el("span",k.replaceAll("_"," ")),el("strong",String(v)));summary.append(tile);}container.append(summary);
-    container.append(panelTable(el,["Date","Owner","Ledger","Direction","Amount","Currency","Reference"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.owner_id,r.ledger_type,r.direction,r.amount_minor,r.currency,r.reference_id])));
+    const state=o.state||{},payload={offset:Number(state.offset||0),...(state.from?{from:state.from}:{}),...(state.to?{to:state.to}:{})},data=await post("panel/reports",payload),tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Rows",data.rows.length,"Current report page"),
+      metric(el,"Currencies",new Set(data.rows.map(x=>x.currency)).size,"On current page"),
+      metric(el,"Export",data.canExport?"Enabled":"Unavailable","Permission-controlled"),
+      metric(el,"Period",new Date(data.from).toLocaleDateString("en-IN")+" – "+new Date(data.to).toLocaleDateString("en-IN"),"Selected report window"),
+      metric(el,"More rows",data.nextOffset!==null?"Yes":"No","Server pagination"),
+      metric(el,"Totals scope",data.pageTotalsOnly?"Current page":"Report","Backend contract")
+    );
+    const filter=el("form",undefined,"toolbar"),from=el("input"),to=el("input");from.type=to.type="date";from.className=to.className="control";if(state.from)from.value=String(state.from).slice(0,10);if(state.to)to.value=String(state.to).slice(0,10);const apply=el("button","Apply period","primary");apply.type="submit";filter.append(from,to,apply);if(state.from||state.to)filter.append(button(el,"Reset",()=>action(()=>reportsPage({...o,state:{}}))));filter.onsubmit=e=>{e.preventDefault();const s={offset:0};if(from.value)s.from=new Date(from.value+"T00:00:00Z").toISOString();if(to.value)s.to=new Date(to.value+"T23:59:59Z").toISOString();action(()=>reportsPage({...o,state:s}));};
+    container.append(metrics,filter,el("p","Backend totals on this page are page-scoped, not full-period totals. Export uses the same selected period and permission scope.","notice"));
+    const summary=el("div",undefined,"admin-summary-grid");for(const [k,v]of Object.entries(data.totals||{})){const tile=el("article",undefined,"admin-summary-tile");tile.append(el("span",k.replaceAll("_"," ")),el("strong",money(v)));summary.append(tile);}container.append(summary);
+    container.append(panelTable(el,["Date","Owner","Ledger","Direction","Amount","Currency","Reference type","Reference"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.owner_id||"—",r.ledger_type,r.direction,money(r.amount_minor),r.currency,r.reference_type,r.reference_id]),"Ledger report","Offset "+payload.offset));
+    const pager=el("div",undefined,"admin-row-actions");if(payload.offset>0)pager.append(button(el,"Previous",()=>action(()=>reportsPage({...o,state:{...state,offset:Math.max(0,payload.offset-50)}}))));if(data.nextOffset!==null)pager.append(button(el,"Next",()=>action(()=>reportsPage({...o,state:{...state,offset:data.nextOffset}})),"primary"));container.append(pager);
     if(data.canExport&&tools)tools.append(button(el,"Export CSV",()=>action(async()=>{const out=await post("panel/reports/export",{offset:0,from:data.from,to:data.to}),url=URL.createObjectURL(new Blob([out.csv],{type:"text/csv;charset=utf-8"})),a=document.createElement("a");a.href=url;a.download="wpay-report.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}),"primary"));
   }
 
   async function auditPage(o){
-    const {post,el,container,title}=o;title.textContent="Audit log";container.replaceChildren();
-    const data=await post("panel/admin-audit",{offset:0});container.append(el("p","Security, panel and business audit sources are combined in time order.","notice"),panelTable(el,["Time","Source","Action","Actor","Target"],data.rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.source,r.action,r.actor_id,r.target_id||"—"])));
+    const {post,action,el,container,title}=o;title.textContent="Audit log";container.replaceChildren();
+    const state=o.state||{},offset=Number(state.offset||0),data=await post("panel/admin-audit",{offset}),rows=data.rows||[];
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Events",rows.length,"Current audit page"),
+      metric(el,"Security",rows.filter(r=>r.source==="security").length,"Current page"),
+      metric(el,"Panel",rows.filter(r=>r.source==="panel").length,"Current page"),
+      metric(el,"Business",rows.filter(r=>r.source==="business").length,"Current page"),
+      metric(el,"More rows",data.hasMore?"Yes":"No","Server pagination"),
+      metric(el,"Period",new Date(data.from).toLocaleDateString("en-IN")+" – "+new Date(data.to).toLocaleDateString("en-IN"),"Audit window")
+    );
+    container.append(metrics,el("p","Security, panel and business audit sources are combined in reverse chronological order. This is an audit projection; source records remain append-only in their respective domains.","notice"),panelTable(el,["Time","Source","Action","Actor","Target"],rows.map(r=>[new Date(r.created_at).toLocaleString("en-IN"),r.source,r.action,r.actor_id,r.target_id||"—"]),"Audit events","Offset "+offset));
+    const pager=el("div",undefined,"admin-row-actions");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>auditPage({...o,state:{offset:Math.max(0,offset-50)}}))));if(data.hasMore)pager.append(button(el,"Next",()=>action(()=>auditPage({...o,state:{offset:offset+50}})),"primary"));container.append(pager);
   }
 
   async function supportPage(o){
@@ -914,12 +940,23 @@
   }
 
   async function expensePage(o,mode){
-    const {post,action,el,container,title}=o,d=await financeSnapshot(o),salary=mode==="salary";title.textContent=salary?"Salary management":"Expense management";container.replaceChildren(el("p","These records affect reporting only; saving does not transfer money. Voided entries remain auditable.","notice"));
+    const {post,action,el,container,title}=o,d=await financeSnapshot(o),salary=mode==="salary",records=(d.expenses||[]).filter(e=>salary?e.category==="salary":e.category!=="salary"),active=records.filter(e=>!e.void_reason),voided=records.filter(e=>e.void_reason),activeTotal=active.reduce((n,e)=>n+BigInt(e.amount_minor||0),0n);
+    title.textContent=salary?"Salary management":"Expense management";container.replaceChildren();
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(d.canManage)tools.append(button(el,salary?"+ Record salary":"+ Record expense",()=>create(),"primary"));}
-    const rows=(d.expenses||[]).filter(e=>salary?e.category==="salary":e.category!=="salary").map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded",!e.void_reason&&d.canManage?button(el,"Void",()=>voidExpense(e),"danger"):"—"]);container.append(panelTable(el,["Date","Category","Payee","Amount","Reference","State","Action"],rows));
-    function create(){dialog(el,container,salary?"Record salary payment":"Record expense",(body,dlg)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(d.tenants||[]).map(x=>[x,x]),d.tenants?.[0]),category=selectField(el,form,"category","Category",salary?[["salary","Salary"]]:[["server","Server"],["maintenance","Maintenance"],["other","Other"]],salary?"salary":"server"),payee=field(el,form,"payee",salary?"Employee name / reference":"Payee"),amount=field(el,form,"amount","Amount INR"),description=field(el,form,"description","Description / payment reference"),save=el("button","Save record","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,f=""]=String(amount.value).split("."),minor=(BigInt(w)*100n+BigInt(f.padEnd(2,"0"))).toString();await post("panel/expense/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,category:category.value,payee:payee.value,amountMinor:minor,occurredAt:new Date().toISOString(),description:description.value});dlg.close();await expensePage(o,mode);});};});}
-    function voidExpense(e){dialog(el,container,"Void expense",(body,dlg)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Incorrect expense record"),save=el("button","Confirm void","danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=x=>{x.preventDefault();action(async()=>{await post("panel/expense/void",{id:e.id,reason:reason.value});dlg.close();await expensePage(o,mode);});};});}
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,salary?"Salary records":"Expense records",records.length,"Current finance page"),
+      metric(el,"Active amount",money(activeTotal),"Non-void records"),
+      metric(el,"Voided",voided.length,"Retained for audit"),
+      metric(el,"Period",new Date(d.from).toLocaleDateString("en-IN")+" – "+new Date(d.to).toLocaleDateString("en-IN"),"Finance window"),
+      metric(el,"Can manage",d.canManage?"Yes":"No","Permission-controlled")
+    );
+    container.append(metrics,el("p","These are reporting records only; saving or voiding a salary/expense entry does not transfer money. Voided entries stay visible and are excluded from operating-cost totals.","notice"));
+    const rows=records.map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?("voided · "+e.void_reason):"recorded",!e.void_reason&&d.canManage?button(el,"Void",()=>voidExpense(e),"danger"):"—"]);
+    container.append(panelTable(el,["Date","Category","Payee","Amount","Reference","State","Action"],rows,salary?"Salary records":"Operating expenses",active.length+" active · "+voided.length+" voided"));
+    function create(){dialog(el,container,salary?"Record salary payment":"Record expense",(body,dlg)=>{const form=el("form",undefined,"form-grid"),tenant=selectField(el,form,"tenant","Workspace",(d.tenants||[]).map(x=>[x,x]),d.tenants?.[0]),category=selectField(el,form,"category","Category",salary?[["salary","Salary"]]:[["server","Server"],["maintenance","Maintenance"],["other","Other"]],salary?"salary":"server"),payee=field(el,form,"payee",salary?"Employee name / reference":"Payee"),amount=field(el,form,"amount","Amount INR"),description=field(el,form,"description","Description / payment reference"),save=el("button","Save record","primary");save.type="submit";form.append(el("p","This creates a reporting expense record only. It does not initiate a bank or wallet transfer.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const [w,fr=""]=String(amount.value).split("."),minor=(BigInt(w||0)*100n+BigInt(fr.padEnd(2,"0").slice(0,2)||0)).toString();await post("panel/expense/create",{requestId:crypto.randomUUID(),tenantId:tenant.value,category:category.value,payee:payee.value,amountMinor:minor,occurredAt:new Date().toISOString(),description:description.value});dlg.close();await expensePage(o,mode);});};});}
+    function voidExpense(e){dialog(el,container,"Void expense",(body,dlg)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Incorrect expense record"),save=el("button","Confirm void","danger");save.type="submit";form.append(el("p","Void keeps the original record auditable but excludes it from active operating-cost totals.","notice"),save);body.append(form);form.onsubmit=x=>{x.preventDefault();action(async()=>{await post("panel/expense/void",{id:e.id,reason:reason.value});dlg.close();await expensePage(o,mode);});};});}
   }
+
   async function securityPage(o){
     const {request,el,container,title,navigate}=o;title.textContent="Security";const data=await request("panel/settings");container.replaceChildren();const grid=el("div",undefined,"grid two-col"),auth=el("section",undefined,"card admin-panel"),boundaries=el("section",undefined,"card admin-panel");auth.append(el("h2","Authentication policy"));for(const [l,v]of [["Admin login",data.adminLogin],["Customer login",data.customerLogin],["Employee login",data.employeeLogin],["Session idle",data.sessionIdleMinutes+" minutes"],["Session maximum",data.sessionMaximumHours+" hours"],["Sensitive action confirmation",data.sensitiveActionConfirmationMinutes+" minutes"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",String(v)));auth.append(row);}boundaries.append(el("h2","Authority boundaries"));for(const [l,v]of [["Tenant scoping","Required for Admin data access"],["Recent authentication","Required for high-risk changes"],["Super Admin platform scope","Required for API key/Admin authority"],["Operational OTP reader","Restricted read access"]]){const row=el("div",undefined,"summary-row");row.append(el("span",l),el("strong",v));boundaries.append(row);}boundaries.append(el("p","Use Account settings for password/email changes and recent-auth confirmation.","notice"),button(el,"Open Account settings",()=>navigate("v5.profile"),"primary"));grid.append(auth,boundaries);container.append(grid);
   }
