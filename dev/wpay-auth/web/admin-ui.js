@@ -45,8 +45,9 @@
   capacity:'<path d="M4 17h16M6 17V9h3v8m3 0V5h3v12m3 0v-4h2"/>',
   deposit:'<path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/>',
   upianalytics:'<path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/><path d="M3 4h5v5H3zM16 4h5v5h-5z"/>',
-  beneficiary:'<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 11h5v8h-5z"/>',
-  orders:'<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  beneficiary:'<circle cx="8" cy="8" r="3"/><path d="M2.5 20a5.5 5.5 0 0 1 11 0"/><path d="M15 5h6v6h-6z"/><path d="m16.5 8 1 1 2-2"/>',
+  orders:'<path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6M9 15h4"/><path d="m16 16 2 2 3-4"/>',
+  parkingreview:'<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h5"/><circle cx="17" cy="16" r="3"/><path d="m16 16 1 1 2-2"/>',
   commission:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 11v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>',
   access:'<path d="M4 7h10M4 12h16M4 17h8"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>',
   history:'<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8"/><path d="M4 3v5h5M12 8v5l3 2"/>',
@@ -84,7 +85,7 @@
    ['PARKING',null,[
     ['Beneficiaries',can('parking.view')?'v5.parking-beneficiaries':null,'beneficiary'],
     ['Orders',can('parking.view')?'v5.parking-orders':null,'orders'],
-    ['Review queue',can('parking.view')?'v5.parking-review':null,'parking']
+    ['Review queue',can('parking.view')?'v5.parking-review':null,'parkingreview']
    ]],
    ['PAYOUTS & TREASURY',null,[
     ['Payout approval',can('payout_operations.view')?'v5.payout-approval':null,'payout'],
