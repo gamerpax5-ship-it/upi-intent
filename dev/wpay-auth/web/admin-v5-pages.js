@@ -35,36 +35,51 @@
   };
 
   async function analytics(o){
-    const {post,action,el,container,title}=o,days=o.state?.days||30;
-    title.textContent="Analytics";
-    const data=await post("panel/admin-overview",{days});
+    const {post,action,el,container,title}=o;title.textContent="Analytics";const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const safe=promise=>Promise.resolve(promise).catch(()=>null),[data,upi,devices,utrPending,utrLinks]=await Promise.all([
+      post("panel/admin-overview",{days:14}),
+      safe(post("business/upi-analytics",{days:1})),
+      safe(post("operations/device-setup",{})),
+      safe(post("operations/utr/pending",{status:"pending",offset:0})),
+      safe(post("operations/utr-source",{}))
+    ]);
+    let utrToday=null;
+    if(utrLinks?.links&&utrLinks.links.length<=20){
+      const reads=await Promise.all(utrLinks.links.map(link=>safe(post("operations/utr-source",{linkId:link.id}))));
+      const parts=date=>{const p=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(date)),m=Object.fromEntries(p.map(x=>[x.type,x.value]));return m.year+"-"+m.month+"-"+m.day;};
+      const today=parts(data.asOf);utrToday=reads.flatMap(x=>x?.observations||[]).filter(x=>x.capturedAt&&parts(x.capturedAt)===today).length;
+    }
     container.replaceChildren();
-    const hero=el("section",undefined,"admin-command"),copy=el("div"),select=el("select");
-    copy.append(el("span","ADMIN ANALYTICS","admin-command-eyebrow"),el("h2","Today, volume and operational health"),el("p","Scoped V5 analytics backed by the live Admin overview endpoint."));
-    for(const n of [7,30,60]){const op=el("option","Last "+n+" days");op.value=n;select.append(op);}
-    select.value=days;select.onchange=()=>action(()=>analytics({...o,state:{days:Number(select.value)}}));hero.append(copy,select);container.append(hero);
-    const primary=el("div",undefined,"admin-primary-kpis");
-    for(const [label,value,hint] of [
-      ["Today volume",money(data.todayVolume),"Collection + payout"],
-      ["Success rate",data.successRate==null?"—":(Number(data.successRate)*100).toFixed(1)+"%","India-day gateway success"],
-      ["Running UPI",data.runningUpi,"Operational routes"],
-      ["Active Users",data.activeUsers,"Approved + active"],
-      ["Today collection",money(data.todayCollection),"Successful pay-ins"],
-      ["Today payout",money(data.todayPayoutVolume),"Successful payouts"]
-    ])primary.append(metric(el,label,value,hint));
-    container.append(primary);
-    const secondary=el("div",undefined,"admin-secondary-kpis");
-    for(const [label,value] of [
-      ["Platform fees",money(data.totalFees)],["User commission",money(data.totalUserCommission)],["User deposits",money(data.totalUserDeposits)],
-      ["Payouts",data.successfulPayouts],["Users",data.totalUsers],["Merchants",data.totalMerchants],["Employees",data.totalEmployees],["Available UPI",data.availableUpi]
-    ]){const x=el("div");x.append(el("small",label),el("strong",String(value??"—")));secondary.append(x);}
-    container.append(secondary);
-    const grid=el("div",undefined,"admin-columns"),trend=el("section",undefined,"card admin-panel"),queues=el("section",undefined,"card admin-panel");
-    trend.append(el("h2","Period activity"));
-    for(const r of data.series||[]){const row=el("div",undefined,"admin-profit-row");row.append(el("span",r.day+" · "+r.kind),el("strong",money(r.amount)));trend.append(row);}
-    queues.append(el("h2","Action queues"));
-    for(const [k,v] of Object.entries(data.approvals||{})){const row=el("div",undefined,"admin-profit-row");row.append(el("span",k.replaceAll("_"," ")),el("strong",String(v??"—")));queues.append(row);}
-    grid.append(trend,queues);container.append(grid);
+    const icon=name=>globalThis.WPayAdminUi?.icon?.(name)||"",metricRich=(iconName,label,value,hint="")=>{const card=el("article",undefined,"card metric-rich"),ico=el("div",undefined,"metric-ico"),body=el("div");ico.innerHTML=icon(iconName);body.append(el("div",label,"label"),el("strong",String(value??"—")),el("div",hint,"hint"));card.append(ico,body);return card;};
+    const metrics=el("div",undefined,"grid analytics-metrics"),rate=data.overallSuccessRate==null?"—":(Number(data.overallSuccessRate)*100).toFixed(1)+"%",activeDevices=devices?devices.devices.filter(x=>x.linked).length:null;
+    metrics.append(
+      metricRich("volume","Today volume",money(data.todayVolume),"Successful pay-in + payout"),
+      metricRich("success","Success rate",rate,"All current transaction records"),
+      metricRich("bank","Running UPI",data.runningUpi,"Active receiving routes"),
+      metricRich("users","Active users",data.activeUsers,"Approved + active Users"),
+      metricRich("deposit","Today collection",money(data.todayCollection),"Successful pay-ins"),
+      metricRich("payout","Successful payout",data.successfulPayouts,"Completed payout transactions today"),
+      metricRich("fee","Platform fees",money(data.todayFees),"Today fee income"),
+      metricRich("fee","User commission",money(data.todayUserCommission),"Today User earnings"),
+      metricRich("payout","Today payout volume",money(data.todayPayoutVolume),"Successful payout principal"),
+      metricRich("approvals","Pending payouts",data.pendingPayouts,"Admin/open/claimed/submitted"),
+      metricRich("device","Active devices",activeDevices??"—","Paired operational devices"),
+      metricRich("utr","UTR captured today",utrToday??"—",utrToday===null?"Scoped source unavailable or too large":"APK + statements")
+    );container.append(metrics);
+
+    const upper=el("div",undefined,"grid two-col");upper.style.marginTop="14px";
+    const trend=el("section",undefined,"card panel"),trendHead=el("div",undefined,"panel-head"),trendCopy=el("div");trendCopy.append(el("h2","Volume trend"),el("p","Pay-in vs payout · 14 days"));trendHead.append(trendCopy);trend.append(trendHead);
+    if(data.series?.length)trend.append(globalThis.WPayAdminUi.volumeChart(data));else trend.append(el("div","No successful payments in this period.","empty"));
+
+    const health=el("section",undefined,"card panel"),healthHead=el("div",undefined,"panel-head"),healthCopy=el("div");healthCopy.append(el("h2","Transaction health"),el("p","Status distribution"));healthHead.append(healthCopy);health.append(healthHead);
+    const counts=data.transactionHealth||{successful:0,pending:0,failed:0},total=Math.max(1,Number(counts.successful||0)+Number(counts.pending||0)+Number(counts.failed||0)),green=Number(counts.successful||0)/total*100,amber=Number(counts.pending||0)/total*100,donutWrap=el("div",undefined,"donut-wrap"),donut=el("div",undefined,"donut"),center=el("div",undefined,"donut-center");donut.style.background="conic-gradient(#42d392 0 "+green+"%,#ffbf69 "+green+"% "+(green+amber)+"%,#ff6f91 "+(green+amber)+"% 100%)";center.append(el("strong",rate),el("span","success"));donut.append(center);
+    const summaries=el("div"),summary=(label,value)=>{const row=el("div",undefined,"summary-row");row.append(el("span",label),el("strong",String(value??0)));return row;};summaries.append(summary("Successful",counts.successful),summary("Verification pending",counts.pending),summary("Failed",counts.failed),summary("Pending UTR review",utrPending?.records?.length??"—"));donutWrap.append(donut,summaries);health.append(donutWrap);upper.append(trend,health);container.append(upper);
+
+    const lower=el("div",undefined,"grid two-col");lower.style.marginTop="14px";
+    const merchants=el("section",undefined,"card panel"),merchantHead=el("div",undefined,"panel-head"),merchantCopy=el("div");merchantCopy.append(el("h2","Top merchants by volume"),el("p","Successful transaction volume"));merchantHead.append(merchantCopy);merchants.append(merchantHead);const merchantList=el("div",undefined,"mini-bar-list"),top=data.topMerchants||[],max=top.reduce((m,x)=>BigInt(x.amount||0)>m?BigInt(x.amount||0):m,1n);for(const x of top){const row=el("div",undefined,"mini-bar-row"),progress=el("div",undefined,"progress"),fill=el("span");fill.style.width=Number(BigInt(x.amount||0)*10000n/max)/100+"%";progress.append(fill);row.append(el("label",x.name),progress,el("strong",money(x.amount)));merchantList.append(row);}if(!top.length)merchantList.append(el("div","No successful merchant volume yet.","empty"));merchants.append(merchantList);
+
+    const limits=el("section",undefined,"card panel"),limitHead=el("div",undefined,"panel-head"),limitCopy=el("div");limitCopy.append(el("h2","UPI shared-limit usage"),el("p","Highest utilization first"));limitHead.append(limitCopy);limits.append(limitHead);const limitList=el("div",undefined,"mini-bar-list"),banks=[...(upi?.banks||[])].sort((a,b)=>{const ap=BigInt(a.sharedLimit||0)?Number(BigInt(a.used||0)*10000n/BigInt(a.sharedLimit||1)):0,bp=BigInt(b.sharedLimit||0)?Number(BigInt(b.used||0)*10000n/BigInt(b.sharedLimit||1)):0;return bp-ap;});for(const b of banks){const limit=BigInt(b.sharedLimit||0),used=BigInt(b.used||0),pct=limit?Number(used*10000n/limit)/100:0,row=el("div",undefined,"mini-bar-row"),progress=el("div",undefined,"progress"),fill=el("span");fill.style.width=Math.min(100,pct)+"%";progress.append(fill);row.append(el("label",b.details?.upiId||b.id),progress,el("strong",pct.toFixed(1)+"%"));limitList.append(row);}if(!banks.length)limitList.append(el("div","No UPI utilization data available.","empty"));limits.append(limitList);
+    lower.append(merchants,limits);container.append(lower);
   }
 
   async function approvals(o){
