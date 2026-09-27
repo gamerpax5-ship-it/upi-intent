@@ -178,11 +178,9 @@
   title.textContent='Overview';container.replaceChildren(el('p','Loading your operational overview…','admin-empty'));
   const safe=promise=>Promise.resolve(promise).catch(()=>null);
   let data;try{data=await post('panel/admin-overview',{days});}catch(error){const box=el('section',undefined,'card panel'),retry=el('button','Retry overview','btn primary');retry.type='button';retry.onclick=()=>action(()=>overview({account,request,post,action,el,container,title,navigate},days));box.append(el('h2','Overview could not load'),el('p','Your session may have expired or the service is temporarily unavailable.','muted'),retry);container.replaceChildren(box);throw error;}
-  const [upi,devices,parking,utr,defaults,notifications]=await Promise.all([
-    safe(post('business/upi-analytics',{days:1})),
+  const healthPromise=Promise.all([
     safe(post('operations/device-setup',{})),
     safe(request('parking/admin')),
-    safe(post('operations/utr/pending',{status:'pending',offset:0})),
     safe(request('panel/merchant-default-rate')),
     safe(post('panel/notifications',{offset:0,limit:100}))
   ]);
@@ -226,16 +224,16 @@
   if(!tbody.children.length){const tr=el('tr'),td=el('td');td.colSpan=6;td.append(el('div','No matching records.','empty'));tr.append(td);tbody.append(tr);}table.append(thead,tbody);tableWrap.append(table);activity.append(tableWrap);
 
   const hHead=el('div',undefined,'panel-head'),hCopy=el('div');hCopy.append(el('h2','Operational health'),el('p','Collections + APK Setup'));hHead.append(hCopy);health.append(hHead);
-  const used=upi?money(upi.used):'—',limit=upi?money(upi.totalLimit):'—',online=devices?devices.devices.filter(x=>x.status==='online').length:null,totalDevices=devices?.devices?.length??null,openParking=parking?parking.orders.filter(x=>x.state==='open').length:null,utrPending=utr?.records?(String(utr.records.length)+(utr.hasMore?'+':'')):null;
-  const rates=(defaults?.tenants||[]).map(x=>x.rate).filter(Boolean),rate=rates.length?(rates.every(x=>x===rates[0])?'₹'+rates[0]:'Multiple'):'—',unread=notifications?.rows?(String(notifications.rows.filter(x=>!x.read).length)+(notifications.nextOffset!==null&&notifications.nextOffset!==undefined?'+':'')):null;
-  for(const [label,value]of [
-    ['UPI shared limit used',used+' / '+limit],
-    ['Active devices',online==null?'—':online+' / '+totalDevices],
-    ['Parking open orders',openParking??'—'],
-    ['UTR pending review',utrPending??'—'],
-    ['USDT rate',rate],
-    ['Unread notifications',unread??'—']
-  ]){const row=el('div',undefined,'summary-row');row.append(el('span',label),el('strong',String(value)));health.append(row);}bottom.append(activity,health);container.append(bottom);
+  const addHealth=(label,value)=>{const row=el('div',undefined,'summary-row');row.append(el('span',label),el('strong',String(value)));health.append(row);};
+  addHealth('UPI shared limit used',money(data.upiLimitUsed||0)+' / '+money(data.upiLimitTotal||0));
+  addHealth('Active devices','Loading…');addHealth('Parking open orders','Loading…');addHealth('UTR review','Open UTR Center');addHealth('USDT rate','Loading…');addHealth('Unread notifications','Loading…');
+  bottom.append(activity,health);container.append(bottom);
+  healthPromise.then(([devices,parking,defaults,notifications])=>{
+    const online=devices?devices.devices.filter(x=>x.status==='online').length:null,totalDevices=devices?.devices?.length??null,openParking=parking?parking.orders.filter(x=>x.state==='open').length:null;
+    const rates=(defaults?.tenants||[]).map(x=>x.rate).filter(Boolean),rate=rates.length?(rates.every(x=>x===rates[0])?'₹'+rates[0]:'Multiple'):'—',unread=notifications?.rows?(String(notifications.rows.filter(x=>!x.read).length)+(notifications.nextOffset!==null&&notifications.nextOffset!==undefined?'+':'')):'—';
+    health.replaceChildren(hHead);addHealth('UPI shared limit used',money(data.upiLimitUsed||0)+' / '+money(data.upiLimitTotal||0));addHealth('Active devices',online==null?'—':online+' / '+totalDevices);addHealth('Parking open orders',openParking??'—');addHealth('UTR review','Open UTR Center');addHealth('USDT rate',rate);addHealth('Unread notifications',unread);
+  }).catch(()=>{});
+
  }
  function volumeChart(data){
   const ns='http://www.w3.org/2000/svg',wrap=document.createElement('div'),chart=document.createElement('div'),svg=document.createElementNS(ns,'svg');chart.className='chart';svg.setAttribute('viewBox','0 0 760 260');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('role','img');svg.setAttribute('aria-label','Daily successful pay-in and payout amounts in INR');

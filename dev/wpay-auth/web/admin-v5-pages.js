@@ -88,7 +88,7 @@
     const [users,merchants,banks,payouts,withdrawals]=await Promise.all([
       post("panel/directory",{type:"user",status:"pending",search:"",offset:0}),
       post("panel/directory",{type:"merchant",status:"pending",search:"",offset:0}),
-      post("business/banks",{}),
+      request("business/banks"),
       post("payout/approval/search",{offset:0,limit:50}),
       post("payout/withdrawal/search",{offset:0,limit:50})
     ]);
@@ -108,7 +108,7 @@
   async function bankUpi(o){
     const {post,action,el,container,title}=o,search=String(o.state?.search||"");
     title.textContent="Bank & UPI";container.replaceChildren();
-    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search}),post("business/banks",{})]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
+    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search}),request("business/banks")]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
     const tools=document.getElementById("page-tools");
     if(tools){
       tools.replaceChildren();
@@ -1192,10 +1192,10 @@
   }
 
   async function directory(o,type){
-    const {post,request,action,el,container,title}=o,isUser=type==="user",state=o.state||{},status=state.status||"",search=state.search||"";
+    const {post,request,action,el,container,title}=o,isUser=type==="user",state=o.state||{},status=state.status||"",search=state.search||"",offset=Number(state.offset||0);
     title.textContent=isUser?"Users":"Merchants";
     const [data,access]=await Promise.all([
-      post("panel/directory",{type,status:status||"all",search,offset:0}),
+      post("panel/directory",{type,status:status||"all",search,offset}),
       isUser?request("business/user-access").catch(()=>({users:[]})):Promise.resolve({users:[]})
     ]);
     const accessMap=new Map((access.users||[]).map(x=>[x.id,x]));
@@ -1203,18 +1203,18 @@
     const intro=el("p",isUser?"Admin-created User supports an Admin-set password. “Create & approve now” is represented as two logical events: account creation, then approval/commercial-policy activation. Free Setup and Unlimited Collection are managed separately.":"Admin-created Merchant supports an Admin-set password. “Create & approve now” represents creation first, then approval/commercial terms.","notice ok");intro.style.marginBottom="10px";container.append(intro);
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create "+(isUser?"User":"Merchant"),()=>createAccount(),"btn primary"));}
     const filters=el("div",undefined,"toolbar"),q=el("input"),st=el("select");
-    q.className="control grow";q.placeholder="Search name, email or ID…";q.value=search;
+    q.className="control grow";q.placeholder="Search name, email or account ID…";q.value=search;
     for(const [v,t]of [["","All accounts"],["pending","Pending approval"],["approved","Approved"],["rejected","Rejected"],["suspended","Suspended"]]){const op=el("option",t);op.value=v;st.append(op);}st.className="control";st.value=status;
     filters.append(q,st);container.append(filters);
-    let filterTimer;q.oninput=()=>{clearTimeout(filterTimer);filterTimer=setTimeout(()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value}},type)),300);};st.onchange=()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value}},type));
+    let filterTimer;q.oninput=()=>{clearTimeout(filterTimer);filterTimer=setTimeout(()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value,offset:0}},type)),300);};st.onchange=()=>action(()=>directory({...o,state:{search:q.value.trim(),status:st.value,offset:0}},type));
     const grid=el("div",undefined,"account-card-grid");container.append(grid);
     for(const a of data.rows){
       const accessRow=accessMap.get(a.id)||{},settings=a.settings||{},cardNode=el("article",undefined,"card account-card"),top=el("div",undefined,"account-card-top"),identity=el("div",undefined,"account-identity"),avatar=el("div",(a.name||"?").split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase(),"avatar"),copy=el("div");
       copy.append(el("h3",a.name),el("p",a.email+" · "+a.id));identity.append(avatar,copy);top.append(identity,pill(el,a.status==="active"?a.approvalStatus:a.status));cardNode.append(top);
       const stats=el("div",undefined,"account-card-stats");
       const stat=(label,value)=>{const x=el("div",undefined,"fact");x.append(el("label",label),el("strong",value));return x;};
-      stats.append(stat(isUser?"Available capacity":"Available balance",money(a.availableMinor||0)),stat(isUser?"UPI accounts":"Active routes",a.routeCount||0),stat("Transactions",a.transactionCount||0));cardNode.append(stats);
-      const terms=el("div",undefined,"summary-row");terms.append(el("span","Current terms"),el("strong",isUser?`Pay-in ${settings.payinCommission??"—"}% · Payout ${settings.payoutCommission??"—"}% · USDT ₹${settings.inrPerUsdt??"—"}`:`Pay-in ${settings.payinFee??"—"}% · Payout ${settings.payoutFee??"—"}% · Fixed ₹${settings.fixedPayoutFee??"—"} · USDT ₹${settings.inrPerUsdt??"—"}`));cardNode.append(terms);
+      stats.append(stat(isUser?"Available capacity":"Available balance",money(a.availableMinor||0)),stat(isUser?"Held":"Reserved / held",money(a.heldMinor||a.reservedMinor||0)),stat(isUser?"UPI accounts":"Active routes",a.routeCount||0));cardNode.append(stats);
+      const terms=el("div",undefined,"summary-row");terms.append(el("span","Current terms"),el("strong",isUser?`Pay-in ${settings.payinCommission??"—"}% · Payout ${settings.payoutCommission??"—"}% · USDT ₹${settings.inrPerUsdt??"—"}`:`Pay-in ${settings.payinFee??"—"}% · Payout ${settings.payoutFee??"—"}% · Fixed ₹${settings.fixedPayoutFee??"—"} · USDT ₹${settings.inrPerUsdt??"—"}`));cardNode.append(terms);const meta=el("div",undefined,"summary-row");meta.append(el("span","Created / activity"),el("strong",(a.created_at?new Date(a.created_at).toLocaleDateString("en-IN"):"—")+" · "+(a.transactionCount||0)+" tx"));cardNode.append(meta);
       if(isUser){const badges=el("div",undefined,"access-badges");const f=el("span","Free setup "+(accessRow.free_setup?"ON":"OFF"),"access-pill"+(accessRow.free_setup?"":" off")),u=el("span","Unlimited collection "+(accessRow.unlimited_collection?"ON":"OFF"),"access-pill"+(accessRow.unlimited_collection?"":" off"));badges.append(f,u);cardNode.append(badges);}
       const actions=el("div",undefined,"account-card-actions");actions.append(button(el,"View / manage",()=>manage(a,accessRow),"btn sm"));
       if(a.approvalStatus==="pending"){if(data.actions.includes("approve"))actions.append(button(el,"Approve",()=>approve(a,true),"btn sm success"));if(data.actions.includes("reject"))actions.append(button(el,"Reject",()=>approve(a,false),"btn sm danger"));}
@@ -1224,7 +1224,7 @@
       else if(a.status!=="active")actions.append(el("span","Reactivation backend action not exposed","prototype-badge"));
       cardNode.append(actions);grid.append(cardNode);
     }
-    if(!data.rows.length)grid.append(el("div","No matching accounts.","empty card"));
+    if(!data.rows.length)grid.append(el("div","No matching accounts.","empty card"));const pager=el("div",undefined,"admin-pagination");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>directory({...o,state:{search,status,offset:Math.max(0,offset-25)}},type))));if(data.nextOffset!==null&&data.nextOffset!==undefined)pager.append(button(el,"Next",()=>action(()=>directory({...o,state:{search,status,offset:data.nextOffset}},type)),"primary"));if(pager.children.length)container.append(pager);
 
     async function createAccount(){
       const opts=await request("approval-options");
@@ -1244,7 +1244,7 @@
     function manage(a,accessRow){
       dialog(el,container,(isUser?"User":"Merchant")+" · "+a.name,(body)=>{
         const layout=el("div",undefined,"grid two-col"),left=el("div"),right=el("div"),dl=el("dl",undefined,"dl"),settings=a.settings||{};
-        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add("Login password",a.passwordConfigured?"Admin configured":"Not configured");add("Login readiness",a.passwordConfigured&&a.approvalStatus==="approved"&&a.status==="active"?"Direct login ready":"Login / operations limited by account state");add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
+        const add=(k,v)=>{dl.append(el("dt",k),el("dd",String(v??"—")));};add("Account ID",a.id);add("Email",a.email);add("Status",a.status);add("Approval",a.approvalStatus);add("Login password",a.passwordConfigured?"Admin configured":"Not configured");add("Login readiness",a.passwordConfigured&&a.approvalStatus==="approved"&&a.status==="active"?"Direct login ready":"Login / operations limited by account state");add("Created",a.created_at?new Date(a.created_at).toLocaleString("en-IN"):"—");add("Commercial version",a.commercialVersion||"—");add(isUser?"Available capacity":"Available balance",money(a.availableMinor||0));add("Held",money(a.heldMinor||0));add("Reserved",money(a.reservedMinor||0));if(isUser){add("Pay-in commission",(settings.payinCommission??"—")+"%");add("Payout commission",(settings.payoutCommission??"—")+"%");add("USDT rate","₹"+(settings.inrPerUsdt??"—"));add("USDT address",settings.depositAddress||"—");add("Free setup",accessRow.free_setup?"Enabled":"Disabled");add("Unlimited collection",accessRow.unlimited_collection?"Enabled":"Disabled");}else{add("Pay-in fee",(settings.payinFee??"—")+"%");add("Payout fee",(settings.payoutFee??"—")+"%");add("Fixed payout fee","₹"+(settings.fixedPayoutFee??"—"));add("USDT rate","₹"+(settings.inrPerUsdt??"—"));}
         left.append(dl);right.append(el("h4","Operational links"));const summary=(label,value)=>{const row=el("div",undefined,"summary-row");row.append(el("span",label),el("strong",String(value)));return row;};right.append(summary(isUser?"UPI accounts":"Active routes",a.routeCount||0),summary("Recent transactions",a.transactionCount||0));if(isUser)right.append(summary("Linked devices",a.linkedDeviceCount||0),summary("Confirmed deposits",a.confirmedDepositCount||0));else right.append(summary("Payout requests",a.payoutRequestCount||0));layout.append(left,right);body.append(layout,el("h4","Recent transactions"));
         body.append(table(el,["Reference","Type","Amount","Status"],(a.recentActivity||[]).map(x=>[x.reference,x.type,money(x.amountMinor),pill(el,x.status)])));
         const footer=el("div",undefined,"account-card-actions");footer.style.marginTop="14px";
