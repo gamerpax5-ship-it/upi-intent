@@ -234,25 +234,27 @@
 
   async function payinDisputes(o){
     const {post,action,el,container,title}=o;title.textContent="Pay-in disputes";container.replaceChildren();
-    const data=await post("payin-dispute/search",{offset:0,status:""}),records=data.records||[],open=records.filter(x=>x.status==="pending"),frozen=open.reduce((n,x)=>n+BigInt(x.amountMinor||0),0n);
-    const metrics=el("div",undefined,"grid metrics");
-    metrics.append(metric(el,"Open disputes",open.length,"Within 48-hour review window"),metric(el,"Frozen exposure",money(frozen),"User capacity under dispute"),metric(el,"Fresh statements",open.length,"Merchant statement proof required"),metric(el,"Backend status","Live","Dedicated dispute flow implemented"));
-    container.append(metrics,el("p","Merchant opens a dispute within 48 hours with fresh statement proof. While pending, User capacity + User commission + Merchant net exposure are held. Admin resolution is append-only; payment_invalid exact-reverses the original pay-in economic path.","notice"));
+    const data=await post("payin-dispute/search",{offset:0,status:""}),records=data.records||[],open=records.filter(x=>x.status==="pending"),valid=records.filter(x=>x.status==="payment_valid"),invalid=records.filter(x=>x.status==="payment_invalid"),frozen=open.reduce((n,x)=>n+BigInt(x.amountMinor||0),0n),commissionHold=open.reduce((n,x)=>n+BigInt(x.commissionMinor||0),0n),merchantHold=open.reduce((n,x)=>n+BigInt(x.merchantNetMinor||0),0n);
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(metric(el,"Open disputes",open.length,"Within 48-hour review window"),metric(el,"Frozen User capacity",money(frozen),"Pending exposure"),metric(el,"Commission hold",money(commissionHold),"Pending User commission"),metric(el,"Merchant net hold",money(merchantHold),"Pending Merchant exposure"),metric(el,"Payment valid",valid.length,"Resolved valid"),metric(el,"Payment invalid",invalid.length,"Exact-reversal outcome"));
+    container.append(metrics,el("p","Merchant opens a pay-in dispute within 48 hours with fresh statement coverage. While pending, User capacity, User commission and Merchant net exposure are held. Resolution is append-only; payment_invalid exact-reverses the original reversible pay-in accounting path.","notice"));
     const rows=records.map(d=>{
       const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Review details",()=>detail(d),"primary"));
-      return [d.reference+" · "+d.orderId,d.merchantName,d.userName,money(d.amountMinor),d.reason,d.coverageThrough?("Through "+new Date(d.coverageThrough).toLocaleString("en-IN")):"—",d.status,actions];
+      const coverage=(d.coverageFrom?new Date(d.coverageFrom).toLocaleString("en-IN"):"—")+" → "+(d.coverageThrough?new Date(d.coverageThrough).toLocaleString("en-IN"):"—");
+      return [d.reference+" · "+d.orderId,d.merchantName,d.userName,money(d.amountMinor),money(d.commissionMinor||0),money(d.merchantNetMinor||0),coverage,d.reason,pill(el,d.status),actions];
     });
-    container.append(panelTable(el,["Payment","Merchant","User","Amount","Reason","Fresh statement","State","Action"],rows));
+    container.append(panelTable(el,["Payment","Merchant","User","Amount","Commission","Merchant net","Statement coverage","Reason","State","Action"],rows,"Pay-in dispute queue",records.length+" scoped disputes"+(data.hasMore?" · more available":"")));
     function detail(row){action(async()=>{
       const d=await post("payin-dispute/get",{id:row.orderId}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"—")));facts.append(x);};
-      add("Reference",d.reference);add("Merchant",d.merchantName);add("User",d.userName);add("Amount",money(d.amountMinor));add("Status",d.status);add("Coverage from",new Date(d.coverageFrom).toLocaleString("en-IN"));add("Coverage through",new Date(d.coverageThrough).toLocaleString("en-IN"));add("User capacity hold",d.status==="pending"?money(d.amountMinor):money(0));add("User commission hold",d.status==="pending"?money(d.commissionMinor):money(0));add("Merchant net hold",d.status==="pending"?money(d.merchantNetMinor):money(0));wrap.append(facts,el("p",d.reason,"notice"));
-      const proofs=el("div",undefined,"admin-row-actions"),statement=button(el,"Download Merchant statement",()=>downloadProof(d.orderId,d.statementId),"primary");proofs.append(statement);for(const r of d.responses||[]){if(r.proofId)proofs.append(button(el,"User response proof",()=>downloadProof(d.orderId,r.proofId)));}wrap.append(proofs);
+      add("Reference",d.reference);add("Merchant",d.merchantName);add("User",d.userName);add("Amount",money(d.amountMinor));add("Status",d.status);add("Coverage from",d.coverageFrom?new Date(d.coverageFrom).toLocaleString("en-IN"):"—");add("Coverage through",d.coverageThrough?new Date(d.coverageThrough).toLocaleString("en-IN"):"—");add("User capacity hold",d.status==="pending"?money(d.amountMinor):money(0));add("User commission hold",d.status==="pending"?money(d.commissionMinor):money(0));add("Merchant net hold",d.status==="pending"?money(d.merchantNetMinor):money(0));wrap.append(facts,el("p",d.reason,"notice"));
+      const proofs=el("div",undefined,"admin-row-actions");if(d.statementId)proofs.append(button(el,"Download Merchant statement",()=>downloadProof(d.orderId,d.statementId),"primary"));for(const r of d.responses||[]){if(r.proofId)proofs.append(button(el,"User response proof",()=>downloadProof(d.orderId,r.proofId)));}wrap.append(proofs);
       if(d.responses?.length)wrap.append(el("h3","User responses"),table(el,["Time","Reason"],d.responses.map(r=>[new Date(r.createdAt).toLocaleString("en-IN"),r.reason])));
-      if(d.status==="pending"){const form=document.createElement("form"),reason=field(el,form,"reason","Resolution reason","Reviewed statement and response evidence"),buttons=el("div",undefined,"admin-row-actions");buttons.append(button(el,"Payment valid",()=>resolve("payment_valid"),"primary"),button(el,"Payment wrong",()=>resolve("payment_invalid"),"danger"));form.append(buttons);wrap.append(form);async function resolve(decision){if(!reason.value.trim())return;await post("payin-dispute/resolve",{id:d.orderId,action:decision,reason:reason.value});dlg.close();await payinDisputes(o);}}
+      if(d.status==="pending"){const form=document.createElement("form"),reason=field(el,form,"reason","Resolution reason","Reviewed statement and response evidence"),buttons=el("div",undefined,"admin-row-actions");buttons.append(button(el,"Payment valid",()=>resolve("payment_valid"),"primary"),button(el,"Payment invalid",()=>resolve("payment_invalid"),"danger"));form.append(el("p","Choose only after reviewing the statement coverage and any User response. The backend records an append-only resolution.","notice"),buttons);wrap.append(form);async function resolve(decision){if(!reason.value.trim())return;await post("payin-dispute/resolve",{id:d.orderId,action:decision,reason:reason.value});dlg.close();await payinDisputes(o);}}
       dlg.append(el("h2","Pay-in dispute review"),wrap,button(el,"Close",()=>dlg.close()));container.append(dlg);dlg.showModal();
       async function downloadProof(orderId,proofId){const p=await post("payin-dispute/proof",{id:orderId,proofId}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:p.contentType||"application/octet-stream"})),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
     });}
   }
+
   async function payoutApproval(o){
     const {post,action,el,container,title}=o;
     title.textContent="Payout approval";container.replaceChildren();
@@ -423,42 +425,44 @@
     const {request,post,action,el,container,title}=o;title.textContent="Statements & reconciliation";container.replaceChildren();
     const [data,recovery]=await Promise.all([request("operations/statements"),post("operations/transactions",{offset:0,status:"recovery_review"})]);
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Upload statement",()=>uploadStatement(),"primary"));}
-    container.append(el("p","Statement upload uses the existing parser and creates trusted-source review metadata. An uploaded file alone does not prove account ownership and does not itself post financial credit.","notice"));
-    const grid=el("div",undefined,"admin-columns"),imports=el("section",undefined,"card admin-panel"),recon=el("section",undefined,"card admin-panel");
-    const ih=el("div",undefined,"panel-head"),ihc=el("div");ihc.append(el("h2","Statement imports"),el("p","Targeted bank/version imports"));ih.append(ihc);imports.append(ih);
+    const accepted=data.imports.filter(i=>i.status==="accepted"),pending=data.imports.filter(i=>!["accepted","rejected","failed"].includes(i.status)),credits=data.imports.reduce((n,i)=>n+Number(i.credit_count||0),0),reconOpen=recovery.records.filter(r=>r.accountingState!=="posted").length;
+    const metrics=el("div",undefined,"grid analytics-metrics");
+    metrics.append(metric(el,"Bank versions",data.banks.length,"Scoped statement targets"),metric(el,"Imports",data.imports.length,"Latest parsed uploads"),metric(el,"Accepted imports",accepted.length,"Parser/import accepted"),metric(el,"Rows credited in imports",credits,"Parsed credit rows only"),metric(el,"Recovery review",recovery.records.length,"Orders in reconciliation review"),metric(el,"Accounting not posted",reconOpen,"Needs evidence decision"));
+    container.append(metrics,el("p",data.message||"Statement upload creates parser/import metadata only. Uploaded files or a global matcher result alone are not financial evidence and do not authorize credit.","notice"));
+    const grid=el("div",undefined,"admin-columns"),imports=el("section",undefined,"card panel"),recon=el("section",undefined,"card panel");
+    const ih=el("div",undefined,"panel-head"),ihc=el("div");ihc.append(el("h2","Statement imports"),el("p","Targeted owner + bank version · financialEvidence = "+String(data.financialEvidence)));ih.append(ihc);imports.append(ih);
     imports.append(table(el,["Import","Owner / bank","Version","Rows","Credits","Status","Reason"],data.imports.map(i=>[
       i.id+" · "+new Date(i.created_at).toLocaleString("en-IN"),
       (data.banks.find(b=>b.id===i.bank_id)?.ownerName||i.owner_id)+" · "+(data.banks.find(b=>b.id===i.bank_id)?.id||i.bank_id),
       i.bank_version,i.rows_scanned,i.credit_count,i.status,i.reason||"—"
     ])));
-    const rh=el("div",undefined,"panel-head"),rhc=el("div");rhc.append(el("h2","Reconciliation review"),el("p","UTR observation vs accounting state"));rh.append(rhc);recon.append(rh);
+    const rh=el("div",undefined,"panel-head"),rhc=el("div");rhc.append(el("h2","Reconciliation review"),el("p","Observation, evidence and accounting remain distinct states"));rh.append(rhc);recon.append(rh);
     const rows=recovery.records.map(r=>{
       const observation=(r.observations||[]).find(x=>!x.verified)||(r.observations||[])[0],actions=el("div",undefined,"admin-row-actions");
-      if(observation?.claimId&&r.accountingState!=="posted"){
-        actions.append(button(el,"Accept evidence",()=>reconcile(r,observation,"approve"),"primary"),button(el,"Reject",()=>reconcile(r,observation,"reject"),"danger"));
-      }
-      return [r.orderId,(r.userId||"—")+" · "+(r.merchantId||"—"),observation?.utr||"—",observation?.source||"—",r.evidenceState,r.accountingState,actions];
+      if(observation?.claimId&&r.accountingState!=="posted")actions.append(button(el,"Admin approve",()=>reconcile(r,observation,"approve"),"primary"),button(el,"Reject",()=>reconcile(r,observation,"reject"),"danger"));
+      return [r.reference+" · "+r.orderId,(r.userId||"—")+" · "+(r.merchantId||"—"),r.upiId||"—",observation?.utr||"—",observation?.source||"—",observation?.verified?"verified observation":"unverified observation",r.evidenceState,r.accountingState,r.callbackState||"—",actions];
     });
-    recon.append(table(el,["Order","User / Merchant","UTR","Source","Evidence","Accounting","Action"],rows));
+    recon.append(table(el,["Order","User / Merchant","UPI","UTR","Source","Observation","Evidence","Accounting","Callback","Action"],rows));
     grid.append(imports,recon);container.append(grid);
 
     function uploadStatement(){
       dialog(el,container,"Upload statement",(body,d)=>{
         const form=el("form",undefined,"form-grid"),owners=[...new Map(data.banks.map(b=>[b.ownerId,b.ownerName])).entries()],owner=selectField(el,form,"owner","Owner",owners),bank=selectField(el,form,"bank","Bank / UPI",[]),format=selectField(el,form,"format","Format",[["csv","CSV"],["xls","XLS"],["xlsx","XLSX"]],"csv"),fileLabel=el("label","Statement file"),file=el("input");file.type="file";file.accept=".csv,.xls,.xlsx";file.required=true;fileLabel.append(file);form.append(fileLabel);
-        const refreshBanks=()=>{bank.replaceChildren();for(const b of data.banks.filter(x=>x.ownerId===owner.value)){const op=el("option",(b.ownerName||b.ownerId)+" · "+b.id);op.value=b.id;bank.append(op);}};owner.onchange=refreshBanks;refreshBanks();
-        form.append(el("p","The existing statement parser runs server-side. Upload alone does not establish ownership or financial credit.","notice"));
+        const refreshBanks=()=>{bank.replaceChildren();for(const b of data.banks.filter(x=>x.ownerId===owner.value)){const op=el("option",(b.ownerName||b.ownerId)+" · "+b.id+" · v"+b.version);op.value=b.id;bank.append(op);}};owner.onchange=refreshBanks;refreshBanks();
+        form.append(el("p","Upload is bound to the selected owner + bank version and runs through the existing statement parser. It does not by itself establish independent ownership or post financial credit.","notice"));
         const save=el("button","Upload","primary");save.type="submit";form.append(save);body.append(form);
         form.onsubmit=e=>{e.preventDefault();action(async()=>{const selected=data.banks.find(x=>x.id===bank.value),chosen=file.files[0];if(!selected||!chosen||chosen.size>1048576)throw Error("Choose a statement up to 1 MiB");const bytes=new Uint8Array(await chosen.arrayBuffer());let raw="";for(const byte of bytes)raw+=String.fromCharCode(byte);await post("operations/statement/upload",{ownerId:selected.ownerId,bankId:selected.id,version:selected.version,requestId:crypto.randomUUID(),format:format.value,base64:btoa(raw)});d.close();await statementsPage(o);});};
       });
     }
     function reconcile(row,observation,decision){
-      dialog(el,container,(decision==="approve"?"Accept evidence":"Reject claim")+" · "+row.reference,(body,d)=>{
-        const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Accept evidence":"Reject",decision==="approve"?"primary":"danger");save.type="submit";
-        form.append(el("p",decision==="approve"?"This records an explicit Admin-approved payment decision. It is not labeled as bank-verified evidence.":"This rejects the submitted claim and closes the payment as failed when allowed by current state.","notice"),save);body.append(form);
+      dialog(el,container,(decision==="approve"?"Admin approve evidence":"Reject claim")+" · "+row.reference,(body,d)=>{
+        const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Admin approve":"Reject",decision==="approve"?"primary":"danger");save.type="submit";
+        form.append(el("p",decision==="approve"?"This creates an explicit Admin-approved decision. It must not be presented as bank-verified or independent statement evidence.":"This rejects the submitted claim when the current backend state allows it.","notice"),save);body.append(form);
         form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:observation.claimId,action:decision,reason:reason.value});d.close();await statementsPage(o);});};
       });
     }
   }
+
   async function payoutReview(o){
     const {post,action,el,container,title}=o;title.textContent="Payout review";container.replaceChildren();
     const data=await post("payout/search",{offset:0,limit:50});
@@ -726,14 +730,18 @@
   }
 
   async function transactionsPage(o){
-    const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
+    const {post,el,container,title}=o;title.textContent="Transactions";container.replaceChildren();
+    const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
     const [payins,payouts]=await Promise.all([post("operations/transactions",{offset:0,status:""}),post("payout/search",{offset:0,limit:50})]);
-    const toolbar=el("div",undefined,"toolbar"),search=el("input"),status=el("select");search.className="control grow";search.placeholder="Search reference, UTR, merchant, user…";for(const v of ["","successful","verification_pending","failed"]){const op=el("option",v||"All status");op.value=v;status.append(op);}status.className="control";toolbar.append(search,status);const panel=el("section",undefined,"card admin-panel");container.append(toolbar,panel);
     const records=[
-      ...payins.records.map(t=>({at:t.createdAt,reference:t.reference,id:t.orderId,type:"Pay-in",merchant:t.merchantId||"—",user:t.userId||"—",amount:t.amountMinor,utr:(t.observations||[]).map(x=>x.utr).join(", ")||"—",status:t.status,evidence:t.evidenceState||"—"})),
-      ...payouts.orders.map(t=>({at:t.createdAt,reference:t.reference,id:t.id,type:"Payout",merchant:t.merchantId||"—",user:t.claimUserId||t.userId||"—",amount:t.amountMinor,utr:t.utr||"—",status:t.status,evidence:"payout workflow"}))
-    ];
-    let visible=records;const draw=()=>{const q=search.value.trim().toLowerCase(),st=status.value;visible=records.filter(t=>(!st||t.status===st)&&[t.reference,t.utr,t.merchant,t.user,t.id].join(" ").toLowerCase().includes(q));const rows=visible.map(t=>[t.at?new Date(t.at).toLocaleString("en-IN"):"—",t.reference+" · "+t.id,t.type,t.merchant+" · "+t.user,money(t.amount),t.utr,t.status,t.evidence]);panel.replaceChildren(table(el,["Time","Reference","Type","Merchant / User","Amount","UTR","Status","Evidence"],rows));};search.oninput=draw;status.onchange=draw;if(tools)tools.append(button(el,"Export transactions CSV",()=>{const fields=["id","reference","type","merchant","user","amount_minor","utr","status","evidence","at"],lines=[fields,...visible.map(t=>[t.id,t.reference,t.type,t.merchant,t.user,t.amount,t.utr,t.status,t.evidence,t.at])],csv=lines.map(r=>r.map(v=>`"${String(v??"").replaceAll(`"`,`""`)}"`).join(",")).join("\r\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");link.href=url;link.download="wpay-transactions.csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"primary"));draw();
+      ...payins.records.map(t=>({at:t.createdAt,reference:t.reference,id:t.orderId,type:"Pay-in",merchant:t.merchantId||"—",user:t.userId||"—",amount:t.amountMinor,utr:(t.observations||[]).map(x=>x.utr).join(", ")||"—",status:t.status,evidence:t.evidenceState||"—",accounting:t.accountingState||"—",callback:t.callbackState||"—",verified:(t.observations||[]).some(x=>x.verified)})),
+      ...payouts.orders.map(t=>({at:t.createdAt,reference:t.reference,id:t.id,type:"Payout",merchant:t.merchantId||"—",user:t.claimUserId||t.userId||"—",amount:t.amountMinor,utr:t.utr||"—",status:t.status,evidence:"payout workflow",accounting:t.status==="successful"?"posted":"workflow",callback:"—",verified:t.status==="successful"}))
+    ].sort((a,b)=>+new Date(b.at||0)-+new Date(a.at||0));
+    const metrics=el("div",undefined,"grid analytics-metrics"),payinCount=records.filter(x=>x.type==="Pay-in").length,payoutCount=records.length-payinCount,success=records.filter(x=>x.status==="successful").length,pending=records.filter(x=>["pending_payment","verification_pending","recovery_review","claimed","submitted","pending_admin","open"].includes(x.status)).length,totalVolume=records.reduce((n,x)=>n+BigInt(x.amount||0),0n);
+    metrics.append(metric(el,"Transactions",records.length,"Latest scoped pay-in + payout"),metric(el,"Pay-ins",payinCount,"Collection orders"),metric(el,"Payouts",payoutCount,"Payout workflow"),metric(el,"Successful",success,"Completed records"),metric(el,"Pending / review",pending,"Open workflow states"),metric(el,"Displayed volume",money(totalVolume),"Latest loaded records"));
+    const toolbar=el("div",undefined,"toolbar"),search=el("input"),status=el("select"),kind=el("select");search.className="control grow";search.placeholder="Search reference, UTR, merchant, user…";for(const v of ["","successful","verification_pending","recovery_review","failed","expired","cancelled","submitted","claimed","not_paid"]){const op=el("option",v||"All status");op.value=v;status.append(op);}for(const v of ["","Pay-in","Payout"]){const op=el("option",v||"All types");op.value=v;kind.append(op);}status.className=kind.className="control";toolbar.append(search,kind,status);const panel=el("section",undefined,"card panel");container.append(metrics,toolbar,el("p",payins.note||"Submitted UTRs remain observations until independently verified evidence establishes accounting.","notice"),panel);
+    let visible=records;const draw=()=>{const q=search.value.trim().toLowerCase(),st=status.value,kt=kind.value;visible=records.filter(t=>(!st||t.status===st)&&(!kt||t.type===kt)&&[t.reference,t.utr,t.merchant,t.user,t.id,t.type].join(" ").toLowerCase().includes(q));const rows=visible.map(t=>[t.at?new Date(t.at).toLocaleString("en-IN"):"—",t.reference+" · "+t.id,t.type,t.merchant+" · "+t.user,money(t.amount),t.utr,t.status,t.evidence,t.accounting,t.callback]);panel.replaceChildren(table(el,["Time","Reference","Type","Merchant / User","Amount","UTR","Status","Evidence","Accounting","Callback"],rows));};search.oninput=draw;status.onchange=draw;kind.onchange=draw;
+    if(tools)tools.append(button(el,"Export CSV",()=>{const fields=["id","reference","type","merchant","user","amount_minor","utr","status","evidence","accounting","callback","at"],lines=[fields,...visible.map(t=>[t.id,t.reference,t.type,t.merchant,t.user,t.amount,t.utr,t.status,t.evidence,t.accounting,t.callback,t.at])],csv=lines.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\r\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");link.href=url;link.download="wpay-transactions.csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},"primary"));draw();
   }
 
   async function payoutDisputes(o){
