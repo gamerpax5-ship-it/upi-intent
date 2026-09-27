@@ -29,6 +29,12 @@ test('Admin V5 Parking actions match backend review state transitions',()=>{
  assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Approve paid"/);
  assert.match(ui,/if\(\["submitted","review","disputed"\]\.includes\(r\.state\)\)actions\.append\(button\(el,"Not paid"/);
 });
+test('Admin navigation never leaves a blank content shell while modules load',()=>{
+ const fs=require('node:fs'),app=fs.readFileSync(require.resolve('../dev/wpay-auth/web/app.js'),'utf8');
+ assert.ok(app.includes('Loading module…'));
+ assert.ok(app.includes('admin-module-loading'));
+ assert.ok(app.includes('globalThis.WPayAdminUi&&["admin","super_admin","employee"].includes(account.accountType)'));
+});
 test('Admin live shell keeps the V5 login and a single Overview navigation entry',()=>{
  const fs=require('node:fs'),app=fs.readFileSync(require.resolve('../dev/wpay-auth/web/app.js'),'utf8'),css=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.css'),'utf8'),html=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin.html'),'utf8');
  assert.match(app,/function renderAdminLogin\(root\)/);
