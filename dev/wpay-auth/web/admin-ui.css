@@ -432,3 +432,49 @@ th,td{padding:10px 11px}
 
 /* Exact V5 shell: locale runtime remains available but the Admin reference topbar has no language control. */
 .admin-language-hidden{display:none!important}
+
+
+/* Admin V5 isolation from legacy /wpay-auth/styles.css.
+   The shared legacy sheet intentionally remains loaded for old runtime modules,
+   but its generic main/workspace/card/form rules must not resize the V5 shell. */
+.wpay-admin main.main{
+  max-width:none;
+  width:auto;
+  min-width:0;
+  margin:0;
+  padding:0;
+}
+.wpay-admin .workspace{
+  grid-template-columns:286px minmax(0,1fr);
+  gap:0;
+  align-items:stretch;
+}
+.wpay-admin .workspace>aside.sidebar{
+  align-self:stretch;
+  padding:18px 14px;
+}
+.wpay-admin .content{padding:26px}
+.wpay-admin .content label{margin:0}
+.wpay-admin .content input,
+.wpay-admin .content select,
+.wpay-admin .content textarea{
+  margin-top:0;
+  min-height:0;
+}
+.wpay-admin button,
+.wpay-admin .btn{min-height:0}
+.wpay-admin .primary{
+  width:auto;
+  margin-top:0;
+}
+.wpay-admin .w100{width:100%}
+.wpay-admin .card{padding:0}
+.wpay-admin .panel{padding:18px}
+.wpay-admin .metric{padding:18px}
+.wpay-admin .account-card{padding:14px}
+.wpay-admin form>button{margin:0}
+@media(max-width:800px){
+  .wpay-admin main.main{padding:0}
+  .wpay-admin .workspace{grid-template-columns:1fr;gap:0}
+  .wpay-admin .workspace>aside.sidebar{padding:18px 14px}
+}
