@@ -86,7 +86,7 @@ test('Admin APK Setup and Team pages preserve final V5 flow without changing OTP
  assert.ok(ui.includes('const grid=el("div",undefined,"device-grid")'));
  assert.ok(ui.includes('panelTable(el,["Employee","Status","Tenant","Page / permission access","Version","Action"]'));
  assert.ok(ui.includes('panelTable(el,["Admin","Status","Tenant","Delegated permissions","Version","Action"]'));
- assert.ok(nav.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp')]"));
+ assert.ok(nav.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp'),'otp']"));
  assert.ok(ops.includes("if(page==='otp')"));
 });
 test('Admin Finance Developer and Support pages follow final V5 hierarchy with live owner context',()=>{
@@ -108,7 +108,7 @@ test('Admin final V5 parity audit has 55 visible pages and no V5 renderer gaps',
  const destinations=[...ui.matchAll(/'(v5\.[a-z0-9.-]+)'/g)].map(m=>m[1]);
  for(const d of new Set(destinations))assert.ok(v5.includes('destination==="'+d+'"')||['v5.notifications','v5.profile','v5.reports','v5.approvals','v5.bank-upi','v5.deposits','v5.payout-approval','v5.payout-disputes','v5.late-reviews','v5.withdrawals'].includes(d));
  assert.doesNotMatch(v5,/prototype|demo|backend pending|not implemented/i);
- assert.ok(ui.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp')]"));
+ assert.ok(ui.includes("['OTP Events',dest('apk_otp_events.view_all','operations.otp'),'otp']"));
  assert.ok(ops.includes("if(page==='otp')"));
  assert.ok(ui.includes("Recent financial activity"));
  assert.ok(ui.includes("command-strip"));
