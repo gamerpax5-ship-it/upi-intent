@@ -1100,27 +1100,94 @@
   }
 
   async function employees(o){
-    const {post,action,el,container,title}=o;title.textContent="Employees";const data=await post("operations/employees",{offset:0,limit:100});container.replaceChildren(el("p","All delegable Admin permissions are grouped by module. Restricted actions remain visible but disabled.","notice"));const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create employee",()=>editor(null),"primary"));}
-    const rows=data.employees.map(e=>[e.name+" · "+e.email,pill(el,e.status),(e.admin_scope?.tenantIds||[]).join(", "),String(e.permissions.length)+" permissions",e.permission_version,data.canUpdate?button(el,"Edit access",()=>editor(e)):"Read only"]);container.append(panelTable(el,["Employee","Status","Tenant","Page / permission access","Version","Action"],rows));
+    const {post,action,el,container,title}=o;title.textContent="Employees";
+    const data=await post("operations/employees",{offset:0,limit:100}),employees=data.employees||[],active=employees.filter(e=>e.status==="active").length,suspended=employees.filter(e=>e.status==="suspended").length;
+    container.replaceChildren();
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();if(data.canCreate)tools.append(button(el,"+ Create employee",()=>editor(null),"primary"));}
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Employees",employees.length,"Scoped operational staff"),
+      metric(el,"Active",active,"Can sign in subject to security policy"),
+      metric(el,"Suspended",suspended,"Operational access blocked"),
+      metric(el,"Delegable permissions",(data.permissions||[]).length,"Available from current Admin scope"),
+      metric(el,"Required self permissions",(data.requiredPermissions||[]).length,"Always retained"),
+      metric(el,"Can update",data.canUpdate?"Yes":"No","Permission-enforced")
+    );
+    container.append(metrics,el("p","Employee permissions are tenant-scoped and cannot exceed the current Admin's grants. Required self/account-security permissions stay enabled. Saving access, status or password changes invalidates existing Employee sessions. Employee MFA remains backend-required.","notice"));
+    const rows=employees.map(e=>[
+      e.name+" · "+e.email,
+      pill(el,e.status),
+      (e.admin_scope?.tenantIds||[]).join(", "),
+      String(e.permissions.length)+" permissions",
+      e.permission_version,
+      data.canUpdate?button(el,"Edit access",()=>editor(e)):"Read only"
+    ]);
+    container.append(panelTable(el,["Employee","Status","Tenant scope","Permission access","Version","Action"],rows,"Employee access",employees.length+" records"+(data.hasMore?" · more available":"")));
+
     function editor(emp){
       dialog(el,container,emp?"Edit Employee · "+emp.name:"Create Employee",(body,d)=>{
-        const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",emp?.name||""),email=field(el,form,"email","Email",emp?.email||"","email"),password=field(el,form,"password",emp?"Reset / set login password":"Set login password","","password"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],emp?.status||"active");
-        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenantChecks=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=emp?(emp.admin_scope?.tenantIds||[]).includes(t):false;l.append(i,el("span",t));tenantWrap.append(l);tenantChecks.push([t,i]);}form.append(tenantWrap);
-        const matrix=el("div",undefined,"permission-matrix full"),permissionChecks=[];for(const g of data.permissionGroups||[]){const group=el("section",undefined,"permission-group-v5"),h=el("h4",g.label);group.append(h);for(const p of g.permissions){const l=el("label",undefined,"permission-page"+(!p.selectable?" restricted":"")),i=el("input"),span=el("span");i.type="checkbox";i.checked=(emp?.permissions||data.requiredPermissions).includes(p.id);i.disabled=!p.selectable||data.requiredPermissions.includes(p.id);span.append(document.createTextNode(p.label),el("small",p.restricted?"Restricted":p.selectable?"Delegable":"Not delegable from this Admin"));l.append(i,span);group.append(l);permissionChecks.push([p.id,i]);}matrix.append(group);}form.append(matrix,el("p","Saving permission/status/password changes invalidates existing Employee sessions. MFA enrollment remains required.","notice"));
-        const save=el("button",emp?"Save access":"Create Employee","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const permissions=[...new Set(permissionChecks.filter(([,i])=>i.checked).map(([id])=>id))],tenantIds=tenantChecks.filter(([,i])=>i.checked).map(([id])=>id),payload={name:name.value,email:email.value,permissions,tenantIds,...(emp?{id:emp.id,status:status.value}:{}),...(password.value?{password:password.value}:{})};await post(emp?"operations/employee/update":"operations/employee/create",payload);password.value="";d.close();await employees(o);});};
+        const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",emp?.name||""),email=field(el,form,"email","Email",emp?.email||"","email"),password=field(el,form,"password",emp?"Reset / set login password":"Login password (optional)","","password"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],emp?.status||"active");
+        if(!emp)form.append(el("p","Leave password blank to generate a one-time temporary credential valid for 24 hours. If you set a password now, no temporary password is created.","notice full"));
+        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenantChecks=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=emp?(emp.admin_scope?.tenantIds||[]).includes(t):data.tenantIds.length===1;l.append(i,el("span",t));tenantWrap.append(l);tenantChecks.push([t,i]);}form.append(tenantWrap);
+        const matrix=el("div",undefined,"permission-matrix full"),permissionChecks=[];for(const g of data.permissionGroups||[]){const group=el("section",undefined,"permission-group-v5"),h=el("h4",g.label);group.append(h);for(const p of g.permissions){const l=el("label",undefined,"permission-page"+(!p.selectable?" restricted":"")),i=el("input"),span=el("span"),deps=(p.dependencies||[]).length?" · requires "+p.dependencies.join(", "):"";i.type="checkbox";i.checked=(emp?.permissions||data.requiredPermissions).includes(p.id);i.disabled=!p.selectable||data.requiredPermissions.includes(p.id);span.append(document.createTextNode(p.label),el("small",(p.restricted?"Restricted":p.selectable?"Delegable":"Not delegable from this Admin")+deps));l.append(i,span);group.append(l);permissionChecks.push([p.id,i]);}matrix.append(group);}form.append(matrix,el("p","Employee MFA is required by the current backend security contract. Permission, tenant, status and password updates invalidate existing sessions.","notice"));
+        const save=el("button",emp?"Save access":"Create Employee","primary");save.type="submit";form.append(save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{
+          const permissions=[...new Set(permissionChecks.filter(([,i])=>i.checked).map(([id])=>id))],tenantIds=tenantChecks.filter(([,i])=>i.checked).map(([id])=>id);
+          if(!tenantIds.length)throw Error("Select at least one operational tenant");
+          const payload={name:name.value,email:email.value,permissions,tenantIds,...(emp?{id:emp.id,status:status.value}:{}),...(password.value?{password:password.value}:{})};
+          const result=await post(emp?"operations/employee/update":"operations/employee/create",payload);password.value="";
+          if(!emp&&result.oneTimePassword){
+            body.replaceChildren(
+              el("h3","Employee created"),
+              el("p","Save this one-time password now. It is shown only once and expires in 24 hours.","notice"),
+              el("code",result.oneTimePassword,"code-secret"),
+              el("p","Login: "+(result.loginPath||"/employee")+" · MFA required: "+String(result.mfaRequired===true),"small muted")
+            );
+          }else{d.close();await employees(o);}
+        });};
       });
     }
   }
 
   async function admins(o){
-    const {post,action,el,container,title}=o;title.textContent="Admin authority";const data=await post("operations/admins",{offset:0,limit:100});container.replaceChildren(el("p","Only Super Admin platform authority can create or modify scoped Admin authority.","notice"));const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Create admin",()=>editor(null),"primary"));}
-    const rows=data.admins.map(a=>[a.name+" · "+a.email,pill(el,a.status),(a.admin_scope?.tenantIds||[]).join(", "),String(a.permissions.length)+" permissions",a.permission_version,button(el,"Edit access",()=>editor(a))]);container.append(panelTable(el,["Admin","Status","Tenant","Delegated permissions","Version","Action"],rows));
+    const {post,action,el,container,title}=o;title.textContent="Admin authority";
+    const data=await post("operations/admins",{offset:0,limit:100}),admins=data.admins||[],active=admins.filter(a=>a.status==="active").length;
+    container.replaceChildren();
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();tools.append(button(el,"+ Create admin",()=>editor(null),"primary"));}
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Scoped Admins",admins.length,"Tenant-scoped Admin accounts"),
+      metric(el,"Active",active,"Enabled Admin authority"),
+      metric(el,"Available permissions",(data.permissions||[]).length,"Grantable from platform scope"),
+      metric(el,"Required self permissions",(data.requiredPermissions||[]).length,"Cannot be removed"),
+      metric(el,"Platform grants","Disabled","Tenant-scoped Admins only"),
+      metric(el,"Security policy edit","Disabled","Not delegated here")
+    );
+    container.append(metrics,el("p","Only Super Admin platform authority can create or modify scoped Admin authority. Tenant-scoped Admins never inherit platform authority. New Admins receive a one-time temporary credential and must reset it on first sign-in; current backend reports MFA not required for this Admin creation flow.","notice"));
+    const rows=admins.map(a=>[
+      a.name+" · "+a.email,
+      pill(el,a.status),
+      (a.admin_scope?.tenantIds||[]).join(", "),
+      String(a.permissions.length)+" permissions",
+      a.permission_version,
+      button(el,"Edit access",()=>editor(a))
+    ]);
+    container.append(panelTable(el,["Admin","Status","Tenant scope","Delegated permissions","Version","Action"],rows,"Admin authority",admins.length+" records"+(data.hasMore?" · more available":"")));
+
     function editor(admin){
       dialog(el,container,admin?"Edit Admin authority · "+admin.name:"Create tenant-scoped Admin",(body,d)=>{
         const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",admin?.name||""),email=field(el,form,"email","Email",admin?.email||"","email"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],admin?.status||"active");if(admin){name.disabled=true;email.disabled=true;}
-        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenants=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=(admin?.admin_scope?.tenantIds||[]).includes(t);l.append(i,el("span",t));tenantWrap.append(l);tenants.push([t,i]);}form.append(tenantWrap);
-        const group=el("div",undefined,"permission-group full"),checks=[];group.append(el("h4","Explicit permissions"));for(const p of data.permissions){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=(admin?.permissions||data.requiredPermissions).includes(p.id);i.disabled=data.requiredPermissions.includes(p.id);l.append(i,el("span",p.label));group.append(l);checks.push([p.id,i]);}form.append(group,el("p","Platform authority is never implied. New Admins receive a one-time temporary credential, must reset it on first sign-in, then use email + password for Admin login.","notice"));
-        const save=el("button","Save Admin authority","primary");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{const payload={requestId:crypto.randomUUID(),permissions:checks.filter(([,i])=>i.checked).map(([id])=>id),tenantIds:tenants.filter(([,i])=>i.checked).map(([id])=>id),...(admin?{id:admin.id,status:status.value,expectedVersion:admin.permission_version}:{name:name.value,email:email.value})},result=await post(admin?"operations/admin/update":"operations/admin/create",payload);if(!admin&&result.oneTimePassword){body.replaceChildren(el("h3","Admin created"),el("p","Save this one-time password privately.","notice"),el("code",result.oneTimePassword));}else{d.close();await admins(o);}});};
+        const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenants=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=admin?(admin.admin_scope?.tenantIds||[]).includes(t):data.tenantIds.length===1;l.append(i,el("span",t));tenantWrap.append(l);tenants.push([t,i]);}form.append(tenantWrap);
+        const group=el("div",undefined,"permission-group full"),checks=[];group.append(el("h4","Explicit permissions"));for(const p of data.permissions){const l=el("label",undefined,"permission-option"),i=el("input"),deps=(p.dependencies||[]).length?" · requires "+p.dependencies.join(", "):"";i.type="checkbox";i.checked=(admin?.permissions||data.requiredPermissions).includes(p.id);i.disabled=data.requiredPermissions.includes(p.id);l.append(i,el("span",p.label+deps));group.append(l);checks.push([p.id,i]);}form.append(group,el("p","Required profile/account-security permissions cannot be removed. Changing status, tenant scope or permissions invalidates existing Admin sessions.","notice"));
+        const save=el("button",admin?"Save Admin authority":"Create Admin","primary");save.type="submit";form.append(save);body.append(form);
+        form.onsubmit=e=>{e.preventDefault();action(async()=>{
+          const tenantIds=tenants.filter(([,i])=>i.checked).map(([id])=>id);if(!tenantIds.length)throw Error("Select at least one operational tenant");
+          const payload={requestId:crypto.randomUUID(),permissions:checks.filter(([,i])=>i.checked).map(([id])=>id),tenantIds,...(admin?{id:admin.id,status:status.value,expectedVersion:admin.permission_version}:{name:name.value,email:email.value})},result=await post(admin?"operations/admin/update":"operations/admin/create",payload);
+          if(!admin&&result.oneTimePassword){body.replaceChildren(
+            el("h3","Admin created"),
+            el("p","Save this one-time password privately. It is shown only once and expires at the time below.","notice"),
+            el("code",result.oneTimePassword,"code-secret"),
+            el("p","Expires: "+(result.temporaryExpiresAt?new Date(result.temporaryExpiresAt).toLocaleString("en-IN"):"24 hours")+" · Login: "+(result.loginPath||"/admin")+" · MFA required: "+String(result.mfaRequired===true),"small muted")
+          );}else{d.close();await admins(o);}
+        });};
       });
     }
   }
