@@ -139,6 +139,21 @@ test('Admin Overview uses exact V5 SVG icons instead of placeholder dots',()=>{
  assert.ok(ui.includes("ico.innerHTML=icon(iconName)"));
  assert.ok(ui.includes("ico.innerHTML=icon(iconName);body.append"));
 });
+test('Admin Dashboard keeps exact V5 Overview structure with live read-only health data',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),backend=fs.readFileSync(require.resolve('../lib/wpay/panels/admin-overview.js'),'utf8');
+ for(const marker of ['OPERATIONS COMMAND CENTER','WPay platform at a glance','primary-kpis','secondary-kpis','Collection & payout trend','Last 14 days · INR','Deep analytics','Action center','Recent financial activity','Operational health','UPI shared limit used','Active devices','Parking open orders','UTR pending review','USDT rate','Unread notifications'])assert.ok(ui.includes(marker));
+ for(const field of ['todayFees','todayUserCommission','pendingPayouts','transactionHealth','overallSuccessRate','topMerchants'])assert.ok(backend.includes(field));
+ assert.ok(backend.includes('[7,14,30,60]'));
+ assert.doesNotMatch(ui,/admin-bottom/);
+});
+test('Admin Analytics matches exact V5 metrics chart donut and utilization layout',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['grid analytics-metrics','Today volume','Success rate','Running UPI','Active users','Today collection','Successful payout','Platform fees','User commission','Today payout volume','Pending payouts','Active devices','UTR captured today','Volume trend','Transaction health','donut-wrap','Top merchants by volume','UPI shared-limit usage','mini-bar-list'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('post("panel/admin-overview",{days:14})'));
+ assert.ok(ui.includes('post("business/upi-analytics",{days:1})'));
+ assert.ok(ui.includes('post("operations/device-setup",{})'));
+ assert.ok(ui.includes('post("operations/utr-source",{})'));
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
