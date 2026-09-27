@@ -225,11 +225,11 @@
   if(!tbody.children.length){const tr=el('tr'),td=el('td');td.colSpan=6;td.append(el('div','No matching records.','empty'));tr.append(td);tbody.append(tr);}table.append(thead,tbody);tableWrap.append(table);activity.append(tableWrap);
 
   const hHead=el('div',undefined,'panel-head'),hCopy=el('div');hCopy.append(el('h2','Operational health'),el('p','Collections + APK Setup'));hHead.append(hCopy);health.append(hHead);
-  const used=upi?money(upi.used):'—',limit=upi?money(upi.totalLimit):'—',linked=devices?devices.devices.filter(x=>x.linked).length:null,totalDevices=devices?.devices?.length??null,openParking=parking?parking.orders.filter(x=>x.state==='open').length:null,utrPending=utr?.records?.length??null;
-  const rates=(defaults?.tenants||[]).map(x=>x.rate).filter(Boolean),rate=rates.length?(rates.every(x=>x===rates[0])?'₹'+rates[0]:'Multiple'):'—',unread=notifications?.rows?notifications.rows.filter(x=>!x.read).length:null;
+  const used=upi?money(upi.used):'—',limit=upi?money(upi.totalLimit):'—',online=devices?devices.devices.filter(x=>x.status==='online').length:null,totalDevices=devices?.devices?.length??null,openParking=parking?parking.orders.filter(x=>x.state==='open').length:null,utrPending=utr?.records?(String(utr.records.length)+(utr.hasMore?'+':'')):null;
+  const rates=(defaults?.tenants||[]).map(x=>x.rate).filter(Boolean),rate=rates.length?(rates.every(x=>x===rates[0])?'₹'+rates[0]:'Multiple'):'—',unread=notifications?.rows?(String(notifications.rows.filter(x=>!x.read).length)+(notifications.nextOffset!==null&&notifications.nextOffset!==undefined?'+':'')):null;
   for(const [label,value]of [
     ['UPI shared limit used',used+' / '+limit],
-    ['Active devices',linked==null?'—':linked+' / '+totalDevices],
+    ['Active devices',online==null?'—':online+' / '+totalDevices],
     ['Parking open orders',openParking??'—'],
     ['UTR pending review',utrPending??'—'],
     ['USDT rate',rate],
