@@ -154,6 +154,24 @@ test('Admin Analytics matches exact V5 metrics chart donut and utilization layou
  assert.ok(ui.includes('post("operations/device-setup",{})'));
  assert.ok(ui.includes('post("operations/utr-source",{})'));
 });
+test('Admin Accounts and Approvals section keeps exact V5 account-card and modal structure',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['account-card-grid','account-card-top','account-identity','account-card-stats','Current terms','access-badges','View / manage','Edit rates','Collection access','Reactivation backend action not exposed','password-ready','Create & approve now','grid two-col','Operational links','Recent transactions','Edit rates / fees'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('q.oninput=()=>{clearTimeout(filterTimer)'));
+ assert.ok(ui.includes('st.onchange=()=>action(()=>directory'));
+ assert.ok(ui.includes('post("panel/directory/create"'));
+ assert.ok(ui.includes('post("approval"'));
+ assert.ok(ui.includes('post("panel/directory/update"'));
+ assert.ok(ui.includes('post("business/user-access/update"'));
+});
+test('Admin Pending approvals Collection access and Deposits match exact V5 section flow',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ for(const marker of ['Total pending','Unified action queue','Free Setup','Unlimited Collection','First deposit policy','Unlimited Collection capacity ko bypass karta hai, security ko nahi','First confirmed deposit minimum is 2,000 USDT','Requested USDT','INR credit','Tx reference','Manual confirm','Recheck provider','Reverse confirmed deposit'])assert.ok(ui.includes(marker));
+ assert.ok(ui.includes('post("funding/list"'));
+ assert.ok(ui.includes('post("funding/recheck"'));
+ assert.ok(ui.includes('post("funding/review"'));
+ assert.doesNotMatch(ui,/Confirmed deposit[\s\S]{0,300}Needs review[\s\S]{0,300}USDT requested/);
+});
 test('operating margin excludes double counting and unsupported FX',()=>{
  assert.equal(finance.margin({merchant_platform_fee:'1000',merchant_payout_fee:'600',user_commission:'200',user_payout_commission:'100'},'500'),'800');
  assert.equal(finance.margin({},'500'),'-500');
