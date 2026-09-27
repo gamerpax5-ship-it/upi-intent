@@ -310,22 +310,32 @@
   async function payoutApproval(o){
     const {post,action,el,container,title}=o;
     title.textContent="Payout approval";container.replaceChildren();
-    const data=await post("payout/approval/search",{offset:o.state?.offset||0,limit:25});
-    container.append(el("p","At create time, Merchant balance reserves principal + percentage fee + fixed payout fee. Admin approval moves an eligible request from pending_admin to open for User claiming.","notice"));
-    const rows=data.requests.map(r=>{
-      const principal=BigInt(r.volume_minor||0),reserve=BigInt(r.reserve_minor||0),fees=reserve>principal?reserve-principal:0n,actions=el("div",undefined,"admin-row-actions");
+    const data=await post("payout/approval/search",{offset:o.state?.offset||0,limit:25}),requests=data.requests||[],now=Date.now();
+    const principal=requests.reduce((n,r)=>n+BigInt(r.volume_minor||0),0n),reserved=requests.reduce((n,r)=>n+BigInt(r.reserve_minor||0),0n),fees=reserved>principal?reserved-principal:0n,orders=requests.reduce((n,r)=>n+Number(r.order_count||0),0),risk=requests.filter(r=>r.earliest_deadline&&+new Date(r.earliest_deadline)-now<20*60000).length;
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Pending batches",requests.length,"Awaiting Admin routing approval"),
+      metric(el,"Orders",orders,"Orders inside pending batches"),
+      metric(el,"Principal",money(principal),"Payout amount"),
+      metric(el,"Fees reserved",money(fees),"Percentage + fixed fees"),
+      metric(el,"Total reserved",money(reserved),"Merchant funds locked"),
+      metric(el,"Deadline risk",risk,"Less than 20 minutes remaining")
+    );
+    container.append(metrics,el("p","Merchant balance is reserved at create time for principal + percentage fee + fixed payout fee. Admin approval opens only still-routable orders; if too little routing time remains, the backend fails and releases them instead of forcing a stale payout.","notice"));
+    const rows=requests.map(r=>{
+      const p=BigInt(r.volume_minor||0),reserve=BigInt(r.reserve_minor||0),fee=reserve>p?reserve-p:0n,actions=el("div",undefined,"admin-row-actions"),deadline=r.earliest_deadline?+new Date(r.earliest_deadline):null,left=deadline?deadline-now:null;
       actions.append(button(el,"Approve routing",()=>decide(r,"approve"),"primary"),button(el,"Reject",()=>decide(r,"reject"),"danger"));
       const ref=el("div");ref.append(el("strong",r.id),el("div",(r.merchant_name||"—")+" · "+Number(r.order_count||0)+" order"+(Number(r.order_count||0)===1?"":"s"),"small muted"));
-      return [ref,money(principal),money(fees),money(reserve),r.earliest_deadline?new Date(r.earliest_deadline).toLocaleString("en-IN"):"—",pill(el,"pending_admin"),actions];
+      return [ref,money(p),money(fee),money(reserve),money(r.available_minor||0),r.earliest_deadline?new Date(r.earliest_deadline).toLocaleString("en-IN"):"—",left==null?"—":left<=0?"expired":Math.ceil(left/60000)+" min",pill(el,"pending_admin"),actions];
     });
-    container.append(panelTable(el,["Reference / Merchant","Principal","Fees","Total reserved","Deadline","State","Action"],rows));
+    container.append(panelTable(el,["Batch / Merchant","Principal","Fees","Reserved","Merchant available","Earliest deadline","Time left","State","Action"],rows,"Payout approval queue",requests.length+" pending batch"+(requests.length===1?"":"es")+(data.hasMore?" · more available":"")));
     function decide(r,decision){
       dialog(el,container,decision==="approve"?"Approve payout routing":"Reject payout",(body,d)=>{
         const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin routing approval":"Payout rejected"),save=el("button",decision==="approve"?"Approve routing":"Reject",decision==="approve"?"primary":"danger");save.type="submit";
-        form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/approval/decide",{id:r.id,action:decision,reason:reason.value});d.close();await payoutApproval(o);});};
+        form.append(el("p",decision==="approve"?"The backend rechecks remaining routing time per order before opening it to Users.":"Rejecting releases the Merchant payout reservation for pending orders.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/approval/decide",{id:r.id,action:decision,reason:reason.value});d.close();await payoutApproval(o);});};
       });
     }
   }
+
   async function userCommissions(o){
     const {post,el,container,title}=o;title.textContent="User commissions";container.replaceChildren();
     const data=await post("panel/admin-finance",{offset:0}),rows=data.commissionSummary||[],gross=rows.reduce((n,x)=>n+BigInt(x.gross||0),0n),held=rows.reduce((n,x)=>n+BigInt(x.held||0),0n),withdrawn=rows.reduce((n,x)=>n+BigInt(x.withdrawn||0),0n),available=rows.reduce((n,x)=>n+BigInt(x.available||0),0n);
@@ -517,25 +527,50 @@
 
   async function payoutReview(o){
     const {post,action,el,container,title}=o;title.textContent="Payout review";container.replaceChildren();
-    const data=await post("payout/search",{offset:0,limit:50});
-    container.append(el("p","Current policy: User payment window is 10 minutes + 5-minute submission grace. Submitted payout waits for Merchant review; without a Merchant decision, the 15-minute timeout can auto-approve with merchant_review_timeout provenance. Admin resolution applies after Merchant rejection/escalation.","notice"));
-    const rows=data.orders.filter(x=>["claimed","submitted","merchant_rejected_review","successful","not_paid"].includes(x.status)).map(p=>{
-      const actions=el("div",undefined,"admin-row-actions");
+    const data=await post("payout/search",{offset:0,limit:50}),orders=data.orders||[],reviewable=orders.filter(x=>["claimed","submitted","merchant_rejected_review"].includes(x.status)),submitted=orders.filter(x=>x.status==="submitted"),escalated=orders.filter(x=>x.status==="merchant_rejected_review"),successful=orders.filter(x=>x.status==="successful"),notPaid=orders.filter(x=>x.status==="not_paid");
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Reviewable",reviewable.length,"Claimed / submitted / escalated"),
+      metric(el,"Submitted",submitted.length,"Waiting Merchant review / timeout"),
+      metric(el,"Escalated",escalated.length,"Merchant rejected; Admin decision"),
+      metric(el,"Successful",successful.length,"Settled payouts"),
+      metric(el,"Not paid",notPaid.length,"Rejected payment outcome"),
+      metric(el,"Loaded orders",orders.length,"Latest scoped results")
+    );
+    container.append(metrics,el("p","Current policy: User payment window is 10 minutes plus 5-minute submission grace. Submitted payout waits for Merchant review; timeout may auto-approve. Admin final paid/not-paid action is available only after Merchant rejection/escalation.","notice"));
+    const rows=orders.filter(x=>["claimed","submitted","merchant_rejected_review","successful","not_paid","reversed"].includes(x.status)).map(p=>{
+      const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,"Details",()=>detail(p)));
       if(p.status==="merchant_rejected_review")actions.append(button(el,"Mark paid",()=>resolve(p,"paid"),"primary"),button(el,"Not paid",()=>resolve(p,"not_paid"),"danger"));
       else if(p.status==="submitted")actions.append(el("span","Merchant review / timeout","small muted"));
       const due=p.submittedAt?new Date(+new Date(p.submittedAt)+15*60000):null,remaining=due?+due-Date.now():null,timeout=due?(remaining>0?Math.ceil(remaining/60000)+" min remaining":"Due / worker may auto-approve"):"—";
       const ref=el("div");ref.append(el("strong",p.reference),el("div",p.id,"small muted"));
-      return [ref,p.claimUserName||p.claimUserId||"—",money(p.amountMinor),p.utr||"—",pill(el,p.status),p.submittedAt?new Date(p.submittedAt).toLocaleString("en-IN"):"—",due?new Date(due).toLocaleString("en-IN")+" · "+timeout:"—",actions];
+      return [ref,p.claimUserName||p.claimUserId||"—",money(p.amountMinor),p.transferMode||"—",p.utr||"—",pill(el,p.status),p.submittedAt?new Date(p.submittedAt).toLocaleString("en-IN"):"—",due?new Date(due).toLocaleString("en-IN")+" · "+timeout:"—",actions];
     });
-    container.append(panelTable(el,["Reference","User","Amount","UTR","State","Submitted","15m timeout","Action"],rows));
-    function resolve(p,decision){dialog(el,container,decision==="paid"?"Mark payout paid":"Mark payout not paid",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="paid"?"Admin reviewed escalated payout evidence":"Payment not received"),save=el("button",decision==="paid"?"Mark paid":"Not paid",decision==="paid"?"primary":"danger");save.type="submit";form.append(save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/resolve",{id:p.id,action:decision,reason:reason.value});d.close();await payoutReview(o);});};});}
+    container.append(panelTable(el,["Reference","User","Amount","Mode","UTR","State","Submitted","15m timeout","Action"],rows,"Payout review","Admin-visible review lifecycle"));
+    function detail(p){action(async()=>{const d=await post("payout/get",{id:p.id});dialog(el,container,"Payout details · "+d.reference,(body)=>{
+      const facts=el("div",undefined,"kv-grid"),add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"—")));facts.append(x);};
+      add("State",d.status);add("Amount",money(d.amountMinor));add("Reserved",money(d.reserveMinor||0));add("Transfer mode",d.transferMode);add("Claim User",p.claimUserName||p.claimUserId||"—");add("Deadline",d.deadlineAt?new Date(d.deadlineAt).toLocaleString("en-IN"):"—");add("Beneficiary",d.beneficiary?.beneficiaryName||"—");add("Bank",d.beneficiary?.bankName||"—");add("Account",d.beneficiary?.accountNumber?"••••"+String(d.beneficiary.accountNumber).slice(-4):"—");add("IFSC",d.beneficiary?.ifsc||"—");add("UPI",d.beneficiary?.upiId||"—");add("Proof scan",d.proof?.scanState||"—");body.append(facts);
+      if(d.proof?.downloadAllowed)body.append(button(el,"Download proof",()=>downloadProof(d),"primary"));
+      if(d.audit?.length)body.append(el("h3","Audit"),table(el,["Time","State","Reason"],d.audit.slice(0,20).map(a=>[new Date(a.created_at).toLocaleString("en-IN"),a.state,a.reason||"—"])));
+    });});}
+    function downloadProof(d){action(async()=>{const p=await post("payout/proof",{id:d.id,proofId:d.proof.id}),bytes=Uint8Array.from(atob(p.data),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:p.contentType||"application/octet-stream"})),a=document.createElement("a");a.href=url;a.download=p.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});}
+    function resolve(p,decision){dialog(el,container,decision==="paid"?"Mark payout paid":"Mark payout not paid",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="paid"?"Admin reviewed escalated payout evidence":"Payment not received"),save=el("button",decision==="paid"?"Mark paid":"Not paid",decision==="paid"?"primary":"danger");save.type="submit";form.append(el("p","This action is only valid for the escalated merchant_rejected_review state and remains backend-enforced.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/resolve",{id:p.id,action:decision,reason:reason.value});d.close();await payoutReview(o);});};});}
   }
+
   async function payoutCapabilities(o){
     const {request,post,action,el,container,title}=o;title.textContent="Payout bank capabilities";container.replaceChildren();
-    const data=await request("payout/capabilities");
-    container.append(el("p","A payout capability belongs to an approved + verified bank version. Revoking it prevents that bank version from being used for payout work.","notice"));
-    const rows=data.banks.map(b=>{const actions=el("div",undefined,"admin-row-actions");actions.append(button(el,b.payout_capable?"Revoke":"Enable",()=>change(b),b.payout_capable?"danger":"primary"));return [b.id,b.owner_id,"v"+b.version,b.status,b.frozen?"frozen":"available",b.payout_capable?"payout capable":"not capable",actions];});container.append(table(el,["Bank","Owner","Version","State","Availability","Capability","Action"],rows));
-    function change(b){const d=document.createElement("dialog"),form=document.createElement("form"),l=el("label","Reason"),reason=el("input");reason.required=true;l.append(reason);form.append(l);const enabled=!b.payout_capable,save=el("button",enabled?"Enable payout bank":"Revoke capability",enabled?"primary":"danger");save.type="submit";form.append(save,button(el,"Cancel",()=>d.close()));form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/capability",{bankId:b.id,version:b.version,enabled,reason:reason.value});d.close();await payoutCapabilities(o);});};d.append(el("h2",enabled?"Enable payout capability":"Revoke payout capability"),form);container.append(d);d.showModal();}
+    const data=await request("payout/capabilities"),banks=data.banks||[],capable=banks.filter(b=>b.payout_capable),eligible=banks.filter(b=>b.approved_version===b.version&&b.verified_version===b.version&&!b.frozen&&!b.deactivated&&["verified","enabled","running","stopped"].includes(b.status)),blocked=banks.filter(b=>!eligible.includes(b));
+    const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
+      metric(el,"Bank versions",banks.length,"Scoped current versions"),
+      metric(el,"Payout capable",capable.length,"Active capability records"),
+      metric(el,"Eligible to enable",eligible.length,"Approved + verified + available"),
+      metric(el,"Blocked",blocked.length,"Fails capability prerequisites"),
+      metric(el,"Frozen",banks.filter(b=>b.frozen).length,"Operational hold"),
+      metric(el,"Deactivated",banks.filter(b=>b.deactivated).length,"Unavailable")
+    );
+    container.append(metrics,el("p","A payout capability is version-specific. Enabling requires the current bank version to be approved, payment-verified, not frozen/deactivated and in an allowed operational state. Revoking prevents that bank version from receiving payout work.","notice"));
+    const rows=banks.map(b=>{const ready=b.approved_version===b.version&&b.verified_version===b.version&&!b.frozen&&!b.deactivated&&["verified","enabled","running","stopped"].includes(b.status),actions=el("div",undefined,"admin-row-actions");actions.append(button(el,b.payout_capable?"Revoke":"Enable",()=>change(b),b.payout_capable?"danger":"primary"));if(!b.payout_capable&&!ready)actions.querySelector("button").disabled=true;const reason=b.deactivated?"deactivated":b.frozen?"frozen":b.approved_version!==b.version?"approval required":b.verified_version!==b.version?"payment verification required":!["verified","enabled","running","stopped"].includes(b.status)?"state "+b.status:"ready";return [b.id,b.owner_id,"v"+b.version,b.status,b.approved_version===b.version?"approved":"not approved",b.verified_version===b.version?"verified":"not verified",b.frozen?"frozen":b.deactivated?"deactivated":"available",b.payout_capable?"enabled":ready?"ready to enable":reason,actions];});
+    container.append(panelTable(el,["Bank","Owner","Version","State","Approval","Verification","Availability","Capability readiness","Action"],rows,"Payout bank capabilities",capable.length+" enabled"));
+    function change(b){dialog(el,container,b.payout_capable?"Revoke payout capability":"Enable payout capability",(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",b.payout_capable?"Payout capability revoked":"Approved for payout work"),enabled=!b.payout_capable,save=el("button",enabled?"Enable payout bank":"Revoke capability",enabled?"primary":"danger");save.type="submit";form.append(el("p",enabled?"The backend revalidates approval, verification, freeze/deactivation and bank state before enabling.":"Revocation is version-specific and takes effect for future payout routing.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("payout/capability",{bankId:b.id,version:b.version,enabled,reason:reason.value});d.close();await payoutCapabilities(o);});};});}
   }
 
   async function merchantUsdt(o){
