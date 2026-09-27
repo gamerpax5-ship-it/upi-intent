@@ -1286,6 +1286,33 @@
     }
   }
 
+  // One page/module selection expands into every action the current Admin may delegate.
+  // The server remains authoritative for restricted actions, dependencies and tenant scope.
+  const employeePageLabels={overview:"Overview & analytics",users:"Users",merchants:"Merchants",bank_upi:"Bank & UPI",routing:"Assignments & routing",assignments:"User assignments",transactions:"Transactions",statement_reconciliation:"Statements & reconciliation",payin_dispute:"Pay-in disputes",deposits:"User deposits",payout_operations:"Payout management",commission_withdrawal:"Commission withdrawals",commission_hold:"Commission holds",holds:"Holds / frozen",parking:"Parking",devices:"Device setup & pairing",apk:"APK / Agent",apk_otp_events:"OTP Events",utr_center:"UTR Capture",ledger:"Ledger",reports:"Reports",api_credentials:"API credentials",webhooks:"Webhooks",api_logs:"API logs",support:"Support",notifications:"Notifications",profile:"Profile",account_security:"Account security",settings:"Settings"};
+  function employeePageAccess(data,existing=[]){
+    const required=new Set(data.requiredPermissions||[]),allowed=new Map((data.permissions||[]).map(p=>[p.id,p])),groups=new Map();
+    const catalog=(data.permissionGroups||[]).flatMap(g=>g.permissions.map(p=>({...p,groupLabel:g.label})));
+    const listed=new Set(catalog.map(p=>p.id));
+    for(const p of [...catalog,...[...allowed.values()].filter(p=>!listed.has(p.id))]){
+      const module=p.module||p.id.split('.')[0];
+      if(!groups.has(module))groups.set(module,{id:module,label:employeePageLabels[module]||module.replaceAll('_',' '),group:p.groupLabel||"Page access",permissions:[],restricted:[]});
+      const page=groups.get(module);
+      if(allowed.has(p.id)&&p.selectable!==false&&!p.restricted)page.permissions.push(p.id);else page.restricted.push(p.id);
+    }
+    // Required account access must never disappear even with a partial catalog response.
+    for(const id of required)if(!allowed.has(id))throw Error("Required account access is unavailable. Refresh before editing Employee access.");
+    const selected=new Set(existing.length?existing:required);
+    for(const id of selected)if(!allowed.has(id))throw Error("This Employee has access outside your delegable scope. Ask the supervising Admin to edit it.");
+    function expand(ids){const out=new Set(ids),queue=[...ids];while(queue.length){const id=queue.shift(),p=allowed.get(id);if(!p)throw Error("A required page permission is not available from this Admin");for(const dep of p.dependencies||[]){if(!allowed.has(dep))throw Error("A required page permission is not available from this Admin");if(!out.has(dep)){out.add(dep);queue.push(dep);}}}return [...out].sort();}
+    const pages=[...groups.values()].map(page=>{
+      let unavailable=!page.permissions.length;try{expand(page.permissions);}catch{unavailable=true;}
+      const assigned=page.permissions.filter(id=>selected.has(id)),optional=page.permissions.filter(id=>!required.has(id));
+      return {...page,checked:page.permissions.length>0&&assigned.length===page.permissions.length,partial:assigned.length>0&&assigned.length<page.permissions.length,mandatory:optional.length===0&&page.permissions.some(id=>required.has(id)),unavailable,changed:false};
+    });
+    function selection(){const out=new Set(required);for(const page of pages){const chosen=page.changed?(page.checked?page.permissions:[]):page.permissions.filter(id=>selected.has(id));for(const id of chosen)out.add(id);}return expand(out);}
+    return {pages,selection};
+  }
+
   async function employees(o){
     const {post,action,el,container,title}=o;title.textContent="Employees";
     const data=await post("operations/employees",{offset:0,limit:100}),employees=data.employees||[],active=employees.filter(e=>e.status==="active").length,suspended=employees.filter(e=>e.status==="suspended").length;
@@ -1315,10 +1342,19 @@
         const form=el("form",undefined,"form-grid"),name=field(el,form,"name","Name",emp?.name||""),email=field(el,form,"email","Email",emp?.email||"","email"),password=field(el,form,"password",emp?"Reset / set login password":"Login password (optional)","","password"),status=selectField(el,form,"status","Status",[["active","Active"],["suspended","Suspended"],["disabled","Disabled"]],emp?.status||"active");
         if(!emp)form.append(el("p","Leave password blank to generate a one-time temporary credential valid for 24 hours. If you set a password now, no temporary password is created.","notice full"));
         const tenantWrap=el("div",undefined,"permission-group full");tenantWrap.append(el("h4","Operational tenants"));const tenantChecks=[];for(const t of data.tenantIds){const l=el("label",undefined,"permission-option"),i=el("input");i.type="checkbox";i.checked=emp?(emp.admin_scope?.tenantIds||[]).includes(t):data.tenantIds.length===1;l.append(i,el("span",t));tenantWrap.append(l);tenantChecks.push([t,i]);}form.append(tenantWrap);
-        const matrix=el("div",undefined,"permission-matrix full"),permissionChecks=[];for(const g of data.permissionGroups||[]){const group=el("section",undefined,"permission-group-v5"),h=el("h4",g.label);group.append(h);for(const p of g.permissions){const l=el("label",undefined,"permission-page"+(!p.selectable?" restricted":"")),i=el("input"),span=el("span"),deps=(p.dependencies||[]).length?" · requires "+p.dependencies.join(", "):"";i.type="checkbox";i.checked=(emp?.permissions||data.requiredPermissions).includes(p.id);i.disabled=!p.selectable||data.requiredPermissions.includes(p.id);span.append(document.createTextNode(p.label),el("small",(p.restricted?"Restricted":p.selectable?"Delegable":"Not delegable from this Admin")+deps));l.append(i,span);group.append(l);permissionChecks.push([p.id,i]);}matrix.append(group);}form.append(matrix,el("p","Employee MFA is required by the current backend security contract. Permission, tenant, status and password updates invalidate existing sessions.","notice"));
+        const access=employeePageAccess(data,emp?.permissions||[]),matrix=el("div",undefined,"permission-matrix full"),sections=new Map();
+        for(const page of access.pages){
+          if(!sections.has(page.group)){const section=el("section",undefined,"permission-group-v5");section.append(el("h4",page.group));sections.set(page.group,section);matrix.append(section);}
+          const label=el("label",undefined,"permission-option permission-page"+(page.unavailable?" restricted":"")),check=el("input"),copy=el("span");
+          check.type="checkbox";check.dataset.pageAccess=page.id;check.checked=page.checked;check.indeterminate=page.partial;check.disabled=page.unavailable||page.mandatory;
+          const help=page.unavailable?"Not available for Employee delegation":page.mandatory?"Required account page · always available":page.partial?"Existing limited access · select to enable all available page actions":page.restricted.length?"All delegable page actions · restricted Admin-only actions excluded":"Full page access · all available actions included";
+          copy.append(document.createTextNode(page.label),el("small",help));label.append(check,copy);sections.get(page.group).append(label);
+          check.onchange=()=>{page.checked=check.checked;page.changed=true;check.indeterminate=false;};
+        }
+        form.append(matrix,el("p","Select a page once to include its available actions and required dependencies. Related screens sharing one backend access scope are grouped together. Existing limited access is preserved until you change that page. Admin-only actions remain restricted.","notice full"));
         const save=el("button",emp?"Save access":"Create Employee","primary");save.type="submit";form.append(save);body.append(form);
         form.onsubmit=e=>{e.preventDefault();action(async()=>{
-          const permissions=[...new Set(permissionChecks.filter(([,i])=>i.checked).map(([id])=>id))],tenantIds=tenantChecks.filter(([,i])=>i.checked).map(([id])=>id);
+          const permissions=access.selection(),tenantIds=tenantChecks.filter(([,i])=>i.checked).map(([id])=>id);
           if(!tenantIds.length)throw Error("Select at least one operational tenant");
           const payload={name:name.value,email:email.value,permissions,tenantIds,...(emp?{id:emp.id,status:status.value}:{}),...(password.value?{password:password.value}:{})};
           const result=await post(emp?"operations/employee/update":"operations/employee/create",payload);password.value="";
@@ -1435,5 +1471,5 @@
     if(destination==="v5.profile")return profilePage(o);
     throw new Error("error.NOT_FOUND");
   }
-  root.WPayAdminV5Pages={render};
+  root.WPayAdminV5Pages={render,employeePageAccess};
 })(globalThis);
