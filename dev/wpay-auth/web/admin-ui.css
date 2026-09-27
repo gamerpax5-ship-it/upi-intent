@@ -429,3 +429,6 @@ th,td{padding:10px 11px}
 
 /* V5 reference keeps Overview inside the DASHBOARD group; retain the legacy hook only for runtime compatibility. */
 .wpay-admin #account-home{display:none!important}
+
+/* Exact V5 shell: locale runtime remains available but the Admin reference topbar has no language control. */
+.admin-language-hidden{display:none!important}
