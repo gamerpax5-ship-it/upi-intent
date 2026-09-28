@@ -1015,3 +1015,17 @@ body{font-size:15px!important}
 .field label,.login-field label,.fact label,th,.metric-foot,.item-main small,.login-card>p{font-size:14px!important;line-height:1.55!important;color:#bdcdc2!important}
 td,.control,.btn{font-size:15px!important;line-height:1.5!important}
 td small{font-size:13px!important;color:#bdcdc2!important}
+
+/* Keep the reference geometry while making the selected light theme complete. */
+.light body{background:linear-gradient(180deg,#f7faf4,#eef4eb)!important;color:#233128!important}
+.light .sidebar,.light .topbar,.light .sidebar-foot{background:#f9fcf7!important;border-color:#d7e1d5!important}
+.light .card,.light .primary-metric,.light .premium-actions,.light .modal{background:linear-gradient(180deg,#fff,#f8fbf6)!important;color:#233128!important;border-color:#d7e1d5!important}
+.light .gateway-hero,.light .page:not(#page-dashboard)>.page-head{background:linear-gradient(100deg,#f7fbf4,#e4efdf)!important;color:#233128!important;border-color:#d7e1d5!important}
+.light .nav-item{color:#4b6153!important}.light .nav-item.active{background:#f3eed9!important;color:#394723!important}
+.light .sidebar strong,.light .sidebar .brand,.light .merchant-chip strong,.light .primary-metric strong,.light .quick strong,.light .page h1,.light .page h2,.light .page h3{color:#233128!important}
+.light .nav-title,.light .eyebrow,.light .page:not(#page-dashboard)>.page-head .eyebrow,.light .field label,.light .fact label,.light th,.light .metric-foot,.light .item-main small,.light td small,.light .page-head p,.light .gateway-hero p,.light .primary-metric em,.light .quick small,.light .muted{color:#52695a!important}
+.light .item,.light .fact,.light .merchant-chip,.light .codebox{background:#f8fbf6!important;color:#233128!important;border-color:#d7e1d5!important}
+.light .dashboard-secondary-strip{color:#233128!important}.light .dashboard-secondary-strip strong{color:#233128!important}
+.light .control,.light .search input{border-color:#b9cabd!important}.light input::placeholder,.light textarea::placeholder{color:#68776d!important}
+.light .real-dashboard-earth:after{background:linear-gradient(180deg,transparent,#e4efdf)!important}
+.light .form-error,.light #pageStatus.error{color:#a22534!important}
