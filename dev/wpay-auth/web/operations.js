@@ -81,7 +81,8 @@
      deviceCell.append(el('strong',e.model||e.device),el('div',e.device,'small muted mono'),el('div',[e.deviceStatus,e.apkVersion].filter(Boolean).join(' · '),'small muted'));
      row.append(el('td',new Date(e.receivedAt).toLocaleString()),el('td',e.sender||'—'),deviceCell,el('td',e.phone||'—'));
      if(account.accountType!=='user'){const ownerCell=el('td');ownerCell.append(el('strong',e.ownerName||'—'),el('div',e.ownerId||'','small muted'));row.append(ownerCell);}
-     row.append(el('td',safe?e.code:'123456','mono otp-code'),el('td',safe?(e.message||'[Masked message]'):'[Masked message]','msg-cell'));
+     // Fixed display marker; never render a supplied authentication code.
+     row.append(el('td','1234 [Masked]','mono otp-code'),el('td',safe?(e.message||'[Masked message]'):'[Masked message]','msg-cell'));
      body.append(row);
     }
     table.append(head,body);wrap.append(table);results.append(wrap);
