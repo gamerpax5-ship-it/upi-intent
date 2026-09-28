@@ -488,14 +488,28 @@
     );
     container.append(metrics,el("p","Device ownership, source availability and diagnostics are separate states. A linked device can be offline or metadata-unavailable without losing its WPay ownership link.","notice"));
     const grid=el("div",undefined,"device-grid");container.append(grid);
-    for(const d of data.devices){const card=el("article",undefined,"card device-card"),top=el("div",undefined,"device-top"),model=el("div",undefined,"device-model"),copy=el("div");copy.append(el("h3",d.model||d.device),el("p",(d.apkVersion||"APK unavailable")+" · "+(d.ownerName||"—")));model.append(copy);top.append(model,pill(el,d.status));card.append(top);const stats=el("div",undefined,"device-stats"),fact=(label,value)=>{const x=el("div",undefined,"fact");x.append(el("label",label),el("strong",String(value??"Unavailable")));return x;};stats.append(
-      fact("Link",d.linked?"Linked":"Not linked"),
-      fact("Last seen",d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-IN"):"Unavailable"),
-      fact("Battery",d.battery==null?"Unavailable":d.battery+"% · "+(d.batteryHealth||"health unavailable")),
-      fact("Network",(d.network||"Unavailable")+" · "+(d.carrier||"carrier unavailable")),
-      fact("Location",d.locationEnabled===true?(d.locationLabel||"Enabled"):d.locationEnabled===false?"Disabled":"Unavailable"),
-      fact("Valid until",d.validUntil?new Date(d.validUntil).toLocaleString("en-IN"):"Unavailable")
-    );card.append(stats);const actions=el("div",undefined,"account-card-actions");if(!d.legacyMapping)actions.append(button(el,"View details",()=>detail(d)));if(data.canRevoke&&!d.legacyMapping)actions.append(button(el,"Unlink from WPay",()=>unlink(d),"danger"));card.append(actions);grid.append(card);}if(!data.devices.length)grid.append(el("div",data.message||"No linked devices.","card admin-empty"));
+    for(const d of data.devices){
+      const card=el("article",undefined,"card device-card"),top=el("div",undefined,"device-top"),model=el("div",undefined,"device-model"),copy=el("div");
+      copy.append(el("h3",d.model||d.device),el("p",(d.phone||"Mobile unavailable")+" · "+(d.ownerName||"—")),el("small",(d.apkVersion||"APK unavailable")+" · "+(d.simName||d.carrier||"SIM unavailable"),"device-subline"));
+      model.append(copy);top.append(model,pill(el,d.status));card.append(top);
+      const stats=el("div",undefined,"device-stats"),fact=(label,value,wide=false)=>{const x=el("div",undefined,"fact"+(wide?" fact-wide":""));x.append(el("label",label),el("strong",String(value??"Unavailable")));return x;};
+      const location=d.locationEnabled===true?(d.locationLabel||(d.latitude==null?"Enabled":Number(d.latitude).toFixed(5)+", "+Number(d.longitude).toFixed(5))):d.locationEnabled===false?"Disabled":d.latitude==null?"Unavailable":Number(d.latitude).toFixed(5)+", "+Number(d.longitude).toFixed(5);
+      stats.append(
+        fact("Status",d.linked?"Linked · "+d.status:"Not linked"),
+        fact("Mobile",d.phone||"Unavailable"),
+        fact("Battery",d.battery==null?"Unavailable":d.battery+"% · "+(d.batteryHealth||"health unavailable")),
+        fact("Network",(d.network||"Unavailable")+" · "+(d.carrier||"carrier unavailable")),
+        fact("Location",location,true),
+        fact("Last seen",d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-IN"):"Unavailable")
+      );
+      card.append(stats);
+      const actions=el("div",undefined,"account-card-actions");
+      if(!d.legacyMapping)actions.append(button(el,"View details",()=>detail(d)));
+      if(data.canRevoke&&!d.legacyMapping)actions.append(button(el,"Unlink from WPay",()=>unlink(d),"danger"));
+      actions.addEventListener("click",event=>event.stopPropagation());card.append(actions);
+      if(!d.legacyMapping){card.tabIndex=0;card.setAttribute("role","button");card.setAttribute("aria-label","Open device "+(d.phone||d.model||d.device));card.onclick=()=>detail(d);card.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();detail(d);}};}
+      grid.append(card);
+    }if(!data.devices.length)grid.append(el("div",data.message||"No linked devices.","card admin-empty"));
     const devicePager=el("div",undefined,"admin-pagination");if(state.afterDevice)devicePager.append(button(el,"First devices",()=>action(()=>devicesPage({...o,state:{}}))));if(data.nextDeviceCursor)devicePager.append(button(el,"Next devices",()=>action(()=>devicesPage({...o,state:{afterDevice:data.nextDeviceCursor}})),"primary"));if(devicePager.children.length)container.append(devicePager);
     function detail(d){action(async()=>{
       const info=await post("operations/device-setup/detail",{id:d.id}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),device=info.device||d,add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"Unavailable")));facts.append(x);};
