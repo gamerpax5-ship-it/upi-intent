@@ -1013,7 +1013,7 @@
       line("Publication source",data.source||"Unavailable","metadata"),
       line("Workflow trigger","Current repository workflow: main branch + android-app/workflow paths","configured")
     );
-    const dl=el("a","Download latest APK","primary");dl.href=data.downloadPath||"/wpay-auth/apk/download";dl.download="WPAY-Agent.apk";
+    const entryRole=document.querySelector('meta[name="wpay-entry-role"]')?.content||"admin",dl=el("a","Download latest APK","primary");dl.href="/wpay-auth/roles/"+encodeURIComponent(entryRole)+"/apk/download";dl.download="WPAY-Agent.apk";
     card.append(el("p","Download uses the canonical artifact path returned by the APK metadata endpoint. The server validates APK hash, size, version metadata and signer evidence before reporting the artifact available. OTP capture/detection code is not modified by this Admin UI change.","notice"),dl);container.append(card);
   }
 
