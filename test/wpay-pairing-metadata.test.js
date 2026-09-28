@@ -19,5 +19,5 @@ test('device details enforce ownership before calling source and project only bo
  const setup=new DeviceSetup({pairingSource:{devices:async()=>{reads++;return [{id:link.device_ref,linked:true,last_seen_at:now}];},diagnostics:async(device,from)=>{assert.equal(+from,+valid);return [{collected_at:new Date(+now-1000),battery_level:72,latitude:12,longitude:77,raw:{otp:'do-not-project'},code:'do-not-project'},{collected_at:new Date(+valid-1),battery_level:50},{collected_at:new Date(+now+1000)}];}}});
  const row={id:owner,account_type:'user',database_now:now},context={principal:{id:owner,userId:owner,type:'user',tenantId:'a',status:'active',permissionVersion:1},currentPermissionVersion:1,grants:['user.device_pairing.view'],eligibility:{approvalStatus:'approved'}};
  await assert.rejects(setup.detail(c,{...row,id:'30000000-0000-4000-8000-000000000001'},context,{id}),{code:'FORBIDDEN'});assert.equal(reads,0);
- const result=await setup.detail(c,row,context,{id});assert.equal(result.history.length,1);assert.equal(result.history[0].battery,72);assert.doesNotMatch(JSON.stringify(result),/do-not-project|raw|otp/);
+  const result=await setup.detail(c,row,context,{id});assert.equal(result.history.length,1);assert.equal(result.history[0].battery,72);assert.doesNotMatch(JSON.stringify(result),/do-not-project|raw|code|sms_body/);
 });

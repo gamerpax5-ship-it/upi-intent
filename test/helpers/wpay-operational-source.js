@@ -10,6 +10,7 @@ async function sourceFixture(t,cfg){
  await owner.query('GRANT SELECT(id,status,app_version,last_seen_at) ON public.devices TO wpay_operational_reader');
  await owner.query('GRANT SELECT(id,token_hash,status,device_id,created_at,expires_at,claimed_at) ON public.device_pairings TO wpay_operational_reader');
  await owner.query('GRANT SELECT(id,device_id,sender,code_mask,otp_length,message_masked,source,sms_received_at,created_at) ON public.device_otp_events TO wpay_operational_reader');
+ await owner.query('GRANT SELECT(id,device_id,utr,status,amount,created_at) ON public.device_transactions TO wpay_operational_reader');
  const env={NODE_ENV:'development',DASHBOARD_USERNAME:'synthetic-owner',DASHBOARD_PASSWORD:randomBytes(24).toString('base64url'),DASHBOARD_SESSION_SECRET:randomBytes(32).toString('base64url')};
  const app=express();app.use(express.json());app.post('/api/dashboard/login',loginHandler(env));app.use('/api/devices/admin',requireDashboard(env));app.use('/api/devices',createDeviceRouter({pool:owner,env}));app.use('/api/devices',createDeviceOtpRouter({pool:owner}));app.use((err,req,res,next)=>{void err;void req;void next;res.status(500).json({error:'Synthetic source unavailable'});});
  const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});t.after(()=>new Promise(resolve=>{server.closeAllConnections();server.close(resolve);}));const origin='http://127.0.0.1:'+server.address().port;
