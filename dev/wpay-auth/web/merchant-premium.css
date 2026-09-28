@@ -1037,10 +1037,10 @@ td small{font-size:13px!important;color:#bdcdc2!important}
 
 /* Consistent medium-weight typography and contained cards across Merchant pages. */
 #workspace{font-weight:400;line-height:1.5}
-#workspace :is(h1,h2,h3,h4){font-weight:600;letter-spacing:-.015em}
-#workspace :is(button,.btn,.nav-item){font-weight:500}
-#workspace :is(strong,b,.metric-value){font-weight:600}
-#workspace :is(label,th,.eyebrow,.metric-top){font-weight:500}
+#workspace :is(h1,h2,h3,h4){font-weight:600!important;letter-spacing:-.015em}
+#workspace :is(button,.btn,.nav-item){font-weight:500!important}
+#workspace :is(strong,b,.metric-value){font-weight:600!important}
+#workspace :is(label,th,.eyebrow,.metric-top){font-weight:500!important}
 #workspace :is(.card,.grid,.table-card){min-width:0;max-width:100%}
 #workspace .grid>*{min-width:0}
 #workspace .table-scroll{max-width:100%;overflow-x:auto}
