@@ -453,7 +453,7 @@ th,td{padding:10px 11px}
   align-self:stretch;
   padding:18px 14px;
 }
-.wpay-admin .content{padding:26px}
+.wpay-admin .content{padding:24px 26px 42px}
 .wpay-admin .content label{margin:0}
 .wpay-admin .content input,
 .wpay-admin .content select,
@@ -469,14 +469,20 @@ th,td{padding:10px 11px}
 }
 .wpay-admin .w100{width:100%}
 .wpay-admin .card{padding:0}
-.wpay-admin .panel{padding:18px}
+.wpay-admin .panel{padding:16px}
 .wpay-admin .metric{padding:18px}
+.wpay-admin .metric-rich{padding:13px;min-width:0}
+.wpay-admin .metric-rich>div:last-child{min-width:0}
+.wpay-admin .metric-rich strong{overflow-wrap:anywhere}
 .wpay-admin .account-card{padding:14px}
 .wpay-admin form>button{margin:0}
-@media(max-width:800px){
+@media(max-width:900px){
   .wpay-admin main.main{padding:0}
   .wpay-admin .workspace{grid-template-columns:1fr;gap:0}
   .wpay-admin .workspace>aside.sidebar{padding:18px 14px}
+  .wpay-admin.admin-nav-open .sidebar{left:0}
+  .wpay-admin.admin-nav-open .mobile-veil{opacity:1;pointer-events:auto}
+  .wpay-admin .content{padding:18px}
 }
 
 
@@ -519,3 +525,20 @@ th,td{padding:10px 11px}
   .wpay-admin .account-card-grid{grid-template-columns:1fr}
   .wpay-admin dialog{width:calc(100vw - 20px);padding:14px}
 }
+
+/* Keep the purple reference as the default; make the existing theme control real. */
+.wpay-admin.admin-light{--bg:#f3effb;--text:#211638;--muted:#605274;--muted2:#77678b;--line:rgba(81,51,117,.16);--shadow:0 18px 55px rgba(53,31,88,.12);background:#f3effb;color:var(--text)}
+.wpay-admin.admin-light .sidebar,.wpay-admin.admin-light .topbar{background:#eee6fa}
+.wpay-admin.admin-light .card,.wpay-admin.admin-light .kpi-compact,.wpay-admin.admin-light dialog{background:linear-gradient(180deg,#fff,#f5f0fc)}
+.wpay-admin.admin-light .control,.wpay-admin.admin-light input,.wpay-admin.admin-light select,.wpay-admin.admin-light textarea,.wpay-admin.admin-light .btn:not(.primary),.wpay-admin.admin-light .icon-btn,.wpay-admin.admin-light .top-user{background:#fff;color:#35224e;border-color:var(--line)}
+.wpay-admin.admin-light .command-strip{background:linear-gradient(135deg,#e8dafb,#fff)}
+.wpay-admin.admin-light .secondary-kpis,.wpay-admin.admin-light .kpi-band>div,.wpay-admin.admin-light .account-card,.wpay-admin.admin-light .admin-summary-tile{background:#f8f4ff}
+.wpay-admin.admin-light .nav-item,.wpay-admin.admin-light .crumb,.wpay-admin.admin-light .field label,.wpay-admin.admin-light dialog label{color:#5e477a}
+.wpay-admin.admin-light .nav-item.active{background:#ddcef6;color:#4a2390}
+.wpay-admin.admin-light .notice{background:#e9defb;color:#513774}
+.wpay-admin .otp-filters{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
+.wpay-admin .otp-filters label{flex:1 1 180px;min-width:0}
+.wpay-admin .otp-code{color:#d9caff;font-weight:800;white-space:nowrap}
+.wpay-admin.admin-light .otp-code{color:#663aa3}
+.wpay-admin .otp-events-table .msg-cell{min-width:220px;max-width:460px;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:560px){.wpay-admin .content{padding:14px}.wpay-admin .panel,.wpay-admin .metric{padding:14px}}
