@@ -165,7 +165,7 @@ async function apk() {
     const group=el("div");group.append(el("dt",tr(key)),el("dd",String(value)));facts.append(group);
   }
   // Use the backend-verified canonical APK artifact path returned by the authenticated metadata endpoint.
-  const download=el("a",tr("downloadApk"),"primary");download.href=data.downloadPath||apiRoot+"apk/download";download.download="WPAY-Agent.apk";
+  const download=el("a",tr("downloadApk"),"primary");download.href=apiRoot+"apk/download";download.download="WPAY-Agent.apk";
   root.append(facts,el("p",tr("apkEvidence"),"notice"),download);$("page-content").replaceChildren(root);
 }
 async function sources() {

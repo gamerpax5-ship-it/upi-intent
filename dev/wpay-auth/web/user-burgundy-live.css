@@ -36,6 +36,31 @@
 .user-burgundy .live-content .table-wrap,.user-burgundy .live-content .table-scroll{max-width:100%;overflow-x:auto}
 @media(max-width:650px){.user-burgundy .live-content .workflow-form{grid-template-columns:1fr;padding:12px}.user-burgundy .live-content .facts{grid-template-columns:1fr}.user-burgundy .live-content .page-hero{align-items:flex-start}.user-burgundy .live-content .hero-stat{max-width:42%;overflow-wrap:anywhere}}
 /* Keep the decorative brand orbit clear of the login headline. */
+.user-burgundy .device-workspace{padding:16px;min-width:0}
+.user-burgundy .live-content a.primary{display:inline-flex;align-items:center;justify-content:center;max-width:100%;padding:12px 16px;border:1px solid #e1b867;border-radius:10px;background:#efd08d;color:#2a1520;font-weight:700;text-decoration:none;white-space:normal}
+.user-burgundy .device-setup-intro{padding:16px;margin-bottom:16px;border:1px solid #75405a;border-radius:14px;background:linear-gradient(120deg,#3c1930,#182e30)}
+.user-burgundy .device-setup-intro h2{margin:0 0 8px;font-size:20px}
+.user-burgundy .device-setup-intro p{color:#e4cdd9;line-height:1.6}
+.user-burgundy .device-quick-links{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.user-burgundy .owned-device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;align-items:start;margin-top:14px}
+.user-burgundy .owned-device-card{max-width:390px;min-width:0;padding:14px;border:1px solid #72425b;background:linear-gradient(145deg,#321826,#190f19);border-radius:16px}
+.user-burgundy .owned-device-card:nth-child(2n){border-color:#386e69;background:linear-gradient(145deg,#193633,#190f19)}
+.user-burgundy .owned-device-card h2{font-size:16px;margin:0 0 8px;overflow-wrap:anywhere}
+.user-burgundy .device-reference{font-size:11px;color:#c5a8b8;overflow-wrap:anywhere}
+.user-burgundy .live-content .owned-device-card .facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.user-burgundy .owned-device-card .fact{padding:9px;min-width:0;background:#140c1580;border-radius:9px}
+.user-burgundy .live-content .owned-device-card .fact strong{font-size:12px}
+.user-burgundy .owned-device-card button{max-width:100%;height:auto;white-space:normal}
+.user-burgundy .owned-device-events:empty{display:none}
+.user-burgundy .owned-device-events{margin:12px 0;padding-top:12px;border-top:1px solid #75405a;min-width:0}
+.user-burgundy .owned-device-events table{min-width:540px}
+.user-burgundy .device-workspace code[data-secret]{display:block;font-size:26px;letter-spacing:.15em;overflow-wrap:anywhere;padding:14px;color:#ffe09b}
+.user-burgundy .device-workspace .table-wrap{max-width:100%;overflow:auto}
+.user-burgundy .device-workspace .table-wrap table{min-width:620px}
+.user-burgundy .live-content .otp-filters{display:flex;flex-wrap:wrap;gap:12px}
+.user-burgundy .live-content .otp-filters label{min-width:0;flex:1 1 180px}
+.user-burgundy .live-content .otp-events-table{min-width:760px}
+.user-burgundy .live-content .otp-events-card{padding:16px;min-width:0}
 .login-visual{display:grid;grid-template-rows:auto 210px auto auto;gap:24px;align-content:space-between}
 .login-visual .visual-top{grid-row:1}.login-visual .visual-copy{grid-row:3}
 .login-visual .orbit-stage{position:relative;grid-row:2;justify-self:end;right:auto;top:auto;width:210px;height:210px}
