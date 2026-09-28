@@ -65,7 +65,7 @@ function renderAdminLogin(root){
   email.type="email";email.name="email";email.required=true;email.autocomplete="username";email.maxLength=254;emailLabel.append(email);emailWrap.append(emailLabel);
   password.type="password";password.name="password";password.required=true;password.autocomplete="current-password";globalThis.WPayPasswordPolicy.bind(password,locale,"login");passwordLabel.append(password);passwordWrap.append(passwordLabel);
   submit.type="submit";actions.append(submit);form.append(emailWrap,passwordWrap,actions);
-  const note=el("div","Live authentication · email + password only. Sensitive actions may ask you to confirm your password again.","demo-note");note.style.marginTop="14px";
+  const note=el("div","Sign in with email and password. If you enable login 2FA in Security, an authenticator code is also required. Sensitive actions use password confirmation.","demo-note");note.style.marginTop="14px";
   form.onsubmit=event=>{event.preventDefault();action(async()=>{const data={email:email.value,password:password.value};try{await handleStage(await post("login",data));}finally{password.value="";data.password="";}});};
   root.append(form,note);email.focus();
 }

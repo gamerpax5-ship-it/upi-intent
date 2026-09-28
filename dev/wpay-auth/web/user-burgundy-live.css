@@ -67,3 +67,14 @@
 .login-visual .core{width:108px;height:108px}.login-visual .core strong{font-size:25px}
 .login-visual .visual-foot{grid-row:4}
 @media(max-width:600px){.login-visual{grid-template-rows:auto auto auto;min-height:520px}.login-visual .visual-copy{grid-row:2}.login-visual .visual-foot{grid-row:3}}
+
+/* Keep the User workspace readable without heavy text or expanding cards. */
+.user-burgundy #workspace{font-weight:400;line-height:1.5}
+.user-burgundy #workspace :is(h1,h2,h3,h4){font-family:inherit;font-weight:600;letter-spacing:-.015em}
+.user-burgundy #workspace :is(button,.btn,.nav-item){font-weight:500}
+.user-burgundy #workspace :is(strong,b,.metric-value){font-weight:600}
+.user-burgundy #workspace :is(label,th,.eyebrow){font-weight:500}
+.user-burgundy #workspace :is(.card,.panel,.grid,.table-wrap){min-width:0;max-width:100%}
+.user-burgundy #workspace .grid>*{min-width:0}
+.user-burgundy #workspace .table-wrap{width:100%;overflow-x:auto}
+.user-burgundy #workspace .card{border-radius:14px}
