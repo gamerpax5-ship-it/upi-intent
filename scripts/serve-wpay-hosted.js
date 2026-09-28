@@ -32,7 +32,7 @@ async function main(){
     stage="mfa_factors";const factors=await pool.query("SELECT account_id,factor_version,encrypted_secret FROM wpay_auth.account_security WHERE enabled=true");
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
     stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingService=configuredPairingService();const pairingBridge=pairingService||configuredPairingBridge();
-    let telegram;try{telegram=require('../lib/wpay/telegram/runtime').create({pool,pairing:pairingService||operational.source,operational:operational.source,legacy:source.reader,onError:code=>console.error(code)});}catch{console.error('TELEGRAM_CONFIG_INVALID');}
+    let telegram;try{telegram=require('../lib/wpay/telegram/runtime').create({pool,crypto:mfaCrypto,pairing:pairingService||operational.source,operational:operational.source,legacy:source.reader,onError:code=>console.error(code)});}catch{console.error('TELEGRAM_CONFIG_INVALID');}
     stage="server_start";const service=new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY});const server=await startAuthServer({service,
       port:Number(process.env.PORT),hostedOrigin:policy.origin,webhook:telegram?.webhook,readiness:async()=>{
         if(stopping)return false;

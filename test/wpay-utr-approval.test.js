@@ -40,7 +40,7 @@ test('Manual UTR approval without evidence, automatic matching and financial ide
  await assert.rejects(approve(one,actor,{...context,grants:grants.filter(g=>g!=='utr_center.approve')}),{code:'FORBIDDEN'});
  await assert.rejects(approve(one,{...actor,account_type:'user'}),{code:'FORBIDDEN'});
  await assert.rejects(approve(one,actor,{...context,adminScope:{tenantIds:['other']}}),{code:'FORBIDDEN'});
- await assert.rejects(approve(one,{...actor,password_at:new Date(+now-600001)}),{code:'RECENT_MFA_REQUIRED'});
+ await assert.rejects(approve(one,{...actor,password_at:new Date(+now-600001)}),{code:'RECENT_PASSWORD_REQUIRED'});
  const outcomes=await Promise.all([approve(one),approve(one)]);
  assert.ok(outcomes.every(r=>r.status==='successful'&&r.final));
  assert.equal(outcomes[0].bankVerified,false);

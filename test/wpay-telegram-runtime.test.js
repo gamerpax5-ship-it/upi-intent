@@ -25,3 +25,17 @@ test('credit readers bind resource and time scope without SMS bodies or credenti
  for(const view of ['transactions','statement'])await reader.read(link,view,'99');
  for(const q of seen){assert.deepEqual(q.args,['device_1','99','2026-01-01','2027-01-01']);assert.doesNotMatch(q.sql,/sms_body|raw_result|credential|otp_code|SELECT \*/i);}
 });
+test('webhook wakes the serial worker immediately without overlapping an in-flight cycle',async()=>{
+ const secret='test_secret_12345678901234567890';let polls=0,active=0,maxActive=0,release;
+ const blocked=new Promise(resolve=>{release=resolve;});
+ const pool={query:async sql=>{if(sql.startsWith('SELECT update_id')){polls++;active++;maxActive=Math.max(maxActive,active);if(polls===1)await blocked;active--;}return {rows:[]};}};
+ const runtime=create({pool,env:{TELEGRAM_BOT_TOKEN:'123:test_token',TELEGRAM_WEBHOOK_SECRET:secret,WPAY_HOSTED_ORIGIN:'https://example.test'},fetcher:async url=>({ok:true,json:async()=>({ok:true,result:url.endsWith('/getMe')?{id:123,is_bot:true,username:'testbot'}:true})})});
+ try{
+  await runtime.start();assert.equal(polls,1);
+  const req={url:PATH,method:'POST',headers:{'x-telegram-bot-api-secret-token':secret}},io={readBody:async()=>({update_id:12,message:{from:{id:8248339578},chat:{id:-123,type:'supergroup'},text:'/creditutrcountinue all'}}),send:()=>{}};
+  await runtime.webhook(req,{},io);assert.equal(polls,1);release();
+  const until=Date.now()+1000;while(polls<2&&Date.now()<until)await new Promise(r=>setTimeout(r,10));
+  assert.equal(polls,2);assert.equal(maxActive,1);
+  await runtime.webhook(req,{},io);const until2=Date.now()+1000;while(polls<3&&Date.now()<until2)await new Promise(r=>setTimeout(r,10));assert.equal(polls,3);
+ }finally{release();await runtime.stop();}
+});

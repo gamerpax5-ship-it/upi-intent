@@ -15,6 +15,12 @@ test('location button opens only the selected device history; missing fixes do n
 test('UTR renderer keeps full reference, formatted amount and historical evidence readable',async()=>{
  const f=fixture(async path=>path==='operations/device-setup/utrs'?{records:[{utr:'123456789012',amount:'1234.5',device:'synthetic-device',ownerName:'Synthetic owner',capturedAt:'2026-09-28T12:00:00Z',historical:true}]}:{links:[],records:[]});await f.render('v5.utr');const text=all(f.container).map(e=>e.textContent).join(' ');assert.match(text,/123456789012/);assert.match(text,/₹ 1,234.50/);assert.match(text,/historical device observation/);assert.match(text,/Synthetic owner/);
 });
+test('Admin captures show successful manual and verified UTRs with actual UPI for all scoped users',async()=>{
+ const records=[{utr:'123456789012',amountMinor:'1000000',status:'approved',paymentStatus:'successful',upiId:'admin@bank',user:'User one',submittedAt:'2026-01-01'},
+ {utr:'123456789013',amountMinor:'50000',status:'verified',paymentStatus:'successful',upiId:'user@bank',user:'User two',submittedAt:'2026-01-01'}];
+ const f=fixture(async path=>path==='operations/utr/pending'?{records}:{links:[],records:[]});await f.render('v5.utr');const text=all(f.container).map(e=>e.textContent).join(' ');
+ for(const value of ['123456789012','123456789013','admin@bank','user@bank','User one','User two','10,000.00','Verified payment'])assert.ok(text.includes(value),value);
+});
 test('newly linked devices are fetched on the next OTP and UTR read without hardcoded IDs',async()=>{
  const id='10000000-0000-4000-8000-000000000001',context={principal:{id,type:'super_admin',tenantId:'a',status:'active',permissionVersion:1},currentPermissionVersion:1,grants:['devices.view','utr_center.view','apk_otp_events.view_all'],adminScope:{tenantIds:['a'],platform:true}},row={id,account_type:'super_admin'};
  const links=[{id:'link-one',owner_id:id,device_ref:'synthetic-first',pairing_id:'1'}];const calls=[];
