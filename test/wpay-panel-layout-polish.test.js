@@ -13,6 +13,7 @@ test('panel polish retains readable headings, medium controls and contained tabl
 test('Merchant final typography wins over legacy important prototype rules',()=>{
  const css=fs.readFileSync('dev/wpay-auth/web/merchant-premium.css','utf8');
  assert.ok(css.includes('#workspace :is(h1,h2,h3,h4){font-weight:600!important;'));
+ assert.ok(css.includes('#workspace .page .page-head h1{font-weight:600!important}'));
  assert.ok(css.includes('#workspace :is(button,.btn,.nav-item){font-weight:500!important}'));
 });
 test('Admin login guidance explains optional login MFA without changing transaction confirmation',()=>{
