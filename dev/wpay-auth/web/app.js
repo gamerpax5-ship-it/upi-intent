@@ -164,6 +164,7 @@ async function apk() {
     ["fileSize",data.bytes],["sha256",data.sha256],["apkSigner",data.signing.identity],["refreshedAt",data.refreshedAt]]){
     const group=el("div");group.append(el("dt",tr(key)),el("dd",String(value)));facts.append(group);
   }
+  // Use the backend-verified canonical APK artifact path returned by the authenticated metadata endpoint.
   const download=el("a",tr("downloadApk"),"primary");download.href=data.downloadPath||apiRoot+"apk/download";download.download="WPAY-Agent.apk";
   root.append(facts,el("p",tr("apkEvidence"),"notice"),download);$("page-content").replaceChildren(root);
 }
