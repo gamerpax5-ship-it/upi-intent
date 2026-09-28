@@ -1029,3 +1029,8 @@ td small{font-size:13px!important;color:#bdcdc2!important}
 .light .control,.light .search input{border-color:#b9cabd!important}.light input::placeholder,.light textarea::placeholder{color:#68776d!important}
 .light .real-dashboard-earth:after{background:linear-gradient(180deg,transparent,#e4efdf)!important}
 .light .form-error,.light #pageStatus.error{color:#a22534!important}
+
+/* Long API paths and examples must stay inside documentation cards on mobile. */
+#page-docs .card{min-width:0}
+#page-docs .codebox,#page-docs code{overflow-wrap:anywhere}
+#page-docs p{line-height:1.65}
