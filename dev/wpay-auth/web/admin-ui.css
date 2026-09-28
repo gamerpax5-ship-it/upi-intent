@@ -553,5 +553,29 @@ th,td{padding:10px 11px}
 .wpay-admin button.search-result{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;color:var(--text);margin:0}
 .wpay-admin button.search-result:hover,.wpay-admin button.search-result:focus-visible{background:rgba(124,77,255,.15)}
 .wpay-admin .search-note{font-size:11px;color:var(--muted)}
+
+/* APK setup: keep long device IDs, coordinates and timestamps inside cards. */
+.wpay-admin .device-card{padding:16px;min-width:0;overflow:visible;cursor:default}
+.wpay-admin .device-top{flex-wrap:wrap}
+.wpay-admin .device-model,.wpay-admin .device-model>div{min-width:0;max-width:100%}
+.wpay-admin .device-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}
+.wpay-admin .device-stats .fact,.wpay-admin .kv-grid>div{min-width:0}
+.wpay-admin .device-card h3,.wpay-admin .device-card p,
+.wpay-admin .device-stats .fact strong,.wpay-admin .device-stats .fact label,
+.wpay-admin .kv-grid strong{overflow-wrap:anywhere;white-space:normal;line-height:1.5}
+.wpay-admin .device-stats .fact:nth-child(6){grid-column:1/-1}
+.wpay-admin .device-card .account-card-actions .btn{max-width:100%;height:auto;white-space:normal}
+.wpay-admin #page-content,.wpay-admin #page-content>.grid,
+.wpay-admin #page-content>.panel,.wpay-admin .table-wrap{min-width:0;max-width:100%}
+.wpay-admin .metric-rich{grid-template-columns:42px minmax(0,1fr)}
+.wpay-admin .metric-rich .label,.wpay-admin .metric-rich .hint{overflow-wrap:anywhere;white-space:normal}
+.wpay-admin .section-tabs{flex-wrap:wrap;max-width:100%}
+.wpay-admin .section-tabs .btn{white-space:normal}
+.wpay-admin .apk-artifact .summary-row{flex-wrap:wrap;align-items:flex-start}
+.wpay-admin .apk-artifact .summary-row>div{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+.wpay-admin .apk-artifact .summary-row .pill{flex-shrink:0}
+.wpay-admin .apk-artifact>a{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.wpay-admin.admin-light .device-stats .fact{background:#f8f4ff}
+@media(max-width:420px){.wpay-admin .device-stats{grid-template-columns:minmax(0,1fr)}.wpay-admin .toolbar .grow{min-width:0;width:100%}}
 .wpay-admin.admin-light .search-results{background:#fff}
 .wpay-admin.admin-light .eyebrow{color:#68439d!important}

@@ -1,5 +1,13 @@
 "use strict";
 (function(root){
+  const deviceLocation=device=>{
+    const valid=value=>(typeof value==='number'||typeof value==='string'&&value.trim()!=='')&&Number.isFinite(Number(value));
+    if(valid(device.latitude)&&valid(device.longitude)&&Math.abs(Number(device.latitude))<=90&&Math.abs(Number(device.longitude))<=180){
+      const value=Number(device.latitude).toFixed(5)+", "+Number(device.longitude).toFixed(5);
+      return value+(device.locationLastKnown?" · Last known":"")+(device.locationAt?" · "+new Date(device.locationAt).toLocaleString("en-IN"):"");
+    }
+    return device.locationSourceUnavailable?"Location history unavailable":device.locationPermission===false?"Location permission not granted":device.locationEnabled===false?"Location disabled":"Waiting for GPS coordinates";
+  };
   const money=value=>{
     const n=BigInt(value||0),a=n<0n?-n:n;
     return (n<0n?"−":"")+"₹"+(a/100n).toLocaleString("en-IN")+"."+String(a%100n).padStart(2,"0");
@@ -494,13 +502,13 @@
       fact("Last seen",d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-IN"):"Unavailable"),
       fact("Battery",d.battery==null?"Unavailable":d.battery+"% · "+(d.batteryHealth||"health unavailable")),
       fact("Network",(d.network||"Unavailable")+" · "+(d.carrier||"carrier unavailable")),
-       fact("Location",d.locationLabel||(Number.isFinite(Number(d.latitude))&&Number.isFinite(Number(d.longitude))?Number(d.latitude).toFixed(5)+", "+Number(d.longitude).toFixed(5):d.locationEnabled===false?"Disabled":"Unavailable")),
+       fact("Latitude / Longitude",deviceLocation(d)),
       fact("Valid until",d.validUntil?new Date(d.validUntil).toLocaleString("en-IN"):"Unavailable")
     );card.append(stats);const actions=el("div",undefined,"account-card-actions");if(!d.legacyMapping)actions.append(button(el,"View details",()=>detail(d)));if(data.canRevoke&&!d.legacyMapping)actions.append(button(el,"Unlink from WPay",()=>unlink(d),"danger"));card.append(actions);grid.append(card);}if(!data.devices.length)grid.append(el("div",data.message||"No linked devices.","card admin-empty"));
     const devicePager=el("div",undefined,"admin-pagination");if(state.afterDevice)devicePager.append(button(el,"First devices",()=>action(()=>devicesPage({...o,state:{}}))));if(data.nextDeviceCursor)devicePager.append(button(el,"Next devices",()=>action(()=>devicesPage({...o,state:{afterDevice:data.nextDeviceCursor}})),"primary"));if(devicePager.children.length)container.append(devicePager);
     function detail(d){action(async()=>{
       const info=await post("operations/device-setup/detail",{id:d.id}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),device=info.device||d,add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"Unavailable")));facts.append(x);};
-      const coords=Number.isFinite(Number(device.latitude))&&Number.isFinite(Number(device.longitude))?Number(device.latitude).toFixed(5)+", "+Number(device.longitude).toFixed(5):null;add("Owner",device.ownerName);add("Device ref",device.device);add("Status",device.status);add("Phone",device.phone);add("SIM",device.simName);add("APK",device.apkVersion);add("Battery",device.battery==null?"Unavailable":device.battery+"%");add("Battery health",device.batteryHealth);add("Network",(device.network||"Unavailable")+" · "+(device.carrier||"carrier unavailable"));add("Current location",device.locationLabel||coords);add("Last seen",device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("en-IN"):"Unavailable");add("Link valid until",device.validUntil?new Date(device.validUntil).toLocaleString("en-IN"):"Unavailable");
+      add("Owner",device.ownerName);add("Device ref",device.device);add("Status",device.status);add("Phone",device.phone);add("SIM",device.simName);add("APK",device.apkVersion);add("Battery",device.battery==null?"Unavailable":device.battery+"%");add("Battery health",device.batteryHealth);add("Network",(device.network||"Unavailable")+" · "+(device.carrier||"carrier unavailable"));add("Latitude / Longitude",deviceLocation(device));add("Last seen",device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("en-IN"):"Unavailable");add("Link valid until",device.validUntil?new Date(device.validUntil).toLocaleString("en-IN"):"Unavailable");
       wrap.append(facts,el("h3","Diagnostics history"),table(el,["Time","Battery / health","Network","Location","Location permission"],(info.history||[]).map(h=>[new Date(h.at).toLocaleString("en-IN"),(h.battery==null?"—":h.battery+"%")+(h.charging===true?" · charging":"")+" / "+(h.health||"—"),(h.network||"—")+" / "+(h.carrier||"—"),h.latitude==null?"Unavailable":Number(h.latitude).toFixed(5)+", "+Number(h.longitude).toFixed(5)+(h.accuracy==null?"":" · "+h.accuracy+"m"),h.locationPermission==null?"Unavailable":h.locationPermission&&h.locationEnabled?"Enabled":"Disabled"])));
       wrap.append(el("h3","Masked OTP events"),table(el,["Date / time","Masked OTP","Sender","Masked message"],(info.otpEvents||[]).map(e=>[new Date(e.receivedAt).toLocaleString("en-IN"),e.maskedOtp||"—",e.sender||"—",e.maskedMessage||"[Masked message]"])));
       wrap.append(el("h3","Credit / UTR events"),table(el,["Date / time","UTR","Amount","Status"],(info.utrEvents||[]).map(e=>[new Date(e.capturedAt).toLocaleString("en-IN"),e.utr||"—",e.amount==null?"—":"₹ "+e.amount,e.status||"captured"])));
@@ -542,7 +550,7 @@
   async function utrCapture(o){
     const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();const utr=o.state?.utr||"",utrFilter=utr?{utr}:{};
     const loadClaims=async()=>{const records=[];for(let offset=0,guard=0;guard<20;guard++,offset+=50){const page=await post("operations/utr/pending",{status:"all",offset,...utrFilter});records.push(...(page.records||[]));if(!page.hasMore)break;}return {records};};
-    const loadDeviceUtrs=async()=>{const records=[];let afterDevice;for(let guard=0;guard<20;guard++){const page=await post("operations/device-setup/utrs",afterDevice?{afterDevice}:{});records.push(...(page.records||[]));if(!page.nextDeviceCursor)break;afterDevice=page.nextDeviceCursor;}return {records};};
+    const loadDeviceUtrs=async()=>{const records=[];let afterDevice,before;for(let guard=0;guard<100;guard++){const page=await post("operations/device-setup/utrs",{...(afterDevice?{afterDevice}:{}),...(before?{before}:{}),...utrFilter});records.push(...(page.records||[]));if(page.sourceConnected===false)return {records,error:"APK source unavailable"};if(page.nextCursor){before=page.nextCursor;}else if(page.nextDeviceCursor){afterDevice=page.nextDeviceCursor;before=undefined;}else{return {records};}}return {records,error:"More APK captures are available. Narrow the search to a 12-digit UTR."};};
     const loadSources=async()=>{const links=[];let afterLink,sourceConnected=true;for(let guard=0;guard<20;guard++){const page=await post("operations/utr-source",afterLink?{afterLink}:{});links.push(...(page.links||[]));sourceConnected=sourceConnected&&page.sourceConnected!==false;if(!page.afterLink)break;afterLink=page.afterLink;}return {links,sourceConnected};};
     const loadStatementCredits=async()=>{const records=[];for(let offset=0,guard=0;guard<20;guard++,offset+=200){const page=await post("operations/statement-credits",{offset,...utrFilter});records.push(...(page.records||[]));if(!page.hasMore)break;}return {records};};
      const safe=async(fn,fallback)=>{try{return await fn();}catch(error){return {...fallback,error:error?.message||"Unavailable"};}};
@@ -552,6 +560,7 @@
        safe(loadDeviceUtrs,{records:[]}),
        safe(loadStatementCredits,{records:[]})
      ]);
+    const readFailures=[["APK captures",deviceUtrs],["UTR source links",sources],["Payment claims",claims],["Statement credits",statementCredits]].filter(([,result])=>result.error);
     const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id,...utrFilter})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
     const sourceCaptures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"})));
     const hostedStatementCaptures=(statementCredits.records||[]).map(r=>({utr:r.utr,amount:(Number(r.amountMinor)/100).toFixed(2),capturedAt:r.capturedAt,sourceKind:"statement",deviceOrStatement:r.upiId||("Import "+r.importId),userId:r.userName||r.userId,merchantId:null,bankReference:r.bankId,sourceStatus:"parsed_credit",evidenceState:"statement_observation",accountingState:"not_posted"}));
@@ -567,11 +576,14 @@
       metric(el,"Manual approved",captures.filter(x=>x.sourceKind==="manual").length,"Admin-approved UTR claims"),
       metric(el,utr?"Matching claims":"Pending review",pending.records.length,utr?"Payment claims matching this UTR":"Submitted claims awaiting decision"),
       metric(el,"Source links",linked.length,"Verified scoped links"),
-      metric(el,"Unavailable sources",failedSources.length,"Read failed without fabricating data")
+      metric(el,"Unavailable sources",failedSources.length+readFailures.length,"Read failed without fabricating data")
     );
     container.append(metrics,el("p","APK/statement observations and submitted payment claims are separate evidence surfaces. Captured UTR alone does not post accounting. Independent verification or an explicit Admin decision remains required by the existing backend.","notice"));
     if(!sources.sourceConnected)container.append(el("p","The scoped legacy UTR reader is not currently connected. Existing claims can still be reviewed, but source observations may be unavailable.","notice warn"));
     if(failedSources.length)container.append(el("p",failedSources.length+" scoped UTR source link(s) could not be read. They are shown as unavailable rather than treated as empty proof.","notice warn"));
+    for(const [label,result]of readFailures)container.append(el("p",label+" could not be fully loaded: "+result.error+". Refresh to retry.","notice warn"));
+    container.append(el("p","APK Synced means the server accepted the SMS. This view includes only exact 12-digit UTRs whose SMS date/time falls within an authorized device ownership interval. Older inbox SMS, ambiguous references and credits without a UTR are not shown as current-pairing UTRs.","notice"));
+    container.append(button(el,"Refresh captures",()=>action(()=>utrCapture(o))));
     const stream=el("section",undefined,"card panel"),pendingPanel=el("section",undefined,"card panel");stream.append(el("h2","Captured UTR stream"));pendingPanel.append(el("h2",utr?"Matching UTR claims":"Pending UTR decisions"));container.append(stream,pendingPanel);
     const pendingRows=()=>pending.records.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canReview)actions.append(button(el,"Verify evidence",()=>verify(r)));if(r.canApprove)actions.append(button(el,"Manual approve",()=>decision(r,"approve"),"primary"));if(r.canReview)actions.append(button(el,"Reject",()=>decision(r,"reject"),"danger"));return [new Date(r.submittedAt).toLocaleString("en-IN"),r.utr,r.reference,r.merchant,r.user,money(r.amountMinor),pill(el,r.paymentStatus),pill(el,r.status),actions];});
     pendingPanel.append(table(el,["Submitted","UTR","Reference","Merchant","User","Amount","Payment","Review","Actions"],pendingRows()));
@@ -1026,7 +1038,7 @@
       metric(el,"Built",data.builtAt?new Date(data.builtAt).toLocaleString("en-IN"):"—",data.sourceCommit?"Commit "+String(data.sourceCommit).slice(0,12):"Build metadata")
     );
     container.append(metrics);
-    const card=el("section",undefined,"card panel"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Published Android artifact"),el("p","Server-validated APK metadata"));head.append(copy);card.append(head);
+    const card=el("section",undefined,"card panel apk-artifact"),head=el("div",undefined,"panel-head"),copy=el("div");copy.append(el("h2","Published Android artifact"),el("p","Server-validated APK metadata"));head.append(copy);card.append(head);
     const line=(label,detail,state)=>{const r=el("div",undefined,"summary-row"),left=el("div");left.append(el("strong",label),el("div",detail,"small muted"));r.append(left,pill(el,state));return r;};
     card.append(
       line("Artifact validation",data.available?"APK + metadata available":"Unavailable",data.available?"verified":"unavailable"),
