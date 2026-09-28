@@ -541,7 +541,7 @@
       metric(el,"UTR captures",captures.length,"Readable scoped observations"),
       metric(el,"APK captured",captures.filter(x=>x.sourceKind==="apk").length,"Device transaction source"),
       metric(el,"Statement captured",captures.filter(x=>x.sourceKind==="statement").length,"Scoped statement source"),
-      metric(el,"Pending review",pending.records.length,"Submitted claims awaiting decision"),
+      metric(el,utr?"Matching claims":"Pending review",pending.records.length,utr?"Payment claims matching this UTR":"Submitted claims awaiting decision"),
       metric(el,"Source links",linked.length,"Verified scoped links"),
       metric(el,"Unavailable sources",failedSources.length,"Read failed without fabricating data")
     );
