@@ -9,7 +9,7 @@ const apiRoot='/wpay-auth/'+(entryRole?'roles/'+entryRole+'/':'');
 let explicitLocale;
 try { explicitLocale = localStorage.getItem("wpay-locale"); } catch { /* Preference only. */ }
 let locale = L.choose(explicitLocale,null,navigator.language), mode = "login", stage = null, account = null, busy = false, destination, lastActivity = Date.now(), pendingNavigation = null;
-const tr = key => key==='error.RECENT_MFA_REQUIRED' ? 'Open Security / Account settings and confirm your password (and authenticator code if enabled), then retry.' : globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
+const tr = key => key==='error.RECENT_PASSWORD_REQUIRED' ? 'Confirm your password to continue this sensitive action.' : key==='error.RECENT_MFA_REQUIRED' ? 'Open Security / Account settings and confirm your password (and authenticator code if enabled), then retry.' : globalThis.WPayPayoutLocales?.error(locale,key) || L.translate(locale,key);
 function el(tag,text,className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function button(key,callback,className) { const node = el("button",tr(key),className); node.type = "button"; node.onclick = callback; return node; }
 function field(form,key,type = "text",options) {
@@ -32,17 +32,26 @@ async function request(route,method = "GET",body,csrf) {
   try { response = await fetch(apiRoot + route,{signal:abort.signal,method,credentials:"same-origin",cache:"no-store",headers:method === "POST" ? {"Content-Type":"application/json",...(csrf ? {"X-WPay-CSRF-Token":csrf} : {})} : {},...(body === undefined ? {} : {body:JSON.stringify(body)})}); value=await response.json(); }
   catch { throw new Error("error.UNAVAILABLE"); }
   finally { clearTimeout(timeout); }
-  if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (Object.hasOwn(L.dictionaries.en,"error." + value.error) || globalThis.WPayPayoutLocales?.hasError(value.error) ? value.error : "UNAVAILABLE")); }
+  if (!response.ok) { if (value.error === "AUTH_FAILED" && account) showLogin(); throw new Error("error." + (value.error==='RECENT_PASSWORD_REQUIRED'||Object.hasOwn(L.dictionaries.en,"error." + value.error) || globalThis.WPayPayoutLocales?.hasError(value.error) ? value.error : "UNAVAILABLE")); }
   return value;
 }
-async function post(route,body = {}) {
+async function confirmTransactionPassword(){
+ return new Promise(resolve=>{
+  const dialog=el('dialog'),form=el('form'),password=field(form,'password','password'),status=el('p','No authenticator code is required.','notice'),submit=el('button','Confirm password','primary'),cancel=el('button','Cancel');
+  submit.type='submit';cancel.type='button';cancel.onclick=()=>dialog.close();form.prepend(el('h2','Confirm sensitive action'));form.append(status,submit,cancel);dialog.append(form);document.body.append(dialog);
+  let confirmed=false;dialog.onclose=()=>{password.value='';dialog.remove();resolve(confirmed);};
+  form.onsubmit=async event=>{event.preventDefault();if(submit.disabled||!form.reportValidity())return;submit.disabled=true;const value=password.value;password.value='';try{await post('security/stepup',{password:value},false);confirmed=true;dialog.close();}catch(error){status.textContent=tr(error.message);}finally{submit.disabled=false;}};
+  dialog.showModal();password.focus();
+ });
+}
+async function post(route,body = {},passwordRetry=true) {
   for(let attempt=0;attempt<2;attempt++){
     if(!post.csrf||post.csrf.until<Date.now())post.csrf={until:Date.now()+300000,promise:request("csrf","POST",{})};
     try{
       const csrf=await post.csrf.promise,result=await request(route,"POST",body,csrf.csrfToken);
       if(result.stage || /^(login|register|logout|logout-all|refresh|mfa\/|password\/)/.test(route))post.csrf=null;
       return result;
-    }catch(error){post.csrf=null;if(error.message!=="error.CSRF_FAILED"||attempt)throw error;}
+    }catch(error){post.csrf=null;if(error.message==='error.RECENT_PASSWORD_REQUIRED'&&passwordRetry&&route!=='security/stepup'){if(await confirmTransactionPassword())return post(route,body,false);throw error;}if(error.message!=="error.CSRF_FAILED"||attempt)throw error;}
   }
 }
 async function action(callback) {
@@ -133,9 +142,12 @@ async function adminAccountSettings(){
    if(!form.reportValidity())return;
    const body={password:current.value,...(next?{[kind==='email'?'newEmail':'newPassword']:next.value}:{})};
    current.value='';if(next)next.value=confirm.value='';
-   try{const result=await post('security/admin-'+kind,body);if(result.stage)await handleStage(result);await load('security');$('message').textContent=kind==='email'?'Email updated. Sign in with '+account.email+' and your current password.':kind==='password'?'Password updated. Use your new password with '+account.email+'.':'Password confirmed.';}finally{for(const key of Object.keys(body))body[key]='';}
+   try{const result=await post('security/admin-'+kind,body);if(result.stage&&result.stage!=='authenticated')return handleStage(result);if(result.stage)await handleStage(result);await load('security');$('message').textContent=kind==='email'?'Email updated. Sign in with '+account.email+' and your current password.':kind==='password'?'Password updated. Use your new password with '+account.email+'.':'Password confirmed.';}finally{for(const key of Object.keys(body))body[key]='';}
   });};root.append(form);
  }
+ const factor=el('form');factor.append(el('h3','Optional login authenticator'),el('p',value.enabled?'Enabled: a code is required at login. Transactions ask for password only.':'Off: sign in with your password. Transactions may ask you to confirm it.','notice'));
+ const factorPassword=input(factor,'Current password','password','current-password'),factorCode=value.enabled?input(factor,'Authenticator code to disable','text','one-time-code'):null,toggle=el('button',value.enabled?'Disable authenticator':'Enable authenticator','primary');toggle.type='submit';factor.append(toggle);
+ factor.onsubmit=event=>{event.preventDefault();action(async()=>{const body={password:factorPassword.value,...(factorCode?{code:factorCode.value}:{})};factorPassword.value='';if(factorCode)factorCode.value='';try{const result=await post(value.enabled?'security/disable':'security/enable',body);if(result.stage)return handleStage(result);await load('security');}finally{body.password=body.code='';}});};root.append(factor);
  root.append(el('h3','Active sessions'));for(const s of value.sessions)root.append(el('p',`${s.current?'This session · ':''}Created: ${s.createdAt} · Expires: ${s.expiresAt}`));
  root.append(button('logoutAll',()=>action(logoutAll)));$('page-content').replaceChildren(root);
 }
@@ -144,8 +156,9 @@ async function security() {
   const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",value.enabled?tr("freshHelp"):"Authenticator is optional. Enable it here to require a verification code at login. Confirm your password for security changes.","notice"));
   const form = el("form"), password = field(form,"password","password"), code = value.enabled?field(form,"code"):null;
   for (const route of (value.enabled?["replace","regenerate","stepup",...(["user","merchant"].includes(account.accountType)?["disable"]:[])]:["enable","stepup"])) form.append(button(route,() => action(async () => {
-    if (!form.reportValidity()) return; const body = {password:password.value,...(code?{code:code.value}:{})}; password.value = "";if(code)code.value="";
-    try { const result = await post("security/" + route,body); if (result.stage) await handleStage(result); else { await load("security"); message("decisionSaved"); } } finally { body.password = body.code = ""; }
+    const passwordOnly=route==='stepup'&&['user','merchant','admin','super_admin'].includes(account.accountType);
+    if (!(passwordOnly?password.reportValidity():form.reportValidity())) return; const body = {password:password.value,...(code?{code:code.value}:{})}; password.value = "";if(code)code.value="";
+    try { if(passwordOnly)delete body.code;const result = await post("security/" + route,body); if (result.stage) await handleStage(result); else { await load("security"); message("decisionSaved"); } } finally { body.password = body.code = ""; }
   })));
   root.append(form,el("h3",tr("sessions"))); for (const session of value.sessions) root.append(el("p",`${session.current ? tr("current") + " · " : ""}${tr("created")}: ${session.createdAt} · ${tr("expires")}: ${session.expiresAt}`));
   if (["user","merchant"].includes(account.accountType)) {
