@@ -14,7 +14,8 @@ Branch: `feat/telegram-operations`. Base: `3a4369c603e6d6256674f21f61690abf34558
 
 | File | Purpose |
 | --- | --- |
-| `lib/wpay/telegram/access.js` | Exact five numeric controller IDs; controller must personally be a group member to issue commands. Before every delivery, require a controller in group and bot administrator status. |
+| `lib/wpay/telegram/access.js` | Exact five numeric controller IDs; controller must personally be a group member to issue commands. Hosted runtime accepts a normal-member bot, but still requires successful controller membership verification before every delivery. |
+| `lib/wpay/telegram/catalog.js` | Single complete command menu/help catalog, including original spellings and convenient `/devicehistory` and `/disconnectall` aliases. |
 | `lib/wpay/telegram/commands.js` | Number/UPI validation, command aliases, connect/disconnect subscriptions. |
 | `lib/wpay/telegram/format.js` | Metadata-only notification: number, literal `[MASKED]`, timestamp. No SMS body or authentication code. |
 | `lib/wpay/telegram/transport.js` | Official Telegram API, bounded messages, per-group pacing, sanitized failures. |
@@ -33,7 +34,7 @@ Branch: `feat/telegram-operations`. Base: `3a4369c603e6d6256674f21f61690abf34558
 - Controller IDs: `8248339578,8431990409,7925279541,8403294379,7668086423`.
 - Multiple active tenants require explicit `TELEGRAM_TENANT_IDS`; no global fallback.
 - Migration 033 must complete using migration role before new app starts.
-- Bot must be group administrator. Only the five IDs can change subscriptions; notifications are visible to the group.
+- Bot may be a normal group member. Only the five IDs can change subscriptions; notifications are visible to the group. Telegram does not guarantee other-user membership lookups without bot Admin rights; lookup failure denies delivery rather than bypassing the membership rule. Address commands as `/command@BotUsername` when privacy mode prevents delivery of unaddressed commands.
 - UTR commands require verified receiving-account/device or statement mappings and scoped source read privileges. Missing mappings are rejected, never guessed from a phone number.
 
 ## Honest limits and outstanding deployment gates
