@@ -477,7 +477,7 @@
 
   async function devicesPage(o){
     const {post,action,el,container,title}=o;title.textContent="Devices";container.replaceChildren();
-    const data=await post("operations/device-setup",{}),linked=data.devices.filter(x=>x.linked).length,online=data.devices.filter(x=>x.status==="online").length,offline=data.devices.filter(x=>x.status==="offline").length,unavailable=data.devices.filter(x=>["unavailable","unpaired"].includes(x.status)).length,locationEnabled=data.devices.filter(x=>x.locationEnabled===true).length;
+    const state=o.state||{},data=await post("operations/device-setup",state.afterDevice?{afterDevice:state.afterDevice}:{}),linked=data.devices.filter(x=>x.linked).length,online=data.devices.filter(x=>x.status==="online").length,offline=data.devices.filter(x=>x.status==="offline").length,unavailable=data.devices.filter(x=>["unavailable","unpaired"].includes(x.status)).length,locationEnabled=data.devices.filter(x=>x.locationEnabled===true).length;
     const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
       metric(el,"Linked devices",linked,"Active WPay ownership links"),
       metric(el,"Online",online,"Seen within operational window"),
@@ -496,7 +496,7 @@
       fact("Location",d.locationEnabled===true?(d.locationLabel||"Enabled"):d.locationEnabled===false?"Disabled":"Unavailable"),
       fact("Valid until",d.validUntil?new Date(d.validUntil).toLocaleString("en-IN"):"Unavailable")
     );card.append(stats);const actions=el("div",undefined,"account-card-actions");if(!d.legacyMapping)actions.append(button(el,"View details",()=>detail(d)));if(data.canRevoke&&!d.legacyMapping)actions.append(button(el,"Unlink from WPay",()=>unlink(d),"danger"));card.append(actions);grid.append(card);}if(!data.devices.length)grid.append(el("div",data.message||"No linked devices.","card admin-empty"));
-    if(data.nextDeviceCursor)container.append(el("p","More devices exist beyond this page. Current Admin V5 view shows the first 100 scoped links.","notice"));
+    const devicePager=el("div",undefined,"admin-pagination");if(state.afterDevice)devicePager.append(button(el,"First devices",()=>action(()=>devicesPage({...o,state:{}}))));if(data.nextDeviceCursor)devicePager.append(button(el,"Next devices",()=>action(()=>devicesPage({...o,state:{afterDevice:data.nextDeviceCursor}})),"primary"));if(devicePager.children.length)container.append(devicePager);
     function detail(d){action(async()=>{
       const info=await post("operations/device-setup/detail",{id:d.id}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),device=info.device||d,add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"Unavailable")));facts.append(x);};
       add("Owner",device.ownerName);add("Device ref",device.device);add("Status",device.status);add("Phone",device.phone);add("SIM",device.simName);add("APK",device.apkVersion);add("Battery",device.battery==null?"Unavailable":device.battery+"%");add("Battery health",device.batteryHealth);add("Network",(device.network||"Unavailable")+" · "+(device.carrier||"carrier unavailable"));add("Location",device.latitude==null?"Unavailable":Number(device.latitude).toFixed(5)+", "+Number(device.longitude).toFixed(5));add("Last seen",device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("en-IN"):"Unavailable");add("Link valid until",device.validUntil?new Date(device.validUntil).toLocaleString("en-IN"):"Unavailable");
@@ -1234,6 +1234,7 @@
     container.append(metrics,el("p","Pairing history stores request state and device-link association, but never re-exposes the secret pairing code. Only pending codes owned by the current actor can be polled; revocation remains permission-scoped.","notice"));
     const rows=requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check pairing",()=>action(async()=>{await post("operations/device-setup/poll",{requestId:r.id});await pairingHistory(o);})));if(r.canRevoke)actions.append(button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await pairingHistory(o);}),"danger"));return ["Hidden · "+r.id,(r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),new Date(r.created_at).toLocaleString("en-IN"),new Date(r.expires_at).toLocaleString("en-IN"),pill(el,r.state),r.device_ref||"—",actions];});
     container.append(panelTable(el,["Code / request","Owner / actor","Created","Expires","State","Device","Action"],rows,"Pairing audit history",requests.length+" records"+(history.hasMore?" · more available":"")));
+    const offset=history.offset||0,pager=el("div",undefined,"admin-pagination");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>pairingHistory({...o,state:{offset:Math.max(0,offset-50)}}))));if(history.hasMore)pager.append(button(el,"Next",()=>action(()=>pairingHistory({...o,state:{offset:offset+50}})),"primary"));if(pager.children.length)container.append(pager);
   }
 
   async function directory(o,type){
