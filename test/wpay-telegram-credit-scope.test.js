@@ -2,13 +2,13 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 const {Source}=require('../lib/wpay/telegram/source'),{credits}=require('../lib/wpay/telegram/hosted-credits');
 const collect=async iterator=>{const rows=[];for await(const r of iterator)rows.push(r);return rows;};
-test('all device history requires current scoped links, needs no UPI mapping, and never guesses filtered UPI',async()=>{
+test('All and filtered commands exclude unmapped APK inbox UTRs without reading messages or history',async()=>{
  const links=[{device_ref:'device-owned',owner_id:'admin',valid_until:'2099-01-01',pairing_id:'1'}],calls=[];
  const source=new Source({tenantIds:['tenant'],pool:{query:async()=>({rows:[]})},pairing:{devices:async()=>[{id:'device-owned',linked:true,phone_e164:'919876543210'}]},
  operational:{transactions:async(batch,options)=>{calls.push({batch,options});return {rows:[{id:'1',device_id:'device-owned',utr:'123456789012',amount:'100.00',created_at:'2020-01-01',historical:true},{id:'2',device_id:'foreign',utr:'123456789013',amount:'5.00',created_at:'2020-01-01'}]};}}});
  source.links=async()=>links;
- let result=await collect(source.utrs(null));assert.equal(result.length,1);assert.equal(result[0].upi,null);assert.equal(result[0].historical,true);assert.equal(result[0].apkNumber,'919876543210');assert.equal(calls[0].options.includeHistory,true);
- assert.deepEqual(await collect(source.utrs('other@bank')),[]);assert.equal(calls.length,1);
+ assert.deepEqual(await collect(source.utrs(null)),[]);assert.equal(calls.length,0);
+ assert.deepEqual(await collect(source.utrs('other@bank')),[]);assert.equal(calls.length,0);
  links.length=0;assert.deepEqual(await collect(source.utrs(null)),[]);
 });
 test('PostgreSQL hosted credits include approved Admin-UPI payment and tenant-wide users with exact historical UPI filters',async t=>{

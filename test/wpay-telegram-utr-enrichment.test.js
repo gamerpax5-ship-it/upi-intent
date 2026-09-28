@@ -26,9 +26,14 @@ test('UTR enrichment uses phone only from matching device owner, never another o
  const link={id:'link',resource_kind:'device',resource_id:'device',account_id:'owner',upi:'shop@bank',read_from:'2026-01-01',read_until:'2027-01-01'};
  const source=new Source({pool:{query:async()=>({rows:[link]})},tenantIds:['tenant'],legacy:{read:async()=>({rows:[{id:'1',utr:'123456789012',amount:'50.00',created_at:'2026-02-01'}],nextCursor:null})}});
  source.devices=async()=>[{device:'device',phones:['919876543210'],link:{owner_id:'owner'}}];
- let result=(await source.utrs(null).next()).value;assert.equal(result.apkNumber,'919876543210');assert.match(utr(result),/APK number \(current\): 919876543210/);assert.match(utr(result),/Message \(masked\): Unavailable/);
+ let result=(await source.utrs(null).next()).value;assert.equal(result.apkNumber,'919876543210');assert.match(utr(result),/APK number: 919876543210/);assert.doesNotMatch(utr(result),/Message|Sender|Source/);
  source.devices=async()=>[{device:'device',phones:['919876543211'],link:{owner_id:'other'}}];result=(await source.utrs(null).next()).value;assert.equal(result.apkNumber,null);
- link.resource_kind='statement_import';result=(await source.utrs(null).next()).value;assert.match(utr(result),/Not applicable — statement record/);
+ link.resource_kind='statement_import';result=(await source.utrs(null).next()).value;assert.match(utr(result),/APK number: Unavailable/);
+});
+test('UTR message has exactly six requested fields and ignores extra SMS, sender and source content',()=>{
+ const text=utr({utr:'123456789012',upi:'shop@bank',amount:'10000.00',apkNumber:'919876543210',at:'2026-09-29T00:00:00Z',sender:'PRIVATE_BANK',maskedMessage:'UNWANTED_MESSAGE',source:'Admin approved'});
+ assert.deepEqual(text.split('\n').map(line=>line.split(':')[0]),['UTR','UPI','Amount','APK number','Date','Time']);
+ assert.match(text,/Time: 05:30:00 IST/);assert.doesNotMatch(text,/PRIVATE_BANK|UNWANTED_MESSAGE|Admin approved|observation|approval/);
 });
 test('PostgreSQL transaction enrichment excludes foreign and out-of-window rows',async t=>{
  if(!process.env.TEST_DATABASE_URL){t.skip('Requires isolated PostgreSQL');return;}
