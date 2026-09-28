@@ -584,19 +584,21 @@ th,td{padding:10px 11px}
 .wpay-admin .analytics-metrics .metric-rich{border-top:3px solid #a58aff;background:linear-gradient(135deg,rgba(124,77,255,.19),var(--panel));border-radius:18px}
 .wpay-admin .analytics-metrics .metric-rich:nth-child(3n+2){border-top-color:#46d8bc;background:linear-gradient(135deg,rgba(30,174,151,.17),var(--panel))}
 .wpay-admin .analytics-metrics .metric-rich:nth-child(3n){border-top-color:#64baff;background:linear-gradient(135deg,rgba(58,144,225,.17),var(--panel))}
-.wpay-admin .device-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));align-items:start}
-.wpay-admin .device-card{padding:20px;border-radius:22px;border:1px solid rgba(151,123,238,.35);background:linear-gradient(145deg,#211936,#121424);box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.wpay-admin .device-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));align-items:start;gap:12px}
+.wpay-admin .device-card{width:100%;max-width:380px;padding:13px;border-radius:16px;border:1px solid rgba(151,123,238,.35);background:linear-gradient(145deg,#211936,#121424);box-shadow:0 8px 20px rgba(0,0,0,.12)}
 .wpay-admin .device-card:nth-child(2n){border-color:rgba(62,196,170,.35);background:linear-gradient(145deg,#152d30,#121424)}
-.wpay-admin .device-card h3{font-size:16px;line-height:1.45;color:var(--text)}
-.wpay-admin .device-card p{font-size:12px;line-height:1.6}
-.wpay-admin .device-stats{gap:10px;margin:18px 0}
-.wpay-admin .device-stats .fact{background:rgba(10,10,25,.3);padding:12px;border-color:rgba(167,153,211,.16)}
-.wpay-admin .device-stats .fact label{font-size:10px;color:#bfb2d9}
-.wpay-admin .device-stats .fact strong{font-size:13px}
-.wpay-admin .device-location{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;white-space:normal;width:100%;min-width:0;padding:14px;border:1px solid #368a88;border-radius:14px;background:linear-gradient(120deg,#173739,#172b3e);color:#d4fff4;box-shadow:none}
-.wpay-admin .device-location strong{font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.wpay-admin .device-card h3{font-size:13px;line-height:1.4;color:var(--text)}
+.wpay-admin .device-card p{font-size:11px;line-height:1.4}
+.wpay-admin .device-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:11px 0}
+.wpay-admin .device-stats .fact{background:rgba(10,10,25,.3);padding:8px;border-radius:10px;border-color:rgba(167,153,211,.16)}
+.wpay-admin .device-stats>.fact:last-child{grid-column:2;grid-row:3}
+.wpay-admin .device-stats .fact label{font-size:9px;color:#bfb2d9}
+.wpay-admin .device-stats .fact strong{font-size:11px;line-height:1.4;margin-top:3px}
+.wpay-admin .device-location{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;white-space:normal;width:100%;min-width:0;padding:10px;border:1px solid #368a88;border-radius:11px;background:linear-gradient(120deg,#173739,#172b3e);color:#d4fff4;box-shadow:none}
+.wpay-admin .device-location strong{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
 .wpay-admin .location-caption{font-size:10px;font-weight:800;letter-spacing:.08em;color:#9ce5d4}
-.wpay-admin .location-hint{font-size:12px;color:#bcece1}
+.wpay-admin .device-location .location-caption{position:static;background:none;border:0;padding:0;border-radius:0}
+.wpay-admin .location-hint{font-size:11px;color:#bcece1}
 .wpay-admin .device-location:hover{border-color:#7ef4d6;background:#204749}
 .wpay-admin .device-location:disabled{opacity:.65;cursor:not-allowed}
 .wpay-admin .location-summary{padding:15px;border-radius:14px;background:rgba(45,185,163,.12);color:var(--text);overflow-wrap:anywhere}
