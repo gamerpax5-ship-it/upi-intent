@@ -248,7 +248,7 @@ async function load(selected = destination, reuseSession = false) {
   }
   globalThis.WPayAdminUi?.sync(account,navigation,selected);
   if(globalThis.WPayAdminUi&&["admin","super_admin","employee"].includes(account.accountType))pageContent.replaceChildren(el("section","Loading module…","card admin-empty admin-module-loading"));
-  if(typeof selected==='string'&&selected.startsWith('v5.')){destination=selected;return globalThis.WPayAdminV5Pages.render(selected,{account,locale,request,post,action,handleStage,el,container:$('page-content'),title:$('page-title'),navigate,state:{}});}
+  if(typeof selected==='string'&&selected.startsWith('v5.')){destination=selected;return globalThis.WPayAdminV5Pages.render(selected,{account,locale,request,post,action,handleStage,el,container:$('page-content'),title:$('page-title'),navigate,state:globalThis.WPayAdminUi?.takeSearch?.(selected)||{}});}
   if(globalThis.WPayAdminUi && (!selected || navigation.groups.flatMap(g=>g.children).find(p=>p.destinationId===selected)?.permissionId==='overview.view')){destination=selected;return globalThis.WPayAdminUi.overview({account,request,post,action,el,container:$('page-content'),title:$('page-title'),navigate});}
   if(globalThis.WPayReferenceUi) selected=globalThis.WPayReferenceUi.sync(account,navigation,selected);
   destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);
@@ -291,7 +291,7 @@ $("logout").onclick = () => action(async () => { await post("logout"); showLogin
 for (const event of ["pointerdown","keydown"]) document.addEventListener(event,() => { lastActivity = Date.now(); },{passive:true});
 setInterval(() => { if (account && !stage && !busy && document.visibilityState === "visible" && Date.now()-lastActivity < 300000) action(() => post("refresh")); },300000);
 globalThis.WPayReferenceUi?.connect({load,action,navigate});
-globalThis.WPayAdminUi?.connect({load,action,navigate});
+globalThis.WPayAdminUi?.connect({load,action,navigate,post});
 applyLocale(); renderAccess(); action(async()=>{try{await load();}catch(error){showLogin();if(error.message!=="error.AUTH_FAILED")message(error.message);}});
 
 }

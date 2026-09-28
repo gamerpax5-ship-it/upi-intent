@@ -542,3 +542,16 @@ th,td{padding:10px 11px}
 .wpay-admin.admin-light .otp-code{color:#663aa3}
 .wpay-admin .otp-events-table .msg-cell{min-width:220px;max-width:460px;white-space:normal;overflow-wrap:anywhere}
 @media(max-width:560px){.wpay-admin .content{padding:14px}.wpay-admin .panel,.wpay-admin .metric{padding:14px}}
+
+/* Restore reference colors where the shared base stylesheet uses !important. */
+.wpay-admin .eyebrow{color:#bca9ff!important}
+.wpay-admin :focus-visible{outline-color:#9a6bff}
+.wpay-admin .primary:not(.btn){background:linear-gradient(135deg,var(--p1),#5a2bd4);border-color:transparent;color:#fff;box-shadow:0 10px 25px rgba(124,77,255,.22)}
+.wpay-admin .content button:not([class]),.wpay-admin dialog button:not([class]){background:rgba(255,255,255,.04);border-color:var(--line);color:var(--text)}
+.wpay-admin #message.toast:not(:empty){opacity:1;transform:none;max-width:min(440px,calc(100vw - 32px));min-width:0}
+.wpay-admin .search-results{max-height:60vh;overflow:auto}
+.wpay-admin button.search-result{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;color:var(--text);margin:0}
+.wpay-admin button.search-result:hover,.wpay-admin button.search-result:focus-visible{background:rgba(124,77,255,.15)}
+.wpay-admin .search-note{font-size:11px;color:var(--muted)}
+.wpay-admin.admin-light .search-results{background:#fff}
+.wpay-admin.admin-light .eyebrow{color:#68439d!important}

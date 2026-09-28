@@ -531,11 +531,12 @@
   }
 
   async function utrCapture(o){
-    const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();
-    const [sources,pending]=await Promise.all([post("operations/utr-source",{}),post("operations/utr/pending",{status:"pending",offset:0})]);
-    const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
+    const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();const utr=o.state?.utr||"",utrFilter=utr?{utr}:{};
+    const [sources,pending]=await Promise.all([post("operations/utr-source",{...(o.state?.afterLink?{afterLink:o.state.afterLink}:{})}),post("operations/utr/pending",{status:utr?"all":"pending",offset:0,...utrFilter})]);
+    const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id,...utrFilter})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
     const captures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"}))).sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt)),failedSources=sourceResults.filter(x=>!x.ok);
     const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const [key,label]of [["all","All"],["apk","APK captured"],["statement","Statement"],["pending","Pending review"]]){const b=button(el,label,()=>draw(key),key==="all"?"active":"");b.dataset.utrFilter=key;tabs.append(b);}tools.append(tabs);}
+    const searchForm=el("form",undefined,"toolbar"),searchInput=el("input",undefined,"control grow");searchInput.placeholder="Search exact 12-digit UTR…";searchInput.setAttribute("aria-label","Search UTR");searchInput.inputMode="numeric";searchInput.pattern="[0-9]{12}";searchInput.maxLength=12;searchInput.value=utr;const searchButton=el("button","Search","btn primary");searchButton.type="submit";searchForm.append(searchInput,searchButton);searchForm.onsubmit=e=>{e.preventDefault();if(searchForm.reportValidity())action(()=>utrCapture({...o,state:{utr:searchInput.value.trim()}}));};container.append(searchForm);
     const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
       metric(el,"UTR captures",captures.length,"Readable scoped observations"),
       metric(el,"APK captured",captures.filter(x=>x.sourceKind==="apk").length,"Device transaction source"),
@@ -547,7 +548,7 @@
     container.append(metrics,el("p","APK/statement observations and submitted payment claims are separate evidence surfaces. Captured UTR alone does not post accounting. Independent verification or an explicit Admin decision remains required by the existing backend.","notice"));
     if(!sources.sourceConnected)container.append(el("p","The scoped legacy UTR reader is not currently connected. Existing claims can still be reviewed, but source observations may be unavailable.","notice warn"));
     if(failedSources.length)container.append(el("p",failedSources.length+" scoped UTR source link(s) could not be read. They are shown as unavailable rather than treated as empty proof.","notice warn"));
-    const stream=el("section",undefined,"card panel"),pendingPanel=el("section",undefined,"card panel");stream.append(el("h2","Captured UTR stream"));pendingPanel.append(el("h2","Pending UTR decisions"));container.append(stream,pendingPanel);
+    const stream=el("section",undefined,"card panel"),pendingPanel=el("section",undefined,"card panel");stream.append(el("h2","Captured UTR stream"));pendingPanel.append(el("h2",utr?"Matching UTR claims":"Pending UTR decisions"));container.append(stream,pendingPanel);
     const pendingRows=()=>pending.records.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canReview)actions.append(button(el,"Verify evidence",()=>verify(r)));if(r.canApprove)actions.append(button(el,"Manual approve",()=>decision(r,"approve"),"primary"));if(r.canReview)actions.append(button(el,"Reject",()=>decision(r,"reject"),"danger"));return [new Date(r.submittedAt).toLocaleString("en-IN"),r.utr,r.reference,r.merchant,r.user,money(r.amountMinor),pill(el,r.paymentStatus),pill(el,r.status),actions];});
     pendingPanel.append(table(el,["Submitted","UTR","Reference","Merchant","User","Amount","Payment","Review","Actions"],pendingRows()));
     function draw(filter){
@@ -559,6 +560,8 @@
     function verify(r){dialog(el,container,"Verify evidence · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Review reason","Verify submitted UTR against independent evidence"),save=el("button","Verify evidence","primary");save.type="submit";form.append(el("p","This only queues/retries independent verification. It does not mark the payment successful by itself.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/verify",{orderId:r.orderId,utr:r.utr,reason:reason.value});d.close();await utrCapture(o);});};});}
     function decision(r,decision){dialog(el,container,(decision==="approve"?"Manual approve":"Reject")+" · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Manual approve":"Reject",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"Admin approval is recorded as admin_approved and remains distinct from bank-verified evidence.":"Rejected claim closes the payment when the backend state allows it.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:r.claimId,action:decision,reason:reason.value});d.close();await utrCapture(o);});};});}
     draw("all");
+    if(sources.afterLink)container.append(button(el,"More source links",()=>action(()=>utrCapture({...o,state:{utr,afterLink:sources.afterLink}}))));
+    if(o.state?.afterLink)container.append(button(el,"First source links",()=>action(()=>utrCapture({...o,state:{utr}}))));
   }
 
   async function statementsPage(o){
