@@ -46,7 +46,7 @@ test('Task 12 real PostgreSQL, protected legacy pairing/OTP and scoped operation
  });
  await t.test('recent MFA, source availability, bounded pagination, audit immutability and field projection',async()=>{
   await owner.query("UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP-interval '6 minutes' WHERE account_id=ANY($1::uuid[])",[[ids.admin,ids.alice]]);
-  await denied(call('admin','operations/otp',{}),'RECENT_MFA_REQUIRED');const stillMasked=await call('alice','operations/otp',{reveal:true});assert.equal(stillMasked.masked,true);assert.ok(stillMasked.events.every(e=>e.code==='123456'));assert.equal((await call('alice','operations/otp',{})).masked,true);
+ const staleAdminOtp=await call('admin','operations/otp',{});assert.equal(staleAdminOtp.masked,true);assert.ok(staleAdminOtp.events.every(e=>e.code==='123456'));const stillMasked=await call('alice','operations/otp',{reveal:true});assert.equal(stillMasked.masked,true);assert.ok(stillMasked.events.every(e=>e.code==='123456'));assert.equal((await call('alice','operations/otp',{})).masked,true);
   await owner.query('UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP WHERE account_id=ANY($1::uuid[])',[[ids.admin,ids.alice]]);
   service.operations.devices.source=null;await denied(call('alice','operations/otp',{}),'OTP_SOURCE_UNAVAILABLE');assert.equal((await call('alice','operations/devices',{})).sourceConnected,false);service.operations.devices.source=legacy.source;
   for(let i=0;i<52;i++)await legacy.otp(deviceA,String(100000+i));

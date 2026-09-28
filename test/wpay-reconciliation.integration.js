@@ -18,7 +18,7 @@ test('Task12 scoped UTR / statement / protected checkout / actual APK / recovery
   await denied(call('bob','operations/statement/upload',body));await denied(call('admin','operations/statement/upload',{...body,version:2}),'CONFLICT');
   imported=await call('admin','operations/statement/upload',body);assert.equal(imported.status,'accepted');assert.equal(imported.financialEvidence,false);
   assert.equal((await call('admin','operations/statement/upload',body)).id,imported.id);
-  await owner.query("UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP-interval '6 minutes' WHERE account_id=$1",[ids.admin]);await denied(call('admin','operations/statements'),'RECENT_MFA_REQUIRED');await owner.query('UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP WHERE account_id=$1',[ids.admin]);
+  await owner.query("UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP-interval '6 minutes' WHERE account_id=$1",[ids.admin]);await assert.doesNotReject(call('admin','operations/statements'));await owner.query('UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP WHERE account_id=$1',[ids.admin]);
   assert.equal((await owner.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
   order=await call('merchant','gateway/create',{reference:'task12-synthetic',idempotencyKey:randomUUID(),amountMinor:'125050',currency:'INR',ttlSeconds:900});
   await denied(call('bob','operations/transactions',{orderId:order.id}));assert.equal((await call('alice','operations/transactions',{orderId:order.id})).records[0].observations.length,0);

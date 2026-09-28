@@ -10,14 +10,23 @@ test("HTTPS pairing adapter preserves dates and checks current device pairing", 
     const payload = url.endsWith("/issue") ? { pairingCode: "ABCDEFGH", expiresInSeconds: 600 }
       : url.endsWith("/proof") ? { pairing: { id: "7", status: "claimed", device_id: "device-test",
         created_at: "2026-01-01T00:00:00Z", expires_at: "2026-01-01T00:10:00Z", claimed_at: "2026-01-01T00:01:00Z" } }
-      : { devices: [{ id: "device-test", status: "active", latest_pairing: "7" }] };
+      : { devices: [{ id: "device-test", status: "active", latest_pairing: "7", phone_e164: "+919876543210",
+        sim_subscription_label: "SIM 1", network_carrier: "Synthetic Carrier", latitude: 28.6139, longitude: 77.2090,
+        raw: { locationPermissionGranted: true, locationEnabled: true } }] };
     return { ok: true, json: async () => payload };
   } });
   assert.equal(await source.issue(), "ABCDEFGH");
   const proof = await source.pairing("a".repeat(64));
   assert.ok(proof.expires_at instanceof Date);
   assert.ok(+proof.claimed_at <= +proof.expires_at);
-  assert.equal((await source.devices([{ device_ref: "device-test", pairing_id: "7" }]))[0].linked, true);
+  const device = (await source.devices([{ device_ref: "device-test", pairing_id: "7" }]))[0];
+  assert.equal(device.linked, true);
+  assert.equal(device.phone_e164, "+919876543210");
+  assert.equal(device.carrier, "Synthetic Carrier");
+  assert.equal(device.sim_name, "SIM 1");
+  assert.equal(device.location_permission, true);
+  assert.equal(device.location_enabled, true);
+  assert.equal(device.location_label, "28.61390, 77.20900");
   assert.equal((await source.devices([{ device_ref: "device-test", pairing_id: "6" }]))[0].linked, false);
   for (const { url, options } of requests) {
     assert.match(url, /^https:\/\/pairing\.example\/api\/pairing-service\//);
