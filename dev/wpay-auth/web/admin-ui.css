@@ -208,8 +208,10 @@ tr:last-child td{border-bottom:0}
 .device-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .device-model{display:flex;gap:11px;align-items:center}
 .device-phone-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(124,77,255,.13);color:#c7b4ff;border:1px solid rgba(154,107,255,.18)}
-.device-card h3{font-size:13px;margin:0 0 4px}.device-card p{font-size:10px;color:var(--muted);margin:0}
-.device-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:13px}.device-stats .fact{padding:9px 10px}
+.device-card h3{font-size:14px;margin:0 0 4px}.device-card p{font-size:11px;color:var(--text);margin:0;font-weight:800}
+.device-subline{display:block;margin-top:4px;color:var(--muted2);font-size:9px;line-height:1.35}
+.device-card:focus-visible{outline:2px solid rgba(154,107,255,.75);outline-offset:2px}
+.device-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:13px}.device-stats .fact{padding:9px 10px;min-width:0}.device-stats .fact strong{overflow-wrap:anywhere}.device-stats .fact-wide{grid-column:1/-1}
 .battery{display:flex;align-items:center;gap:8px}.battery-body{width:44px;height:16px;border:1px solid #736b88;border-radius:4px;padding:2px;position:relative}.battery-body:after{content:"";position:absolute;right:-4px;top:4px;width:3px;height:6px;background:#736b88;border-radius:0 2px 2px 0}.battery-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#55d6c8,#7c4dff)}
 .activation-code{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-radius:14px;background:#100d20;border:1px solid var(--line);margin-top:8px}
 .activation-code .code{font:800 19px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:#d8caff}

@@ -3,9 +3,10 @@ const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID
 const {DeviceSetup,metadata}=require('../lib/wpay/operations/device-setup'),{MfaCrypto}=require('../lib/wpay/auth/runtime/mfa');
 const {migrate,transaction}=require('../lib/wpay/db/migrations');
 test('device metadata never projects credentials or OTP and reports stale heartbeats honestly',()=>{
- const now=new Date(),link={id:'link',owner_id:'owner',device_ref:'device'},source={id:'device',linked:true,app_version:'1',last_seen_at:now,code:'sensitive-code',message:'sensitive-message',credential_hash:'credential'};
- assert.equal(metadata(link,source,now).status,'online');assert.equal(metadata(link,{...source,last_seen_at:new Date(+now-120001)},now).status,'offline');assert.equal(metadata(link,{...source,linked:false},now).status,'unpaired');assert.equal(metadata(link,null,now).status,'unavailable');
- assert.doesNotMatch(JSON.stringify(metadata(link,source,now)),/sensitive|credential|message/);
+ const now=new Date(),link={id:'link',owner_id:'owner',device_ref:'device'},source={id:'device',linked:true,app_version:'1',last_seen_at:now,phone_e164:'+919876543210',sim_subscription_label:'SIM 1',latitude:27.1767,longitude:78.0081,location_enabled:true,code:'sensitive-code',message:'sensitive-message',credential_hash:'credential'};
+ const projected=metadata(link,source,now);assert.equal(projected.status,'online');assert.equal(projected.phone,'+919876543210');assert.equal(projected.simName,'SIM 1');assert.equal(projected.locationLabel,'27.17670, 78.00810');
+ assert.equal(metadata(link,{...source,last_seen_at:new Date(+now-120001)},now).status,'offline');assert.equal(metadata(link,{...source,linked:false},now).status,'unpaired');assert.equal(metadata(link,null,now).status,'unavailable');
+ assert.doesNotMatch(JSON.stringify(projected),/sensitive|credential|message/);
 });
 test('PostgreSQL: independent pairing permissions, ownership, tenant scope, history and unlink',async t=>{
  if(!process.env.TEST_DATABASE_URL){t.skip('Requires isolated PostgreSQL');return;}
