@@ -8,7 +8,7 @@
   if(account.accountType!=='user'&&['transactions','pending-utrs'].includes(page))return root.WPayAdminUtr.render(options,state);
   title.textContent=titles[page]||'Operational access';container.replaceChildren();
   const card=el('section',undefined,'card');container.append(card);
-  const button=(label,fn)=>{const b=el('button',label);b.type='button';b.onclick=()=>action(fn);return b;};
+  const button=(label,fn)=>{const b=el('button',label,page==='otp'?'btn':undefined);b.type='button';b.onclick=()=>action(fn);return b;};
   const field=(form,label,value='',type='text')=>{const l=el('label',label),input=el('input');input.type=type;input.value=value;l.append(input);form.append(l);return input;};
   const facts=(node,values)=>{const dl=el('dl',undefined,'facts');for(const [k,v]of Object.entries(values))dl.append(el('dt',k),el('dd',String(v??'—')));node.append(dl);};
   const reload=(next={})=>render(options,next);
@@ -65,38 +65,27 @@
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({afterDevice:data.nextDeviceCursor})));if(state.afterDevice)card.append(button('First devices',()=>reload()));return;
   }
   if(page==='otp'){
+   card.className='card panel otp-events-card';
    card.append(el('p','Banking OTP events are separate from your WPay authenticator codes. Only masked OTP codes and masked SMS content are shown here.','notice'));
-   const form=el('form'),device=field(form,'Device reference',state.device||''),sender=field(form,'Sender (exact match)',state.sender||''),owner=account.accountType==='user'?null:field(form,'User account ID',state.ownerId||'');
+   const form=el('form',undefined,'toolbar otp-filters'),device=field(form,'Device reference',state.device||''),sender=field(form,'Sender (exact match)',state.sender||''),owner=account.accountType==='user'?null:field(form,'User account ID',state.ownerId||'');
    for(const i of [device,sender,owner].filter(Boolean))i.maxLength=160;
    const filters=()=>Object.fromEntries(Object.entries({device:device.value.trim(),sender:sender.value.trim(),ownerId:owner?.value.trim()}).filter(([,v])=>v));
-   const search=el('button','Search');search.type='submit';form.append(search);form.onsubmit=e=>{e.preventDefault();action(()=>reload(filters()));};card.append(form);
+   const search=el('button','Search','btn primary');search.type='submit';form.append(search);form.onsubmit=e=>{e.preventDefault();action(()=>reload(filters()));};card.append(form);
    const query={...state},data=await post('operations/otp',query);
    const results=el('div');card.append(results);if(data.message)results.append(el('p',data.message));else if(!data.events.length)results.append(el('p','No events for these filters.'));
    if(data.events.length){
-  for(const e of data.events){
-    const row=el('article',undefined,'business-row');
-
-    facts(row,{
-      ...(account.accountType==='user'?{}:{
-        User:e.ownerName,
-        'Account ID':e.ownerId
-      }),
-      Device:e.device,
-      Status:e.deviceStatus,
-      'APK version':e.apkVersion,
-      Sender:e.sender,
-      Received:new Date(e.receivedAt).toLocaleString()
-    });
-
-    row.append(el('code',e.code));
-
-    if(e.message){
-      row.append(el('p',e.message));
+    const wrap=el('div',undefined,'table-wrap'),table=el('table',undefined,'otp-events-table'),head=el('thead'),headRow=el('tr'),body=el('tbody');
+    for(const label of ['Date / time','Sender','APK / device','Phone number',...(account.accountType==='user'?[]:['User']),'Masked OTP','Masked message'])headRow.append(el('th',label));head.append(headRow);
+    for(const e of data.events){
+     const row=el('tr'),deviceCell=el('td'),safe=data.masked===true&&e.masked===true;
+     deviceCell.append(el('strong',e.model||e.device),el('div',e.device,'small muted mono'),el('div',[e.deviceStatus,e.apkVersion].filter(Boolean).join(' · '),'small muted'));
+     row.append(el('td',new Date(e.receivedAt).toLocaleString()),el('td',e.sender||'—'),deviceCell,el('td',e.phone||'—'));
+     if(account.accountType!=='user'){const ownerCell=el('td');ownerCell.append(el('strong',e.ownerName||'—'),el('div',e.ownerId||'','small muted'));row.append(ownerCell);}
+     row.append(el('td',safe?e.code:'123456','mono otp-code'),el('td',safe?(e.message||'[Masked message]'):'[Masked message]','msg-cell'));
+     body.append(row);
     }
-
-    results.append(row);
-  }
-}
+    table.append(head,body);wrap.append(table);results.append(wrap);
+   }
    if(data.nextCursor)card.append(button('Older events',()=>reload({...filters(),...(state.afterDevice?{afterDevice:state.afterDevice}:{}),before:data.nextCursor})));
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({...filters(),afterDevice:data.nextDeviceCursor})));
    card.append(button('Refresh masked events',()=>reload(filters())));return;
