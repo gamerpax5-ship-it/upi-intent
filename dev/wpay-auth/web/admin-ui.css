@@ -579,3 +579,45 @@ th,td{padding:10px 11px}
 @media(max-width:420px){.wpay-admin .device-stats{grid-template-columns:minmax(0,1fr)}.wpay-admin .toolbar .grow{min-width:0;width:100%}}
 .wpay-admin.admin-light .search-results{background:#fff}
 .wpay-admin.admin-light .eyebrow{color:#68439d!important}
+
+/* Shared Admin palette: responsive cards, accessible colour accents and clear data hierarchy. */
+.wpay-admin .analytics-metrics .metric-rich{border-top:3px solid #a58aff;background:linear-gradient(135deg,rgba(124,77,255,.19),var(--panel));border-radius:18px}
+.wpay-admin .analytics-metrics .metric-rich:nth-child(3n+2){border-top-color:#46d8bc;background:linear-gradient(135deg,rgba(30,174,151,.17),var(--panel))}
+.wpay-admin .analytics-metrics .metric-rich:nth-child(3n){border-top-color:#64baff;background:linear-gradient(135deg,rgba(58,144,225,.17),var(--panel))}
+.wpay-admin .device-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));align-items:start}
+.wpay-admin .device-card{padding:20px;border-radius:22px;border:1px solid rgba(151,123,238,.35);background:linear-gradient(145deg,#211936,#121424);box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.wpay-admin .device-card:nth-child(2n){border-color:rgba(62,196,170,.35);background:linear-gradient(145deg,#152d30,#121424)}
+.wpay-admin .device-card h3{font-size:16px;line-height:1.45;color:var(--text)}
+.wpay-admin .device-card p{font-size:12px;line-height:1.6}
+.wpay-admin .device-stats{gap:10px;margin:18px 0}
+.wpay-admin .device-stats .fact{background:rgba(10,10,25,.3);padding:12px;border-color:rgba(167,153,211,.16)}
+.wpay-admin .device-stats .fact label{font-size:10px;color:#bfb2d9}
+.wpay-admin .device-stats .fact strong{font-size:13px}
+.wpay-admin .device-location{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;white-space:normal;width:100%;min-width:0;padding:14px;border:1px solid #368a88;border-radius:14px;background:linear-gradient(120deg,#173739,#172b3e);color:#d4fff4;box-shadow:none}
+.wpay-admin .device-location strong{font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.wpay-admin .location-caption{font-size:10px;font-weight:800;letter-spacing:.08em;color:#9ce5d4}
+.wpay-admin .location-hint{font-size:12px;color:#bcece1}
+.wpay-admin .device-location:hover{border-color:#7ef4d6;background:#204749}
+.wpay-admin .device-location:disabled{opacity:.65;cursor:not-allowed}
+.wpay-admin .location-summary{padding:15px;border-radius:14px;background:rgba(45,185,163,.12);color:var(--text);overflow-wrap:anywhere}
+.wpay-admin .location-history-dialog>.btn{margin-top:18px}
+.wpay-admin .location-history-dialog .admin-table{min-width:520px;width:100%}
+.wpay-admin .location-history-dialog .admin-table td{font-size:12px;font-variant-numeric:tabular-nums}
+.wpay-admin .capture-panel{margin-top:18px}
+.wpay-admin .capture-panel .admin-table th{font-size:11px;white-space:nowrap;background:rgba(124,77,255,.12)}
+.wpay-admin .capture-panel .admin-table td{padding:15px 14px;vertical-align:top;font-size:12px;line-height:1.55}
+.wpay-admin .capture-panel tbody tr:nth-child(even){background:rgba(148,126,206,.045)}
+.wpay-admin .capture-panel tbody tr:hover{background:rgba(124,77,255,.08)}
+.wpay-admin .capture-cell{display:grid;gap:5px;min-width:130px;max-width:240px;white-space:normal;overflow-wrap:anywhere}
+.wpay-admin .capture-cell small{color:var(--muted);font-size:11px;line-height:1.55}
+.wpay-admin .capture-utr strong{font-family:ui-monospace,monospace;font-size:13px;white-space:nowrap;color:#d6c6ff;letter-spacing:.03em}
+.wpay-admin .capture-amount{color:#88eac8;white-space:nowrap;font-variant-numeric:tabular-nums}
+.wpay-admin.admin-light .analytics-metrics .metric-rich{background:linear-gradient(135deg,#e8e0ff,#fff)}
+.wpay-admin.admin-light .device-card{background:linear-gradient(145deg,#f0eaff,#fff)}
+.wpay-admin.admin-light .device-card:nth-child(2n){background:linear-gradient(145deg,#e6faf4,#fff)}
+.wpay-admin.admin-light .device-stats .fact{background:#fff}
+.wpay-admin.admin-light .device-stats .fact label{color:#635179}
+.wpay-admin.admin-light .device-location{background:#e0f5ef;color:#154a42}
+.wpay-admin.admin-light .location-caption,.wpay-admin.admin-light .location-hint{color:#28675c}
+.wpay-admin.admin-light .capture-amount{color:#146b50}
+.wpay-admin.admin-light .capture-utr strong{color:#623bb0}

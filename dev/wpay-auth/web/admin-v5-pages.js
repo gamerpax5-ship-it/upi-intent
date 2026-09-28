@@ -502,12 +502,20 @@
       fact("Last seen",d.lastSeenAt?new Date(d.lastSeenAt).toLocaleString("en-IN"):"Unavailable"),
       fact("Battery",d.battery==null?"Unavailable":d.battery+"% · "+(d.batteryHealth||"health unavailable")),
       fact("Network",(d.network||"Unavailable")+" · "+(d.carrier||"carrier unavailable")),
-       fact("Latitude / Longitude",deviceLocation(d)),
+       (()=>{const location=button(el,"",()=>detail(d,true),"device-location");location.disabled=!!d.legacyMapping;location.setAttribute("aria-label","Location history for "+(d.model||d.device));location.append(el("span","LOCATION HISTORY","location-caption"),el("strong",deviceLocation(d)),el("span",d.legacyMapping?"History unavailable for legacy mapping":"View reported locations →","location-hint"));return location;})(),
       fact("Valid until",d.validUntil?new Date(d.validUntil).toLocaleString("en-IN"):"Unavailable")
     );card.append(stats);const actions=el("div",undefined,"account-card-actions");if(!d.legacyMapping)actions.append(button(el,"View details",()=>detail(d)));if(data.canRevoke&&!d.legacyMapping)actions.append(button(el,"Unlink from WPay",()=>unlink(d),"danger"));card.append(actions);grid.append(card);}if(!data.devices.length)grid.append(el("div",data.message||"No linked devices.","card admin-empty"));
     const devicePager=el("div",undefined,"admin-pagination");if(state.afterDevice)devicePager.append(button(el,"First devices",()=>action(()=>devicesPage({...o,state:{}}))));if(data.nextDeviceCursor)devicePager.append(button(el,"Next devices",()=>action(()=>devicesPage({...o,state:{afterDevice:data.nextDeviceCursor}})),"primary"));if(devicePager.children.length)container.append(devicePager);
-    function detail(d){action(async()=>{
+    function detail(d,locationOnly=false){return action(async()=>{
       const info=await post("operations/device-setup/detail",{id:d.id}),dlg=document.createElement("dialog"),wrap=el("div"),facts=el("div",undefined,"kv-grid"),device=info.device||d,add=(l,v)=>{const x=el("div",undefined,"v5-fact");x.append(el("small",l),el("strong",String(v??"Unavailable")));facts.append(x);};
+      if(locationOnly){
+        const fixes=(info.history||[]).filter(h=>typeof h.latitude==='number'&&Number.isFinite(h.latitude)&&Math.abs(h.latitude)<=90&&typeof h.longitude==='number'&&Number.isFinite(h.longitude)&&Math.abs(h.longitude)<=180).sort((a,b)=>new Date(b.at)-new Date(a.at));
+        dlg.className="location-history-dialog";dlg.setAttribute("aria-label","Location history");
+        dlg.append(el("h2","Location history · "+(device.model||device.device)),el("p","Reported samples from the last 48 hours within this pairing. These are recorded locations, not continuous live tracking.","notice"),el("p",deviceLocation(device),"location-summary"));
+        if(fixes.length)dlg.append(table(el,["Reported at","Latitude","Longitude","Accuracy"],fixes.map(h=>[new Date(h.at).toLocaleString("en-IN"),h.latitude.toFixed(5),h.longitude.toFixed(5),h.accuracy==null?"Unavailable":h.accuracy+" m"])));
+        else dlg.append(el("p","No valid location samples in this period. Check location permission and GPS on the device.","admin-empty"));
+        const close=button(el,"Close",()=>dlg.close());dlg.append(close);dlg.onclose=()=>{dlg.remove();};container.append(dlg);dlg.showModal();return;
+      }
       add("Owner",device.ownerName);add("Device ref",device.device);add("Status",device.status);add("Phone",device.phone);add("SIM",device.simName);add("APK",device.apkVersion);add("Battery",device.battery==null?"Unavailable":device.battery+"%");add("Battery health",device.batteryHealth);add("Network",(device.network||"Unavailable")+" · "+(device.carrier||"carrier unavailable"));add("Latitude / Longitude",deviceLocation(device));add("Last seen",device.lastSeenAt?new Date(device.lastSeenAt).toLocaleString("en-IN"):"Unavailable");add("Link valid until",device.validUntil?new Date(device.validUntil).toLocaleString("en-IN"):"Unavailable");
       wrap.append(facts,el("h3","Diagnostics history"),table(el,["Time","Battery / health","Network","Location","Location permission"],(info.history||[]).map(h=>[new Date(h.at).toLocaleString("en-IN"),(h.battery==null?"—":h.battery+"%")+(h.charging===true?" · charging":"")+" / "+(h.health||"—"),(h.network||"—")+" / "+(h.carrier||"—"),h.latitude==null?"Unavailable":Number(h.latitude).toFixed(5)+", "+Number(h.longitude).toFixed(5)+(h.accuracy==null?"":" · "+h.accuracy+"m"),h.locationPermission==null?"Unavailable":h.locationPermission&&h.locationEnabled?"Enabled":"Disabled"])));
       wrap.append(el("h3","Masked OTP events"),table(el,["SMS date / time","Masked OTP","Sender","Masked message","History"],(info.otpEvents||[]).map(e=>[new Date(e.receivedAt).toLocaleString("en-IN"),e.maskedOtp||"—",e.sender||"—",e.maskedMessage||"[Masked message]",e.historical?"Before current pairing":"Current pairing"])));
@@ -589,8 +597,14 @@
     pendingPanel.append(table(el,["Submitted","UTR","Reference","Merchant","User","Amount","Payment","Review","Actions"],pendingRows()));
     function draw(filter){
       if(tools)for(const b of tools.querySelectorAll("[data-utr-filter]"))b.classList.toggle("active",b.dataset.utrFilter===filter);
-      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.utr,x.amount,x.sourceKind==="apk"?"APK":x.sourceKind==="manual"?"Manual approval":"Statement",x.deviceOrStatement,x.userId||"—",x.merchantId||"—",x.bankReference||"—",x.sourceStatus||"captured",x.evidenceState||"unbound_observation",x.accountingState||"not_posted"]);
-      stream.replaceChildren(el("h2","Captured UTR stream"),table(el,["Captured","UTR","Amount","Source","Device / statement","User","Merchant","Bank","Status","Evidence","Accounting"],rows));
+      const stack=(primary,secondary,cls="")=>{const cell=el("div",undefined,"capture-cell "+cls);cell.append(el("strong",primary||"—"),el("small",secondary||""));return cell;},readable=value=>String(value||"Unavailable").replaceAll("_"," ");
+      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[
+        new Date(x.capturedAt).toLocaleString("en-IN"),stack(x.utr,x.bankReference?"Bank · "+x.bankReference:"","capture-utr"),
+        el("strong",x.amount!=null&&String(x.amount).trim()!==''&&Number.isFinite(Number(x.amount))?"₹ "+Number(x.amount).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"—","capture-amount"),
+        stack(x.sourceKind==="apk"?"APK":x.sourceKind==="manual"?"Manual approval":"Statement",readable(x.evidenceState)),
+        stack(x.deviceOrStatement,"Owner · "+(x.userId||"Unavailable")),stack(readable(x.sourceStatus),"Accounting · "+readable(x.accountingState)),x.merchantId||"—"
+      ]);
+      stream.className="card panel capture-panel";stream.replaceChildren(el("h2","Captured UTR stream"),table(el,["SMS / record time","UTR / bank reference","Amount","Source / evidence","Device / statement · owner","Status / accounting","Merchant"],rows));
       pendingPanel.hidden=filter!=="all"&&filter!=="pending";
     }
     function verify(r){dialog(el,container,"Verify evidence · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Review reason","Verify submitted UTR against independent evidence"),save=el("button","Verify evidence","primary");save.type="submit";form.append(el("p","This only queues/retries independent verification. It does not mark the payment successful by itself.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/verify",{orderId:r.orderId,utr:r.utr,reason:reason.value});d.close();await utrCapture(o);});};});}
