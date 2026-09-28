@@ -1,0 +1,61 @@
+name: WPay Telegram review
+on:
+  pull_request:
+    branches: [wpay/hosted-integration]
+    paths:
+      - "lib/wpay/telegram/**"
+      - "test/wpay-telegram*"
+      - "migrations/wpay-auth/033_telegram_operations.sql"
+      - ".github/workflows/wpay-telegram-review.yml"
+permissions:
+  contents: read
+concurrency:
+  group: wpay-telegram-review-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: wpay-ci-disposable
+          POSTGRES_DB: wpay_ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d wpay_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            lib/wpay/auth/runtime/dependencies/package-lock.json
+      - name: Install root locked dependencies
+        run: npm ci --registry=https://registry.npmjs.org
+      - name: Install scoped locked MFA dependencies
+        run: npm ci --prefix lib/wpay/auth/runtime/dependencies --registry=https://registry.npmjs.org
+      - name: Verify protected source
+        run: node scripts/check-protected-legacy.js
+      - name: Syntax checks
+        run: npm run check
+      - name: Full legacy and WPay test suite with disposable PostgreSQL
+        run: npm test
+      - name: Telegram isolated PostgreSQL and authorization diagnostics
+        if: ${{ !cancelled() }}
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:wpay-ci-disposable@127.0.0.1:5432/wpay_ci
+        run: node --test test/wpay-telegram*.test.js
+      - name: Actual WPay migrations, HTTP, approval and mandatory MFA
+        if: ${{ !cancelled() }}
+        env:
+          WPAY_CI_ISOLATED: github-service-container
+        run: node scripts/test-wpay-ci.js
+      - name: Verify protected source after tests
+        if: always()
+        run: node scripts/check-protected-legacy.js
