@@ -34,6 +34,29 @@
     section.append(table(el,headers,rows));return section;
   };
 
+  const pill=(el,value)=>{
+    const state=String(value??"unknown").toLowerCase(),tone=["active","approved","verified","successful","completed","running","enabled","paid"].includes(state)?"green":["failed","rejected","suspended","revoked","cancelled","disabled","frozen"].includes(state)?"red":["pending","review","submitted","requested","processing","held","disputed"].includes(state)?"amber":"gray";
+    return el("span",String(value??"—"),"pill "+tone);
+  };
+  let fieldSequence=0;
+  function field(el,parent,name,label,value="",type="text"){
+    const wrap=el("div",undefined,"field"),caption=el("label",label),input=el("input",undefined,"control");
+    input.id="admin-field-"+(++fieldSequence);input.name=name;input.type=type;input.value=value??"";caption.htmlFor=input.id;
+    wrap.append(caption,input);parent.append(wrap);return input;
+  }
+  function selectField(el,parent,name,label,choices,value){
+    const wrap=el("div",undefined,"field"),caption=el("label",label),input=el("select",undefined,"control");
+    input.id="admin-field-"+(++fieldSequence);input.name=name;caption.htmlFor=input.id;
+    for(const [v,text] of choices){const option=el("option",text);option.value=v;input.append(option);}
+    if(value!==undefined)input.value=value;wrap.append(caption,input);parent.append(wrap);return input;
+  }
+  function dialog(el,container,title,build){
+    const modal=el("dialog",undefined,"admin-v5-dialog"),head=el("div",undefined,"modal-head"),body=el("div",undefined,"modal-body");
+    const heading=el("h3",title);heading.id="admin-dialog-"+(++fieldSequence);modal.setAttribute("aria-labelledby",heading.id);
+    head.append(heading,button(el,"Close",()=>modal.close(),"btn sm"));modal.append(head,body);modal.onclose=()=>modal.remove();
+    build(body,modal);container.append(modal);modal.showModal();return modal;
+  }
+
   async function analytics(o){
     const {post,action,el,container,title}=o;title.textContent="Analytics";const tools=document.getElementById("page-tools");if(tools)tools.replaceChildren();
     const safe=promise=>Promise.resolve(promise).catch(()=>null),[data,upi,devices,utrPending,utrLinks]=await Promise.all([
@@ -83,7 +106,7 @@
   }
 
   async function approvals(o){
-    const {post,el,container,title,navigate}=o;
+    const {post,request,el,container,title,navigate}=o;
     title.textContent="Pending approvals";
     const [users,merchants,banks,payouts,withdrawals]=await Promise.all([
       post("panel/directory",{type:"user",status:"pending",search:"",offset:0}),
@@ -106,7 +129,7 @@
   }
 
   async function bankUpi(o){
-    const {post,action,el,container,title}=o,search=String(o.state?.search||"");
+    const {post,request,action,el,container,title}=o,search=String(o.state?.search||"");
     title.textContent="Bank & UPI";container.replaceChildren();
     const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search}),request("business/banks")]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
     const tools=document.getElementById("page-tools");
@@ -365,7 +388,7 @@
       metric(el,"Pay-in margin",money(payinFees-payinComm),"Fee less commission"),
       metric(el,"Payout margin",money(payoutFees-payoutComm),"Fee less commission")
     );
-    container.append(metrics,el("p","Period: "+new Date(data.from).toLocaleString("en-IN")+" → "+new Date(data.to).toLocaleString("en-IN")+". USDT FX profit is excluded because acquisition-cost matching is unavailable. Expense records affect reporting only.","notice"));
+    container.append(metrics,el("p","Period: "+new Date(data.from).toLocaleString("en-IN")+" → "+new Date(data.to).toLocaleString("en-IN")+". Exchange profit is shown separately using account-specific locked rates. Expense records affect reporting only.","notice"));
     const expenseTotals=data.expenseTotals||[];
     container.append(panelTable(el,["Expense category","Amount"],expenseTotals.map(x=>[x.category,money(x.amount)]),"Expense breakdown","Non-void records"));
     container.append(panelTable(el,["Date","Category","Payee","Amount","Reference","State"],(data.expenses||[]).map(e=>[new Date(e.occurred_at).toLocaleString("en-IN"),e.category,e.payee,money(e.amount_minor),e.description,e.void_reason?"voided":"recorded"]),"Recent expense records",data.hasMore?"More records available":"Current page"));
@@ -1002,9 +1025,9 @@
       metric(el,"Pay-in margin",money(merchantPayin-userPayin),"Pay-in fee less commission"),
       metric(el,"Payout margin",money(merchantPayout-userPayout),"Payout fee less commission")
     );
-    const period=el("p","Period: "+new Date(d.from).toLocaleString("en-IN")+" → "+new Date(d.to).toLocaleString("en-IN")+". USDT exchange profit is excluded because acquisition-cost matching is not available.","notice");
+    const period=el("p","Period: "+new Date(d.from).toLocaleString("en-IN")+" → "+new Date(d.to).toLocaleString("en-IN")+". Exchange profit uses aggregate User and Merchant USDT values at their locked account rates.","notice");
     const breakdown=panelTable(el,["Component","Amount"],[
-      ["Merchant pay-in fees",money(merchantPayin)],["Merchant payout fees",money(merchantPayout)],["User pay-in commissions",money(userPayin)],["User payout commissions",money(userPayout)],["Salary & operating expenses",money(costs)],["Operating margin",money(margin)]
+      ["Merchant pay-in fees",money(merchantPayin)],["Merchant payout fees",money(merchantPayout)],["User pay-in commissions",money(userPayin)],["User payout commissions",money(userPayout)],["Salary & operating expenses",money(costs)],["Operating margin",money(margin)],["Exchange profit",money(d.fxProfit||0)],["Combined report result",money(margin+BigInt(d.fxProfit||0))]
     ],"Operating margin breakdown","Backend period projection");
     container.append(grid,period,breakdown);
   }
@@ -1026,7 +1049,7 @@
 
   async function financeUsdtPage(o){
     const {el,container,title}=o;title.textContent="USDT exchange";const d=await financeSnapshot(o),fund=d.funding||{},set=d.settlement||{},usdt=v=>{const n=BigInt(v||0),a=n<0n?-n:n,s=a.toString().padStart(7,"0");return (n<0n?"−":"")+s.slice(0,-6)+"."+s.slice(-6)+" USDT";},fundUsdt=BigInt(fund.usdt||0),settleUsdt=BigInt(set.usdt||0),fundInr=BigInt(fund.inr||0),settleInr=BigInt(set.inr||0);container.replaceChildren();
-    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Confirmed User deposits",usdt(fundUsdt),"USDT received in confirmed funding"),metric(el,"INR capacity credited",money(fundInr),"Confirmed funding conversion"),metric(el,"Completed Merchant settlements",usdt(settleUsdt),"USDT manual settlement records"),metric(el,"INR settled",money(settleInr),"Merchant settlement principal"),metric(el,"USDT flow difference",usdt(fundUsdt-settleUsdt),"Operational flow only"),metric(el,"FX profit","Unavailable","Acquisition-cost matching not implemented"));container.append(grid,el("p","USDT deposit minus settlement difference is not profit. Current backend intentionally returns fxProfit=null because acquisition-cost matching is not implemented. Merchant completion records are manual and explicitly not labeled blockchain-confirmed.","notice"));
+    const grid=el("div",undefined,"grid analytics-metrics");grid.append(metric(el,"Confirmed User deposits",usdt(fundUsdt),"USDT received in confirmed funding"),metric(el,"User USDT value",money(fundInr),"Received USDT × each locked User rate"),metric(el,"Completed Merchant settlements",usdt(settleUsdt),"USDT manual settlement records"),metric(el,"Merchant USDT value",money(settleInr),"Settled USDT × each locked Merchant rate"),metric(el,"USDT flow difference",usdt(fundUsdt-settleUsdt),"Operational flow only"),metric(el,"Exchange profit",money(d.fxProfit||0),"Merchant INR value − User INR cost"));container.append(grid,el("p","Exchange profit compares the two INR totals in this report period using each transaction’s locked account rate. Different received and settled USDT quantities affect this difference; unsettled USDT is shown separately. Setup deductions reduce collection capacity, not gross USDT received. Merchant settlements are manually recorded.","notice"));
   }
 
   async function expensePage(o,mode){
@@ -1222,7 +1245,7 @@
       if(a.approvalStatus==="approved"&&data.actions.includes("commercial.update"))actions.append(button(el,"Edit rates",()=>editTerms(a),"btn sm"));
       if(isUser&&data.actions.includes("commercial.update"))actions.append(button(el,"Collection access",()=>editAccess(a,accessRow),"btn sm"));
       if(a.status==="active"&&data.actions.includes("suspend"))actions.append(button(el,"Suspend",()=>suspend(a),"btn sm danger"));
-      else if(a.status!=="active")actions.append(el("span","Reactivation backend action not exposed","prototype-badge"));
+      else if(a.status==="suspended"&&a.approvalStatus==="approved"&&data.actions.includes("reactivate"))actions.append(button(el,"Reactivate",()=>reactivate(a),"btn sm success"));
       cardNode.append(actions);grid.append(cardNode);
     }
     if(!data.rows.length)grid.append(el("div","No matching accounts.","empty card"));const pager=el("div",undefined,"admin-pagination");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>directory({...o,state:{search,status,offset:Math.max(0,offset-25)}},type))));if(data.nextOffset!==null&&data.nextOffset!==undefined)pager.append(button(el,"Next",()=>action(()=>directory({...o,state:{search,status,offset:data.nextOffset}},type)),"primary"));if(pager.children.length)container.append(pager);
@@ -1282,6 +1305,9 @@
       });
     }
 
+    function reactivate(a){
+      dialog(el,container,"Reactivate "+a.name,(body,d)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Reviewed account reactivation"),save=el("button","Reactivate","btn primary");save.type="submit";form.append(save);body.append(el("p","Existing rates, access and UPI verification are retained. Routing stays stopped until Admin starts it.","notice"),form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/directory/update",{requestId:crypto.randomUUID(),id:a.id,action:"reactivate",reason:reason.value,settings:null,expectedVersion:a.commercialVersion||0});d.close();await directory(o,type);});};});
+    }
     function suspend(a){
       dialog(el,container,"Suspend "+a.name,(body,d)=>{const form=el("form"),reason=field(el,form,"reason","Reason","Operational suspension"),save=el("button","Suspend","btn danger");save.type="submit";form.append(save);body.append(el("p","Suspension blocks operational use and invalidates sessions.","notice"),form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("panel/directory/update",{requestId:crypto.randomUUID(),id:a.id,action:"suspend",reason:reason.value,settings:null,expectedVersion:a.commercialVersion||0});d.close();await directory(o,type);});};});
     }
