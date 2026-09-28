@@ -11,10 +11,10 @@ test('Task 12 real PostgreSQL, protected legacy pairing/OTP and scoped operation
   a=await call('alice','operations/device/create',{requestId:randomUUID()});deviceA=await legacy.pair(a.pairingCode,'synthetic-device-alice');a.link=await call('alice','operations/device/poll',{requestId:a.id});assert.equal(a.link.state,'linked');
   b=await call('bob','operations/device/create',{requestId:randomUUID()});const deviceB=await legacy.pair(b.pairingCode,'synthetic-device-bob');b.link=await call('bob','operations/device/poll',{requestId:b.id});
   await legacy.otp(deviceA,'321654');await legacy.otp(deviceB,'987123');
-  const masked=await call('alice','operations/otp',{});assert.equal(masked.events.length,1);assert.equal(masked.events[0].code,'••••••');assert.doesNotMatch(JSON.stringify(masked),/321654|987123|Synthetic banking/);
-  const revealed=await call('alice','operations/otp',{reveal:true});assert.equal(revealed.events[0].code,'321654');assert.equal(Object.hasOwn(revealed.events[0],'message'),false);
+  const masked=await call('alice','operations/otp',{});assert.equal(masked.events.length,1);assert.equal(masked.events[0].code,'123456');assert.equal(masked.events[0].message,'Synthetic banking OTP 123456');assert.doesNotMatch(JSON.stringify(masked),/321654|987123/);
+  const revealed=await call('alice','operations/otp',{reveal:true});assert.equal(revealed.events[0].code,'123456');assert.equal(revealed.events[0].message,'Synthetic banking OTP 123456');assert.equal(revealed.masked,true);
   await denied(call('alice','operations/otp',{device:deviceB.deviceId,reveal:true}));await denied(call('bob','operations/device/poll',{requestId:a.id}));
-  const admin=await call('admin','operations/otp',{reveal:true});assert.equal(admin.events.length,2);assert.ok(admin.events.every(e=>e.ownerName&&e.message.startsWith('Synthetic banking')));
+  const admin=await call('admin','operations/otp',{reveal:true});assert.equal(admin.events.length,2);assert.ok(admin.events.every(e=>e.ownerName&&e.code==='123456'&&e.message==='Synthetic banking OTP 123456'));
  });
  await t.test('Employee explicit grant, immutable history and immediate revocation; no self-escalation',async()=>{
   const permissions=['profile.view','account_security.view','account_security.update','apk_otp_events.view_all'];employee=await call('admin','operations/employee/create',{name:'Synthetic Employee',email:'employee@12.example.invalid',permissions,tenantIds:['wpay-auth-development']});
@@ -46,12 +46,12 @@ test('Task 12 real PostgreSQL, protected legacy pairing/OTP and scoped operation
  });
  await t.test('recent MFA, source availability, bounded pagination, audit immutability and field projection',async()=>{
   await owner.query("UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP-interval '6 minutes' WHERE account_id=ANY($1::uuid[])",[[ids.admin,ids.alice]]);
-  await denied(call('admin','operations/otp',{}),'RECENT_MFA_REQUIRED');await denied(call('alice','operations/otp',{reveal:true}),'RECENT_MFA_REQUIRED');assert.equal((await call('alice','operations/otp',{})).masked,true);
+  await denied(call('admin','operations/otp',{}),'RECENT_MFA_REQUIRED');const stillMasked=await call('alice','operations/otp',{reveal:true});assert.equal(stillMasked.masked,true);assert.ok(stillMasked.events.every(e=>e.code==='123456'));assert.equal((await call('alice','operations/otp',{})).masked,true);
   await owner.query('UPDATE wpay_auth.sessions SET mfa_at=CURRENT_TIMESTAMP WHERE account_id=ANY($1::uuid[])',[[ids.admin,ids.alice]]);
   service.operations.devices.source=null;await denied(call('alice','operations/otp',{}),'OTP_SOURCE_UNAVAILABLE');assert.equal((await call('alice','operations/devices',{})).sourceConnected,false);service.operations.devices.source=legacy.source;
   for(let i=0;i<52;i++)await legacy.otp(deviceA,String(100000+i));
   const page=await call('alice','operations/otp',{sender:'test-bank'});assert.equal(page.events.length,50);assert.ok(page.nextCursor);const next=await call('alice','operations/otp',{before:page.nextCursor});assert.equal(next.events.length,3);assert.equal(new Set([...page.events,...next.events].map(e=>e.id)).size,53);
-  assert.equal((await call('alice','operations/otp',{sender:'UNKNOWN'})).events.length,0);assert.doesNotMatch(JSON.stringify(page.events),/credential|token_hash|sim_fingerprint|message|321654|10000[0-9]/);
+  assert.equal((await call('alice','operations/otp',{sender:'UNKNOWN'})).events.length,0);assert.doesNotMatch(JSON.stringify(page.events),/credential|token_hash|sim_fingerprint|321654|10000[0-9]/);
   await denied(f.runtime.query("DELETE FROM wpay_auth.operations_audit"),'42501');await denied(f.runtime.query("UPDATE wpay_auth.employee_access_versions SET status='active'"),'42501');
   await denied(call('alice','operations/otp',{before:'0 OR 1=1'}),'INVALID_INPUT');
  });
@@ -75,7 +75,7 @@ test('Task 12 real PostgreSQL, protected legacy pairing/OTP and scoped operation
   await denied(call('alice','operations/otp',{device:'zz-synthetic-100'}));
  });
  await t.test('OTP auditing contains no codes/messages; User revocation denies future reads',async()=>{
-  const audits=(await owner.query('SELECT * FROM wpay_auth.operations_audit')).rows;assert.doesNotMatch(JSON.stringify(audits),/321654|987123|Synthetic banking/);assert.ok(audits.some(a=>a.action==='otp_content_accessed'));
+  const audits=(await owner.query('SELECT * FROM wpay_auth.operations_audit')).rows;assert.doesNotMatch(JSON.stringify(audits),/321654|987123|Synthetic banking/);assert.ok(audits.some(a=>a.action==='otp_masked_content_accessed'));
   await call('alice','operations/device/revoke',{id:a.link.id});await denied(call('alice','operations/otp',{device:deviceA.deviceId,reveal:true}));await denied(call('alice','operations/device/poll',{requestId:a.id}),'CONFLICT');
  });
  await t.test('logout, expiry and suspended owner deny subsequent OTP reads',async()=>{
