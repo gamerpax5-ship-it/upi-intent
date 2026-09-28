@@ -540,15 +540,23 @@
 
   async function utrCapture(o){
     const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();const utr=o.state?.utr||"",utrFilter=utr?{utr}:{};
-    const [sources,pending]=await Promise.all([post("operations/utr-source",{...(o.state?.afterLink?{afterLink:o.state.afterLink}:{})}),post("operations/utr/pending",{status:utr?"all":"pending",offset:0,...utrFilter})]);
+    const [sources,claims,deviceUtrs]=await Promise.all([
+      post("operations/utr-source",{...(o.state?.afterLink?{afterLink:o.state.afterLink}:{})}),
+      post("operations/utr/pending",{status:"all",offset:0,...utrFilter}),
+      post("operations/device-setup/utrs",{})
+    ]);
     const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id,...utrFilter})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
-    const captures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"}))).sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt)),failedSources=sourceResults.filter(x=>!x.ok);
-    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const [key,label]of [["all","All"],["apk","APK captured"],["statement","Statement"],["pending","Pending review"]]){const b=button(el,label,()=>draw(key),key==="all"?"active":"");b.dataset.utrFilter=key;tabs.append(b);}tools.append(tabs);}
+    const sourceCaptures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"})));
+    const pairedCaptures=(deviceUtrs.records||[]).filter(r=>!utr||r.utr===utr).map(r=>({utr:r.utr,amount:r.amount,capturedAt:r.capturedAt,sourceKind:"apk",deviceOrStatement:r.device,userId:r.ownerId,merchantId:null,bankReference:null,sourceStatus:r.status||"captured",evidenceState:"device_observation",accountingState:"not_posted"}));
+    const manualCaptures=(claims.records||[]).filter(r=>r.status==="approved"&&(!utr||r.utr===utr)).map(r=>({utr:r.utr,amount:(Number(r.amountMinor)/100).toFixed(2),capturedAt:r.submittedAt,sourceKind:"manual",deviceOrStatement:"Admin approval",userId:r.user,merchantId:r.merchant,bankReference:null,sourceStatus:"approved",evidenceState:"admin_approved",accountingState:r.paymentStatus==="successful"?"posted":"not_posted"}));
+    const dedupe=new Map();for(const r of [...sourceCaptures,...pairedCaptures,...manualCaptures]){const key=[r.utr,r.sourceKind,r.deviceOrStatement,r.capturedAt].join("|");if(!dedupe.has(key))dedupe.set(key,r);}const captures=[...dedupe.values()].sort((a,b)=>new Date(b.capturedAt)-new Date(a.capturedAt)),pending={...claims,records:(claims.records||[]).filter(r=>r.status==="pending")},failedSources=sourceResults.filter(x=>!x.ok);
+    const tools=document.getElementById("page-tools");if(tools){tools.replaceChildren();const tabs=el("div",undefined,"section-tabs");for(const [key,label]of [["all","All"],["apk","APK captured"],["statement","Statement"],["manual","Manual approved"],["pending","Pending review"]]){const b=button(el,label,()=>draw(key),key==="all"?"active":"");b.dataset.utrFilter=key;tabs.append(b);}tools.append(tabs);}
     const searchForm=el("form",undefined,"toolbar"),searchInput=el("input",undefined,"control grow");searchInput.placeholder="Search exact 12-digit UTR…";searchInput.setAttribute("aria-label","Search UTR");searchInput.inputMode="numeric";searchInput.pattern="[0-9]{12}";searchInput.maxLength=12;searchInput.value=utr;const searchButton=el("button","Search","btn primary");searchButton.type="submit";searchForm.append(searchInput,searchButton);searchForm.onsubmit=e=>{e.preventDefault();if(searchForm.reportValidity())action(()=>utrCapture({...o,state:{utr:searchInput.value.trim()}}));};container.append(searchForm);
     const metrics=el("div",undefined,"grid analytics-metrics");metrics.append(
       metric(el,"UTR captures",captures.length,"Readable scoped observations"),
       metric(el,"APK captured",captures.filter(x=>x.sourceKind==="apk").length,"Device transaction source"),
       metric(el,"Statement captured",captures.filter(x=>x.sourceKind==="statement").length,"Scoped statement source"),
+      metric(el,"Manual approved",captures.filter(x=>x.sourceKind==="manual").length,"Admin-approved UTR claims"),
       metric(el,utr?"Matching claims":"Pending review",pending.records.length,utr?"Payment claims matching this UTR":"Submitted claims awaiting decision"),
       metric(el,"Source links",linked.length,"Verified scoped links"),
       metric(el,"Unavailable sources",failedSources.length,"Read failed without fabricating data")
@@ -561,7 +569,7 @@
     pendingPanel.append(table(el,["Submitted","UTR","Reference","Merchant","User","Amount","Payment","Review","Actions"],pendingRows()));
     function draw(filter){
       if(tools)for(const b of tools.querySelectorAll("[data-utr-filter]"))b.classList.toggle("active",b.dataset.utrFilter===filter);
-      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.utr,x.amount,x.sourceKind==="apk"?"APK":"Statement",x.deviceOrStatement,x.userId||"—",x.merchantId||"—",x.bankReference||"—",x.sourceStatus||"captured",x.evidenceState||"unbound_observation",x.accountingState||"not_posted"]);
+      const rows=(filter==="pending"?[]:captures.filter(x=>filter==="all"||x.sourceKind===filter)).map(x=>[new Date(x.capturedAt).toLocaleString("en-IN"),x.utr,x.amount,x.sourceKind==="apk"?"APK":x.sourceKind==="manual"?"Manual approval":"Statement",x.deviceOrStatement,x.userId||"—",x.merchantId||"—",x.bankReference||"—",x.sourceStatus||"captured",x.evidenceState||"unbound_observation",x.accountingState||"not_posted"]);
       stream.replaceChildren(el("h2","Captured UTR stream"),table(el,["Captured","UTR","Amount","Source","Device / statement","User","Merchant","Bank","Status","Evidence","Accounting"],rows));
       pendingPanel.hidden=filter!=="all"&&filter!=="pending";
     }
