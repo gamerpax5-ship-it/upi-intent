@@ -1,6 +1,6 @@
 "use strict";
 (function(root){
- let api,nav;
+ let api,nav,resetSearch;
  const $=id=>document.getElementById(id);
  const ICONS={
   overview:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
@@ -59,6 +59,7 @@
  const icon=name=>'<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||ICONS.overview)+'</svg>';
  const money=value=>value===null||value===undefined?'—':(()=>{const n=BigInt(value),a=n<0n?-n:n;return (n<0n?'−':'')+'₹'+(a/100n).toLocaleString('en-IN')+'.'+String(a%100n).padStart(2,'0');})();
  function sync(account,navigation,selected){
+  resetSearch?.();
   nav=navigation;const pages=navigation.groups.flatMap(g=>g.children),byPerm=id=>pages.find(p=>p.permissionId===id),byDest=id=>pages.find(p=>p.destinationId===id),can=id=>!!byPerm(id),dest=(permission,...preferred)=>{for(const d of preferred){const p=byDest(d);if(p)return p.destinationId;}return byPerm(permission)?.destinationId||null;};
   const defs=[
    ['DASHBOARD',null,[
@@ -164,13 +165,54 @@
   };
   const [eyebrow,subtitle]=map[label]||['ADMIN WORKSPACE','Live WPay operations with server-enforced permissions.'];return {eyebrow,subtitle};
  }
+ let searchSelection=null;
+ function takeSearch(destination){const selected=searchSelection;searchSelection=null;return selected?.destination===destination?selected.state:{};}
+ async function searchEntities(post,permissions,query){
+  const q=String(query||'').trim().slice(0,100),hits=[],warnings=[];
+  if(q.length<2)return {hits,warnings};
+  await Promise.all([['users.view','user','v5.users'],['merchants.view','merchant','v5.merchants']].map(async([permission,type,destination])=>{
+   if(!permissions.includes(permission))return;
+   try{const data=await post('panel/directory',{type,status:'all',search:q,limit:3,offset:0});for(const row of data.rows)hits.push({label:row.name,subtitle:(type==='user'?'User':'Merchant')+' · '+row.email,destination,state:{search:row.id}});}catch{warnings.push((type==='user'?'User':'Merchant')+' search unavailable.');}
+  }));
+  if(permissions.includes('utr_center.view')&&/^[0-9]{12}$/.test(q)){
+   try{
+    const [sources,claims]=await Promise.all([post('operations/utr-source',{}),post('operations/utr/pending',{status:'all',offset:0,utr:q})]);
+    for(const r of claims.records.slice(0,3))hits.push({label:r.utr,subtitle:'Payment claim · '+r.reference+' · '+r.status,destination:'v5.utr',state:{utr:q}});
+    const links=sources.links||[];let captured=0;
+    for(let start=0;start<links.length&&captured<3;start+=4){
+     const batches=await Promise.all(links.slice(start,start+4).map(async link=>{try{return await post('operations/utr-source',{linkId:link.id,utr:q});}catch{warnings.push('A UTR source is unavailable.');return {observations:[]};}}));
+     for(const data of batches)for(const r of data.observations){if(captured>=3)break;captured++;hits.push({label:r.utr,subtitle:(r.source==='transactions'?'APK':'Statement')+' · INR '+r.amount,destination:'v5.utr',state:{utr:q}});}
+    }
+    if(sources.afterLink)warnings.push('More sources are available on the UTR Capture page.');
+   }catch{warnings.push('UTR search unavailable; open Security to confirm access if required.');}
+  }
+  return {hits,warnings:[...new Set(warnings)]};
+ }
+ function connectSearch(input,results){
+  if(!input||!results)return;let generation=0,timer;
+  input.maxLength=100;input.setAttribute('aria-controls','admin-search-results');input.setAttribute('aria-expanded','false');results.setAttribute('aria-live','polite');
+  const hide=()=>{generation++;clearTimeout(timer);results.classList.add('hidden');input.setAttribute('aria-expanded','false');};
+  resetSearch=()=>{hide();input.value='';results.replaceChildren();};
+  const add=(label,subtitle,destination,state)=>{const row=document.createElement('button'),strong=document.createElement('strong'),small=document.createElement('small');row.type='button';row.className='search-result';strong.textContent=label;small.textContent=subtitle;row.append(strong,small);row.onclick=()=>{hide();input.value='';searchSelection={destination,state:state||{}};api.navigate(destination);};results.append(row);};
+  input.oninput=()=>{
+   clearTimeout(timer);const current=++generation,q=input.value.trim();results.replaceChildren();if(!q){hide();return;}
+   const pages=[...$('navigation').querySelectorAll('.nav-item')].filter(b=>b.textContent.toLowerCase().includes(q.toLowerCase())).slice(0,6);for(const p of pages)add(p.textContent,'Admin module',p.dataset.destination);
+   results.classList.remove('hidden');input.setAttribute('aria-expanded','true');
+   const note=document.createElement('div');note.className='search-result search-note';note.textContent=q.length<2?'Type at least two characters to search accounts.':'Searching accounts'+(/^[0-9]{12}$/.test(q)?' and UTRs':'')+'…';results.append(note);
+   if(q.length<2)return;
+   timer=setTimeout(async()=>{const permissions=(nav?.groups||[]).flatMap(g=>g.children).map(p=>p.permissionId),data=await searchEntities(api.post,permissions,q);if(current!==generation)return;note.remove();for(const h of data.hits)add(h.label,h.subtitle,h.destination,h.state);for(const text of data.warnings){const n=document.createElement('div');n.className='search-result search-note';n.textContent=text;results.append(n);}if(!pages.length&&!data.hits.length&&!data.warnings.length){note.textContent='No matching accounts or pages. Enter a full 12-digit UTR to search receipts.';results.append(note);}},300);
+  };
+  document.addEventListener('click',e=>{if(!e.target.closest('.top-search'))hide();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')hide();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();input.focus();}});
+ }
+
  function connect(value){api=value;
   const menu=$('admin-menu-btn'),veil=$('admin-mobile-veil'),theme=$('admin-theme'),notifications=$('admin-notifications'),profile=$('admin-profile'),sidebarSearch=$('admin-search'),globalSearch=$('admin-global-search'),results=$('admin-search-results');
   if(menu)menu.onclick=()=>{const open=document.body.classList.toggle('admin-nav-open');menu.setAttribute('aria-expanded',String(open));};if(veil)veil.onclick=()=>{document.body.classList.remove('admin-nav-open');menu?.setAttribute('aria-expanded','false');};
   if(theme){try{document.body.classList.toggle('admin-light',localStorage.getItem('wpay-admin-theme')==='light');}catch{}theme.onclick=()=>{document.body.classList.toggle('admin-light');try{localStorage.setItem('wpay-admin-theme',document.body.classList.contains('admin-light')?'light':'dark');}catch{}};}
   const filterNav=q=>{q=q.trim().toLowerCase();for(const group of $('navigation').querySelectorAll('.nav-group')){let shown=0;for(const b of group.querySelectorAll('.nav-item')){b.hidden=!!q&&!b.textContent.toLowerCase().includes(q);if(!b.hidden)shown++;}group.hidden=!!q&&!shown;}};
   if(sidebarSearch)sidebarSearch.oninput=e=>filterNav(e.target.value);
-  if(globalSearch)globalSearch.oninput=e=>{const q=e.target.value.trim().toLowerCase();results.replaceChildren();if(!q){results.classList.add('hidden');return;}const matches=[...$('navigation').querySelectorAll('.nav-item')].filter(b=>b.textContent.toLowerCase().includes(q)).slice(0,10);for(const b of matches){const r=document.createElement('div');r.className='search-result';r.innerHTML='<strong>'+b.textContent+'</strong><small>Admin module</small>';r.onclick=()=>{results.classList.add('hidden');globalSearch.value='';api.navigate(b.dataset.destination);};results.append(r);}results.classList.toggle('hidden',!matches.length);};
+  connectSearch(globalSearch,results);
   if(notifications)notifications.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='notifications.view');if(p)api.navigate('v5.notifications');};
   if(profile)profile.onclick=()=>{const p=nav?.groups.flatMap(g=>g.children).find(x=>x.permissionId==='profile.view');if(p)api.navigate('v5.profile');};
  }
@@ -247,5 +289,5 @@
   keys.forEach((k,i)=>{if(i%3===0||i===keys.length-1)add('text',{x:x(i),y:h-8,'text-anchor':'middle'},k.slice(5));});chart.append(svg);wrap.append(chart);
   const legend=document.createElement('div');legend.className='legend';const a=document.createElement('span'),b=document.createElement('span'),ia=document.createElement('i'),ib=document.createElement('i');ia.style.background='#9a6bff';ib.style.background='#55d6c8';a.append(ia,document.createTextNode('Pay-in volume'));b.append(ib,document.createTextNode('Payout volume'));legend.append(a,b);wrap.append(legend);return wrap;
  }
- root.WPayAdminUi={sync,connect,overview,icon,volumeChart};
+ root.WPayAdminUi={sync,connect,overview,icon,volumeChart,searchEntities,takeSearch};
 })(globalThis);
