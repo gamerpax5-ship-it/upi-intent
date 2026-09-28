@@ -65,14 +65,13 @@
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({afterDevice:data.nextDeviceCursor})));if(state.afterDevice)card.append(button('First devices',()=>reload()));return;
   }
   if(page==='otp'){
-   card.append(el('p','Banking OTP events are separate from your WPay authenticator codes. Content is hidden until you request access.','notice'));
+   card.append(el('p','Banking OTP events are separate from your WPay authenticator codes. Only masked OTP codes and masked SMS content are shown here.','notice'));
    const form=el('form'),device=field(form,'Device reference',state.device||''),sender=field(form,'Sender (exact match)',state.sender||''),owner=account.accountType==='user'?null:field(form,'User account ID',state.ownerId||'');
    for(const i of [device,sender,owner].filter(Boolean))i.maxLength=160;
    const filters=()=>Object.fromEntries(Object.entries({device:device.value.trim(),sender:sender.value.trim(),ownerId:owner?.value.trim()}).filter(([,v])=>v));
    const search=el('button','Search');search.type='submit';form.append(search);form.onsubmit=e=>{e.preventDefault();action(()=>reload(filters()));};card.append(form);
    const query={...state},data=await post('operations/otp',query);
    const results=el('div');card.append(results);if(data.message)results.append(el('p',data.message));else if(!data.events.length)results.append(el('p','No events for these filters.'));
-   let hidden=false;const hide=()=>{hidden=true;results.querySelectorAll('[data-secret]').forEach(n=>{n.textContent='Hidden';});};
    if(data.events.length){
   for(const e of data.events){
     const row=el('article',undefined,'business-row');
@@ -100,7 +99,7 @@
 }
    if(data.nextCursor)card.append(button('Older events',()=>reload({...filters(),...(state.afterDevice?{afterDevice:state.afterDevice}:{}),before:data.nextCursor})));
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({...filters(),afterDevice:data.nextDeviceCursor})));
-   card.append(button('Refresh masked events',()=>reload(filters())));void hidden;return;
+   card.append(button('Refresh masked events',()=>reload(filters())));return;
   }
   if(page==='admins'){
    title.textContent='Admin authority';const data=await post('operations/admins',{offset:state.offset||0,limit:25});
