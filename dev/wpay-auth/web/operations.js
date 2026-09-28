@@ -71,17 +71,19 @@
    for(const i of [device,sender,owner].filter(Boolean))i.maxLength=160;
    const filters=()=>Object.fromEntries(Object.entries({device:device.value.trim(),sender:sender.value.trim(),ownerId:owner?.value.trim()}).filter(([,v])=>v));
    const search=el('button','Search','btn primary');search.type='submit';form.append(search);form.onsubmit=e=>{e.preventDefault();action(()=>reload(filters()));};card.append(form);
-   const query={...state},data=await post('operations/otp',query);
+   const includeHistory=['admin','super_admin'].includes(account.accountType),query={...state,...(includeHistory?{includeHistory:true}:{})},data=await post('operations/otp',query);
+   if(includeHistory)card.append(el('p','Showing masked history for currently linked, tenant-authorized devices. Historical rows predate the current pairing; the owner shown is the current linked owner.','notice'));
    const results=el('div');card.append(results);if(data.message)results.append(el('p',data.message));else if(!data.events.length)results.append(el('p','No events for these filters.'));
    if(data.events.length){
     const wrap=el('div',undefined,'table-wrap'),table=el('table',undefined,'otp-events-table'),head=el('thead'),headRow=el('tr'),body=el('tbody');
     for(const label of ['Date / time','Sender','APK / device','Phone number',...(account.accountType==='user'?[]:['User']),'Masked OTP','Masked message'])headRow.append(el('th',label));head.append(headRow);
     for(const e of data.events){
      const row=el('tr'),deviceCell=el('td'),safe=data.masked===true&&e.masked===true;
-     deviceCell.append(el('strong',e.model||e.device),el('div',e.device,'small muted mono'),el('div',[e.deviceStatus,e.apkVersion].filter(Boolean).join(' · '),'small muted'));
+     deviceCell.append(el('strong',e.model||e.device),el('div',e.device,'small muted mono'),el('div',[e.deviceStatus,e.apkVersion,e.historical?'Historical (before current pairing)':null].filter(Boolean).join(' · '),'small muted'));
      row.append(el('td',new Date(e.receivedAt).toLocaleString()),el('td',e.sender||'—'),deviceCell,el('td',e.phone||'—'));
      if(account.accountType!=='user'){const ownerCell=el('td');ownerCell.append(el('strong',e.ownerName||'—'),el('div',e.ownerId||'','small muted'));row.append(ownerCell);}
-     row.append(el('td',(safe&&e.code?e.code:'[Masked]')+' [Masked]','mono otp-code'),el('td',safe?(e.message||'[Masked message]'):'[Masked message]','msg-cell'));
+     const otpLength=Number.isInteger(e.otpLength)&&e.otpLength>=4&&e.otpLength<=8?e.otpLength:4;
+     row.append(el('td','12345678'.slice(0,otpLength)+' [Masked]','mono otp-code'),el('td',safe?(e.message||'[Masked message]'):'[Masked message]','msg-cell'));
      body.append(row);
     }
     table.append(head,body);wrap.append(table);results.append(wrap);
