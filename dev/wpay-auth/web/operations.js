@@ -70,13 +70,34 @@
    for(const i of [device,sender,owner].filter(Boolean))i.maxLength=160;
    const filters=()=>Object.fromEntries(Object.entries({device:device.value.trim(),sender:sender.value.trim(),ownerId:owner?.value.trim()}).filter(([,v])=>v));
    const search=el('button','Search');search.type='submit';form.append(search);form.onsubmit=e=>{e.preventDefault();action(()=>reload(filters()));};card.append(form);
-   const query={...state,reveal:state.reveal===true},data=await post('operations/otp',query);
+   const query={...state},data=await post('operations/otp',query);
    const results=el('div');card.append(results);if(data.message)results.append(el('p',data.message));else if(!data.events.length)results.append(el('p','No events for these filters.'));
    let hidden=false;const hide=()=>{hidden=true;results.querySelectorAll('[data-secret]').forEach(n=>{n.textContent='Hidden';});};
-   if(data.events.length){card.append(button(state.reveal?'Hide content':'Reveal content (recent MFA required)',()=>state.reveal?(hide(),undefined):reload({...filters(),...(state.before?{before:state.before}:{}),...(state.afterDevice?{afterDevice:state.afterDevice}:{}),reveal:true})));
-    for(const e of data.events){const row=el('article',undefined,'business-row');facts(row,{...(account.accountType==='user'?{}:{User:e.ownerName,'Account ID':e.ownerId}),Device:e.device,Status:e.deviceStatus,'APK version':e.apkVersion,Sender:e.sender,Received:new Date(e.receivedAt).toLocaleString()});const code=el('code',e.code);code.dataset.secret='true';row.append(code);if(e.message){const message=el('p',e.message);message.dataset.secret='true';row.append(message);}results.append(row);}
-   }
-   if(state.reveal){setTimeout(hide,30000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')hide();},{once:true});}
+   if(data.events.length){
+  for(const e of data.events){
+    const row=el('article',undefined,'business-row');
+
+    facts(row,{
+      ...(account.accountType==='user'?{}:{
+        User:e.ownerName,
+        'Account ID':e.ownerId
+      }),
+      Device:e.device,
+      Status:e.deviceStatus,
+      'APK version':e.apkVersion,
+      Sender:e.sender,
+      Received:new Date(e.receivedAt).toLocaleString()
+    });
+
+    row.append(el('code',e.code));
+
+    if(e.message){
+      row.append(el('p',e.message));
+    }
+
+    results.append(row);
+  }
+}
    if(data.nextCursor)card.append(button('Older events',()=>reload({...filters(),...(state.afterDevice?{afterDevice:state.afterDevice}:{}),before:data.nextCursor})));
    if(data.nextDeviceCursor)card.append(button('Next devices',()=>reload({...filters(),afterDevice:data.nextDeviceCursor})));
    card.append(button('Refresh masked events',()=>reload(filters())));void hidden;return;
