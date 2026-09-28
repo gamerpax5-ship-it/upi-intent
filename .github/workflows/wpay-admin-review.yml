@@ -48,6 +48,11 @@ jobs:
         run: npm run check
       - name: Full legacy and WPay test suite with disposable PostgreSQL
         run: npm test
+      - name: Admin regression diagnostics with isolated PostgreSQL
+        if: ${{ !cancelled() }}
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:wpay-ci-disposable@127.0.0.1:5432/wpay_ci
+        run: node --test test/wpay-admin-finance-lifecycle.test.js test/wpay-admin-render-runtime.test.js test/wpay-directory-reactivation.test.js test/wpay-exchange-summary.test.js
       - name: Actual WPay migrations, HTTP, approval and mandatory MFA
         if: ${{ !cancelled() }}
         env:
