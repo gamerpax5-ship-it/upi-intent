@@ -540,11 +540,10 @@
 
   async function utrCapture(o){
     const {post,action,el,container,title}=o;title.textContent="UTR Capture";container.replaceChildren();const utr=o.state?.utr||"",utrFilter=utr?{utr}:{};
-    const [sources,claims,deviceUtrs]=await Promise.all([
-      post("operations/utr-source",{...(o.state?.afterLink?{afterLink:o.state.afterLink}:{})}),
-      post("operations/utr/pending",{status:"all",offset:0,...utrFilter}),
-      post("operations/device-setup/utrs",{})
-    ]);
+    const loadClaims=async()=>{const records=[];for(let offset=0,guard=0;guard<20;guard++,offset+=50){const page=await post("operations/utr/pending",{status:"all",offset,...utrFilter});records.push(...(page.records||[]));if(!page.hasMore)break;}return {records};};
+    const loadDeviceUtrs=async()=>{const records=[];let afterDevice;for(let guard=0;guard<20;guard++){const page=await post("operations/device-setup/utrs",afterDevice?{afterDevice}:{});records.push(...(page.records||[]));if(!page.nextDeviceCursor)break;afterDevice=page.nextDeviceCursor;}return {records};};
+    const loadSources=async()=>{const links=[];let afterLink,sourceConnected=true;for(let guard=0;guard<20;guard++){const page=await post("operations/utr-source",afterLink?{afterLink}:{});links.push(...(page.links||[]));sourceConnected=sourceConnected&&page.sourceConnected!==false;if(!page.afterLink)break;afterLink=page.afterLink;}return {links,sourceConnected};};
+    const [sources,claims,deviceUtrs]=await Promise.all([loadSources(),loadClaims(),loadDeviceUtrs()]);
     const linked=sources.links||[],sourceResults=await Promise.all(linked.map(async link=>{try{return {link,ok:true,...await post("operations/utr-source",{linkId:link.id,...utrFilter})};}catch(error){return {link,ok:false,observations:[],error:error?.message||"Source unavailable"};}}));
     const sourceCaptures=sourceResults.flatMap(x=>(x.observations||[]).map(r=>({...r,sourceKind:x.link.source==="device"?"apk":"statement",deviceOrStatement:x.link.source==="device"?x.link.id:"Uploaded statement"})));
     const pairedCaptures=(deviceUtrs.records||[]).filter(r=>!utr||r.utr===utr).map(r=>({utr:r.utr,amount:r.amount,capturedAt:r.capturedAt,sourceKind:"apk",deviceOrStatement:r.device,userId:r.ownerId,merchantId:null,bankReference:null,sourceStatus:r.status||"captured",evidenceState:"device_observation",accountingState:"not_posted"}));
@@ -576,8 +575,7 @@
     function verify(r){dialog(el,container,"Verify evidence · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Review reason","Verify submitted UTR against independent evidence"),save=el("button","Verify evidence","primary");save.type="submit";form.append(el("p","This only queues/retries independent verification. It does not mark the payment successful by itself.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/verify",{orderId:r.orderId,utr:r.utr,reason:reason.value});d.close();await utrCapture(o);});};});}
     function decision(r,decision){dialog(el,container,(decision==="approve"?"Manual approve":"Reject")+" · "+r.reference,(body,d)=>{const form=document.createElement("form"),reason=field(el,form,"reason","Reason",decision==="approve"?"Admin reviewed supporting evidence":"Evidence rejected"),save=el("button",decision==="approve"?"Manual approve":"Reject",decision==="approve"?"primary":"danger");save.type="submit";form.append(el("p",decision==="approve"?"Admin approval is recorded as admin_approved and remains distinct from bank-verified evidence.":"Rejected claim closes the payment when the backend state allows it.","notice"),save);body.append(form);form.onsubmit=e=>{e.preventDefault();action(async()=>{await post("operations/utr/decision",{claimId:r.claimId,action:decision,reason:reason.value});d.close();await utrCapture(o);});};});}
     draw("all");
-    if(sources.afterLink)container.append(button(el,"More source links",()=>action(()=>utrCapture({...o,state:{utr,afterLink:sources.afterLink}}))));
-    if(o.state?.afterLink)container.append(button(el,"First source links",()=>action(()=>utrCapture({...o,state:{utr}}))));
+
   }
 
   async function statementsPage(o){
