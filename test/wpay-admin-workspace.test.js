@@ -56,7 +56,7 @@ test('Admin Accounts and Collections use the final V5 hierarchy',()=>{
  assert.ok(ui.includes('const panelTable=(el,headers,rows,titleText="",subtitle="")=>'));
  assert.ok(ui.includes('Admin-created User supports an Admin-set password.'));
  assert.ok(ui.includes('Admin-created Merchant supports an Admin-set password.'));
- assert.ok(ui.includes('First confirmed deposit minimum is 2,000 USDT; later top-ups can be smaller.'));
+ assert.ok(ui.includes('Standard first deposit: 2,000 USDT minimum, less a one-time non-refundable 100 USDT setup fee.'));
  assert.ok(ui.includes('Per-UPI daily limit is owner-managed in the latest backend.'));
  assert.ok(ui.includes('panelTable(el,["Merchant","UPI / User","Priority","Payment range","State","Readiness","Action"]'));
  assert.ok(ui.includes('panelTable(el,["Merchant","User","Priority","Amount range","User available","State","Action"]'));
@@ -166,7 +166,7 @@ test('Admin Accounts and Approvals section keeps exact V5 account-card and modal
 });
 test('Admin Pending approvals Collection access and Deposits match exact V5 section flow',()=>{
  const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
- for(const marker of ['Total pending','Unified action queue','Free Setup','Unlimited Collection','First deposit policy','Unlimited Collection capacity ko bypass karta hai, security ko nahi','First confirmed deposit minimum is 2,000 USDT','Requested USDT','INR credit','Tx reference','Manual confirm','Recheck provider','Reverse confirmed deposit'])assert.ok(ui.includes(marker));
+ for(const marker of ['Total pending','Unified action queue','Free Setup','Unlimited Collection','First deposit policy','Unlimited Collection capacity ko bypass karta hai, security ko nahi','Standard first deposit: 2,000 USDT minimum, less a one-time non-refundable 100 USDT setup fee.','Requested USDT','INR credit','Tx reference','Manual confirm','Recheck provider','Reverse confirmed deposit'])assert.ok(ui.includes(marker));
  assert.ok(ui.includes('post("funding/list"'));
  assert.ok(ui.includes('post("funding/recheck"'));
  assert.ok(ui.includes('post("funding/review"'));
