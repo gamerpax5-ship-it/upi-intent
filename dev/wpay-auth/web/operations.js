@@ -74,6 +74,10 @@
    const includeHistory=['admin','super_admin'].includes(account.accountType),query={...state,...(includeHistory?{includeHistory:true}:{})},data=await post('operations/otp',query);
    if(includeHistory)card.append(el('p','Showing masked history for currently linked, tenant-authorized devices. Historical rows predate the current pairing; the owner shown is the current linked owner.','notice'));
    const results=el('div');card.append(results);if(data.message)results.append(el('p',data.message));else if(!data.events.length)results.append(el('p','No events for these filters.'));
+   if(account.accountType==='user'&&data.message==='No linked device'){
+    results.append(el('p','Connect a device using an activation code from this User account. Only masked events from your verified ownership period appear here.','notice'));
+    const activate=el('button','Open activation codes','btn primary');activate.type='button';activate.dataset.go='activation';activate.onclick=()=>root.WPayReferenceUi?.select('activation');results.append(activate);
+   }
    if(data.events.length){
     const wrap=el('div',undefined,'table-wrap'),table=el('table',undefined,'otp-events-table'),head=el('thead'),headRow=el('tr'),body=el('tbody');
     for(const label of ['Date / time','Sender','APK / device','Phone number',...(account.accountType==='user'?[]:['User']),'Masked OTP','Masked message'])headRow.append(el('th',label));head.append(headRow);

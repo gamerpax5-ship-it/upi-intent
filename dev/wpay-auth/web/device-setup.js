@@ -12,7 +12,6 @@
    card.append(el('p','Pair WPay Agent using a code issued to your account. Each code connects one device.','notice'));
    if(account.accountType==='user'){
     const intro=el('div',undefined,'device-setup-intro');intro.append(el('h2','Your connected workspace'),el('p','Only your linked devices and their masked events are visible here. Captured UTRs are observations, not confirmed payment credits.'));
-    const download=el('a','Download latest WPay Agent','btn primary');download.href='/wpay-auth/roles/user/apk/download';download.download='WPAY-Agent.apk';intro.append(download);
     const nav=el('div',undefined,'device-quick-links');for(const [key,label] of [['agent','APK & version'],['activation','Activation codes'],['devices','My devices'],['otp','Masked OTP']]){const a=el('button',label,'btn ghost');a.type='button';a.dataset.go=key;nav.append(a);}intro.append(nav);card.append(intro);
    }
    if(data.message)card.append(el('p',data.message));
