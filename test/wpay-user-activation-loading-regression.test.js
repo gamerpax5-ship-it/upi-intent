@@ -42,5 +42,6 @@ test('activation success displays code and visible confirmation',async()=>{
  const f=fixture(async path=>path==='operations/pairing-history'?{requests:[]}:path==='operations/device-setup'?{pairingAvailable:true,canCreate:true}:{id:'synthetic',pairingCode:'TESTABCD',expiresAt:new Date(Date.now()+600000).toISOString()});
  await f.render();await all(f.container).find(n=>n.textContent==='Generate activation code').onclick();
  assert.ok(all(f.container).some(n=>n.tagName==='code'&&n.textContent==='TESTABCD'));
- assert.ok(all(f.container).some(n=>n.textContent?.includes('Activation code is ready above')));
+ assert.ok(all(f.container).some(n=>n.textContent?.includes('Activation code is ready below')));
+ const nodes=all(f.container);assert.ok(nodes.findIndex(n=>n.tagName==='code')>nodes.findIndex(n=>n.textContent==='Generate activation code'));
 });

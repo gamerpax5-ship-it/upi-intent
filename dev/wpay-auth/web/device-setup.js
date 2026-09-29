@@ -23,21 +23,23 @@
    if(page==='activation'){
     card.append(el('h2','Activate WPay Agent'),el('p','Enter the generated code in WPay Agent. Its actual expiry is shown with the code. Pairing status refreshes automatically.'));
     let requestId=crypto.randomUUID();
-    const feedback=el('p','', 'notice');feedback.role='status';
+    const feedback=el('p','', 'notice'),resultSlot=el('div');feedback.role='status';
     const generate=button('Generate activation code',async()=>{
      generate.disabled=true;feedback.textContent='Generating activation code…';
      try{
      const result=await post('operations/device-setup/create',{requestId});requestId=crypto.randomUUID();
      const box=el('section',undefined,'card pad'),code=el('code',result.pairingCode),status=el('p','Waiting for your APK to pair');code.dataset.secret='true';
      const check=async()=>{const r=await post('operations/device-setup/poll',{requestId:result.id});status.textContent=r.state;if(r.state==='linked'){clearInterval(timer);await reload();}else if(r.state!=='pending')clearInterval(timer);};
-     box.append(el('h2','Enter this code in WPay Agent'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),status,button('Check pairing',check),button('Copy code',async()=>{await navigator.clipboard.writeText(result.pairingCode);status.textContent='Code copied';}),button('Hide code',()=>{code.textContent='Hidden';}));card.prepend(box);
+     box.append(el('h2','Enter this code in WPay Agent'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),status,button('Check pairing',check),button('Copy code',async()=>{await navigator.clipboard.writeText(result.pairingCode);status.textContent='Code copied';}),button('Hide code',()=>{code.textContent='Hidden';}));resultSlot.replaceChildren(box);
      let checking=false;const timer=setInterval(async()=>{if(!box.isConnected||Date.now()>=+new Date(result.expiresAt)){clearInterval(timer);return;}if(checking)return;checking=true;try{await check();}catch{status.textContent='Automatic check paused. Use Check pairing to retry.';clearInterval(timer);}finally{checking=false;}},5000);
      setTimeout(()=>{code.textContent='Hidden';},Math.min(60000,Math.max(0,+new Date(result.expiresAt)-Date.now())));
-     feedback.textContent='Activation code is ready above. Enter it in WPay Agent.';
-     box.scrollIntoView?.({block:'nearest'});
+     feedback.textContent='Activation code is ready below. Enter it in WPay Agent.';
+     // Scroll after the action's presentation pass and browser scroll anchoring.
+     const reveal=()=>{if(box.isConnected)code.scrollIntoView?.({block:'center'});};
+     if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>requestAnimationFrame(reveal));else reveal();
      }catch(error){feedback.textContent='Activation code could not be generated. Check the error message and retry; no device has been linked.';throw error;}
      finally{generate.disabled=!data.pairingAvailable||!data.canCreate;}
-    });generate.disabled=!data.pairingAvailable||!data.canCreate;card.append(generate,feedback);
+    });generate.disabled=!data.pairingAvailable||!data.canCreate;card.append(generate,feedback,resultSlot);
     if(!data.pairingAvailable)card.append(el('p',data.pairingStatus==='source_unavailable'?'Pairing service is temporarily unavailable. Retry shortly.':'APK pairing is not connected to this workspace. Admin must configure the existing pairing service.','notice'));
     if(!data.canCreate)card.append(el('p',data.setupAllowed===false?'Activation needs available collection capacity. Complete an approved payout or Parking payment, confirm a deposit, or ask Admin for free setup access.':'Your account does not have permission to issue pairing codes.','notice'));
     card.append(button('Refresh activation status',()=>reload()));
