@@ -12,23 +12,79 @@
   const facts=(node,data)=>{const dl=el('dl',undefined,'facts');for(const [key,value]of Object.entries(data))dl.append(el('dt',key),el('dd',String(value)));node.append(dl);};
   const reload=()=>render(args);
   async function popup(bank){
-   let challenge=await post('onboarding/create',{bankId:bank.id,version:bank.version,requestId:crypto.randomUUID()});
-   if(challenge.status!=='waiting')return reload();
-   const dialog=el('dialog',undefined,'upi-challenge'),heading=el('h2',t('verify')),status=el('p',t('waiting'),'notice'),count=el('p');status.setAttribute('role','status');
-   if(challenge.synthetic)dialog.append(el('p',t('synthetic'),'notice'));
-   const image=el('img');image.src=challenge.qr;image.alt='UPI payment QR';image.width=image.height=256;
-   dialog.append(heading,el('p',bank.details.upiId),el('h2',money(challenge.amountMinor)),image,count,status);
-   const close=()=>{clearInterval(timer);dialog.close();dialog.remove();};
-   dialog.append(button('cancel',async()=>{await post('onboarding/cancel',{challengeId:challenge.id});close();await reload();}),button('close',async()=>close()));
-   container.append(dialog);dialog.showModal();let polling=false,lastPoll=0;
-   const timer=setInterval(async()=>{
-    if(!dialog.isConnected||!dialog.open){clearInterval(timer);return;}
-    const seconds=Math.max(0,Math.ceil((+new Date(challenge.expiresAt)-Date.now())/1000));count.textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
-    if(polling||Date.now()-lastPoll<5000)return;polling=true;lastPoll=Date.now();
-    try{challenge=await post('onboarding/poll',{challengeId:challenge.id});if(challenge.status==='verified'){close();await reload();}else if(challenge.status!=='waiting'){status.textContent=t(challenge.status);image.remove();clearInterval(timer);}}
-    catch(error){status.textContent=root.WPayLocales.translate(locale,error.message);image.remove();clearInterval(timer);}
-    finally{polling=false;}
-   },1000);dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+   let challenge=null,deviceState={ready:false,status:'checking',devices:[]},busy=false,closed=false,timer,lastRefresh=0;
+   const requestId=crypto.randomUUID(),dialog=el('dialog',undefined,'upi-challenge'),status=el('p','','notice'),apk=el('p','Checking linked APK…','notice'),count=el('strong','Test duration: 10 minutes from QR generation'),qrBox=el('section',undefined,'card'),rows=el('div'),statementStatus=el('p');
+   Object.assign(dialog.style,{width:'min(940px,94vw)',maxWidth:'calc(100vw - 24px)',maxHeight:'92vh',overflow:'auto',padding:'24px',borderRadius:'20px',textAlign:'left',background:'var(--panel, #211019)',color:'var(--text, #f4e7ed)',border:'1px solid var(--line2, #4b2d3a)'});dialog.setAttribute('aria-label','Verify UPI');
+   status.setAttribute('role','status');apk.setAttribute('role','status');
+   const control=(label,fn)=>{const b=el('button',label,'btn');b.type='button';b.onclick=()=>action(async()=>{try{await fn();}catch(e){status.textContent=root.WPayLocales?.translate(locale,e.message)||e.message;throw e;}});return b;};
+   const active=()=>challenge?.status==='waiting'&&Date.parse(challenge.expiresAt)>Date.now();
+   const close=()=>{closed=true;clearInterval(timer);dialog.close();dialog.remove();};
+   const draw=()=>{
+    const live=active();generate.disabled=!deviceState.ready||!!challenge;
+    poll.disabled=!live;upload.disabled=!live;file.disabled=!live;fetchUtrs.disabled=!live;
+    enable.disabled=challenge?.status!=='verified';
+    if(!challenge){count.textContent='Test duration: 10 minutes from QR generation';qrBox.replaceChildren(el('p','Bring the APK for this UPI’s registered mobile online, then generate the test QR.'));return;}
+    const seconds=Math.max(0,Math.ceil((Date.parse(challenge.expiresAt)-Date.now())/1000));count.textContent=challenge.status==='verified'?'Verified':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' remaining';
+    qrBox.replaceChildren();
+    if(challenge.synthetic)qrBox.append(el('p',t('synthetic'),'notice'));
+    qrBox.append(el('h3','Pay exactly INR '+money(challenge.amountMinor).slice(1)),el('p',bank.details.upiId));qrBox.style.textAlign='center';
+    if(live&&deviceState.ready){const image=el('img');image.src=challenge.qr;image.alt='UPI test payment QR';image.width=image.height=256;image.style.maxWidth='100%';qrBox.append(image);}
+    else qrBox.append(el('p',challenge.status==='verified'?'Payment verified.':!seconds?'Test expired. Do not pay this QR. Close and start a new test.':'QR hidden while the matching APK is offline.'));
+    qrBox.append(el('p','Expires: '+new Date(challenge.expiresAt).toLocaleString()));
+   };
+   const refreshDevice=async()=>{
+    try{deviceState=await post('onboarding/device-status',{bankId:bank.id,version:bank.version});}
+    catch(e){deviceState={ready:false,status:'unavailable',devices:[]};throw e;}
+    finally{if(!closed){apk.textContent='APK status: '+deviceState.status+' · registered mobile '+bank.details.mobile+(deviceState.ready?' · online and linked to your account':' · open WPay Agent on the matching phone and keep it connected');draw();}}
+   };
+   const check=async()=>{if(!active())return draw();challenge=await post('onboarding/poll',{challengeId:challenge.id});status.textContent=(challenge.message||challenge.status)+(challenge.verificationMethod?' · '+challenge.verificationMethod:'');draw();};
+   const generate=control('Generate Test QR',async()=>{
+    if(challenge)return;await refreshDevice();if(!deviceState.ready)return;
+    challenge=await post('onboarding/create',{bankId:bank.id,version:bank.version,requestId});status.textContent=challenge.message||challenge.status;draw();
+   }),poll=control('Check status',check),fetchUtrs=control('Fetch captured APK UTRs',async()=>{
+    if(!active())return;await refreshDevice();rows.replaceChildren();
+    const devices=deviceState.devices||[];
+    for(const device of devices){
+     const result=await post('operations/device-setup/utrs',{device:device.device});
+     const relevant=(result.records||[]).filter(r=>{
+      const at=Date.parse(r.capturedAt),amount=String(r.amount||'');
+      if(!/^\d+(\.\d{1,2})?$/.test(amount))return false;
+      const [whole,fraction='']=amount.split('.');
+      return r.status==='CREDIT_RECEIVED'&&!r.historical&&BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))===BigInt(challenge.amountMinor)&&at>=Date.parse(challenge.createdAt)&&at<Date.parse(challenge.expiresAt)&&at<=Date.now()&&/^\d{12}$/.test(r.utr);
+     });
+     for(const r of relevant){const item=el('p',r.utr+' · INR '+r.amount+' · '+new Date(r.capturedAt).toLocaleString()+' · Exact amount received; checking reuse and device binding');rows.append(item);}
+    }
+    if(!rows.children.length)rows.append(el('p','No exact-amount UTR candidate in this test window. You can upload a statement below.'));await check();
+   }),enable=control('Enable verified UPI',async()=>{
+    if(challenge?.status!=='verified')return;
+    await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'enable',reason:'Owner enabled verified UPI'});close();await reload();
+   });
+   const file=el('input');file.type='file';file.accept='.csv,.xls,.xlsx';file.setAttribute('aria-label','Statement fallback');
+   const upload=control('Upload statement',async()=>{
+    if(!active())return;const selected=file.files?.[0];if(!selected)throw Error('Choose a statement file first.');if(selected.size>1048576)throw Error('error.BODY_TOO_LARGE');
+    const format=selected.name.split('.').at(-1).toLowerCase();if(!['csv','xls','xlsx'].includes(format))throw Error('Use CSV, XLS or XLSX.');
+    const bytes=new Uint8Array(await selected.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    if(!active())return draw();
+    const result=await post('onboarding/upload',{bankId:bank.id,version:bank.version,requestId:crypto.randomUUID(),format,base64:btoa(binary)});
+    statementStatus.textContent='Statement '+result.status+' · '+result.creditCount+' credit rows. Checking the current test amount, transaction date and unused 12-digit UTR. Status refreshes automatically.';
+    await check();
+   });
+   dialog.append(el('h2','Verify UPI'),apk,control('Refresh APK status',refreshDevice),count,
+    el('p','1. Connect the matching APK. 2. Generate the QR. 3. Pay the exact test amount. 4. Let the APK capture the credit UTR, or upload your statement. 5. Enable after the UTR and amount match.'),
+    qrBox,generate,poll,status,el('h3','Captured APK UTRs'),fetchUtrs,rows,
+    el('h3','Statement fallback'),el('p','SMS missing? Upload this account’s CSV/XLS/XLSX statement (maximum 1 MiB) before the timer ends. It must contain today’s credit with the exact test amount and an unused 12-digit UTR. Date-only statements are checked by transaction date and upload time, not bank posting time. This verifies UPI setup only; it does not credit your balance.'),file,upload,statementStatus,enable,
+    control('Cancel test',async()=>{if(active())await post('onboarding/cancel',{challengeId:challenge.id});close();await reload();}),control('Close',close));
+   for(const b of [generate,poll,fetchUtrs,upload,enable]){b.style.margin='8px';}
+   enable.style.width='calc(100% - 16px)';enable.style.minHeight='44px';file.style.maxWidth='100%';
+   for(const node of [qrBox,rows,statementStatus,apk]){node.style.marginBlock='16px';node.style.overflowWrap='anywhere';}
+   container.append(dialog);dialog.showModal();draw();
+   try{await refreshDevice();}catch(e){status.textContent='APK status is unavailable. QR generation stays blocked.';}
+   timer=setInterval(async()=>{
+    if(closed||!dialog.isConnected||!dialog.open){clearInterval(timer);return;}
+    draw();if(busy||Date.now()-lastRefresh<10000)return;busy=true;lastRefresh=Date.now();
+    try{await refreshDevice();if(active())await check();}catch(e){status.textContent=root.WPayLocales?.translate(locale,e.message)||e.message;}finally{busy=false;}
+   },1000);
+   dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
   }
   if(page==='upi-analytics'){
    const data=await request('onboarding/analytics');card.append(el('p',t('formula'),'notice'));
