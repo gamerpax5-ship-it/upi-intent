@@ -155,7 +155,7 @@ test("WPay grouped checkbox model explicitly marks restricted actions", () => {
   const groups = getEmployeePermissionGroups();
   assert.ok(groups.every(group => group.permissions.length));
   const choices = groups.flatMap(group => group.permissions);
-  for (const id of ["employees.permissions.update", "ledger.adjust", "security.configure", "api_credentials.create"]) {
+  for (const id of ["employees.permissions.update", "security.configure"]) {
     const choice = choices.find(permission => permission.id === id);
     assert.ok(choice.highRisk);
     assert.equal(choice.selectable, false);

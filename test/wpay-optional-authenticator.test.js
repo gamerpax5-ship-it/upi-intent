@@ -3,8 +3,8 @@ const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID
 const {passwordAssurance}=require('../lib/wpay/auth/runtime/session-assurance');
 test('password assurance accepts only opted-out customers and preserves privileged checks',()=>{
  const now=new Date(),row={account_type:'user',mfa_enabled:false,auth_method:'password',mfa_at:null,password_at:now,created_at:now,database_now:now,status:'active',approval_status:'approved',security_version:1,session_security_version:1,factor_version:0,session_factor_version:0};
- assert.equal(passwordAssurance(row),true);assert.equal(passwordAssurance({...row,account_type:'merchant'}),true);
- for(const patch of [{mfa_enabled:true},{account_type:'employee'},{approval_status:'pending'},{session_security_version:0},{password_at:new Date(+now+1000)},{mfa_enabled:undefined}])assert.equal(passwordAssurance({...row,...patch}),false);
+ assert.equal(passwordAssurance({...row,account_type:'employee'}),true);assert.equal(passwordAssurance(row),true);assert.equal(passwordAssurance({...row,account_type:'merchant'}),true);
+ for(const patch of [{mfa_enabled:true},{approval_status:'pending'},{session_security_version:0},{password_at:new Date(+now+1000)},{mfa_enabled:undefined}])assert.equal(passwordAssurance({...row,...patch}),false);
 });
 test('optional authenticator lifecycle and upgrade on disposable PostgreSQL',async t=>{
  if(!process.env.TEST_DATABASE_URL){t.skip('Requires disposable local PostgreSQL');return;}

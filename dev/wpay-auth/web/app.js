@@ -153,10 +153,10 @@ async function adminAccountSettings(){
 }
 async function security() {
   if(['admin','super_admin'].includes(account.accountType))return adminAccountSettings();
-  const value = await request("security"), root = el("section",undefined,"card"),loginOnly=['user','merchant','admin','super_admin'].includes(account.accountType); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",loginOnly?"Authenticator is optional and used only at login when enabled. Features and security changes require no authenticator code. Sensitive actions still require your current password. New authenticator setup includes a verification code to confirm setup.":tr('freshHelp'),"notice"));
+  const value = await request("security"), root = el("section",undefined,"card"),loginOnly=['user','merchant','admin','super_admin','employee'].includes(account.accountType); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",loginOnly?"Authenticator is optional and used only at login when enabled. Features and security changes require no authenticator code. Sensitive actions still require your current password. New authenticator setup includes a verification code to confirm setup.":tr('freshHelp'),"notice"));
   const form = el("form"), password = field(form,"password","password"), code = value.enabled&&!loginOnly?field(form,"code"):null;
   for (const route of (value.enabled?["replace","regenerate","stepup",...(["user","merchant"].includes(account.accountType)?["disable"]:[])]:["enable","stepup"])) form.append(button(route,() => action(async () => {
-    const passwordOnly=route==='stepup'&&['user','merchant','admin','super_admin'].includes(account.accountType);
+    const passwordOnly=route==='stepup'&&['user','merchant','admin','super_admin','employee'].includes(account.accountType);
     if (!(passwordOnly?password.reportValidity():form.reportValidity())) return; const body = {password:password.value,...(code?{code:code.value}:{})}; password.value = "";if(code)code.value="";
     try { if(passwordOnly)delete body.code;const result = await post("security/" + route,body); if (result.stage) await handleStage(result); else { await load("security"); message("decisionSaved"); } } finally { body.password = body.code = ""; }
   })));

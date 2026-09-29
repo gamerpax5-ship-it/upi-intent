@@ -19,6 +19,14 @@ function toggle(model,id,checked) {
   assert.equal(page.unavailable,false);
   page.checked=checked;page.changed=true;
 }
+
+test('ledger and API pages never implicitly grant their explicit high-risk actions',()=>{
+ const model=access(data());toggle(model,'ledger',true);toggle(model,'api_credentials',true);
+ for(const id of ['ledger.adjust','api_credentials.create','api_credentials.revoke'])assert.ok(!model.selection().includes(id));
+ toggle(model,'ledger.adjust',true);toggle(model,'api_credentials.create',true);
+ assert.ok(model.selection().includes('ledger.adjust'));assert.ok(model.selection().includes('api_credentials.create'));assert.ok(!model.selection().includes('api_credentials.revoke'));
+ assert.equal(validateGrants(Array.from(model.selection()),'employee').allowed,true);
+});
 test('one Users selection grants all delegable actions including commercial settings',()=>{
   const d=data(),model=access(d);
   toggle(model,'users',true);

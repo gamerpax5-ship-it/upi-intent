@@ -1,14 +1,14 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID,randomBytes}=require('node:crypto');
 const {change}=require('../lib/wpay/auth/runtime/optional-mfa'),{hashPassword}=require('../lib/wpay/auth/runtime/passwords');
-test('All optional-MFA roles manage factors with password only; wrong passwords and employees are rejected',async()=>{
+test('All optional-MFA roles manage factors with password only; wrong passwords and unknown roles are rejected',async()=>{
  const password='Synthetic-login-only-2026!',password_record=await hashPassword(password,'user');
- for(const account_type of ['user','merchant','admin','super_admin'])for(const action of ['disable','replace','regenerate']){
+ for(const account_type of ['user','merchant','admin','super_admin','employee'])for(const action of ['disable','replace','regenerate']){
   const now=new Date(),row={id:randomUUID(),account_type,status:'active',approval_status:'approved',mfa_enabled:true,auth_method:'mfa',mfa_at:new Date(+now-600000),database_now:now,security_version:1,session_security_version:1,factor_version:1,session_factor_version:1,password_record},writes=[];
   const client={query:async(sql,args)=>{writes.push(sql);return {rows:[],rowCount:1};}},service={repository:{lockedAccount:async()=>row,attempt:async()=>true,snapshot:async()=>row,replaceRecovery:async(c,n,codes)=>{assert.equal(codes.length,10);writes.push('replaceRecovery');},promote:async(c,n,d,v,at)=>{assert.equal(at,row.mfa_at);writes.push('promote');}},mfa:{validate(){},fresh(){throw Error('MFA must not run');},revokeEpoch:async(c,r)=>{writes.push('revoke');return {...r,security_version:2};},newChallenge:async(c,r,purpose)=>({stage:purpose})},crypto:{verify(){throw Error('MFA must not run');}}};
   assert.equal((await change(service,client,row,{password:'wrong-password'},action,'session')).failure,'AUTH_FAILED');assert.equal(writes.length,0);
   const result=await change(service,client,row,{password},action,'session');assert.ok(writes.includes('revoke'));assert.equal(result.stage,action==='replace'?'replace':action==='regenerate'?'recovery-codes':'authenticated');
-  await assert.rejects(change(service,client,{...row,account_type:'employee'},{password},action,'session'),{code:'FORBIDDEN'});
+  await assert.rejects(change(service,client,{...row,account_type:'unknown'},{password},action,'session'),{code:'FORBIDDEN'});
  }
 });
 test('PostgreSQL login-only MFA lifecycle preserves login challenge and revokes replaced sessions',async t=>{

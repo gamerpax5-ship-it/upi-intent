@@ -16,13 +16,19 @@ test('reactivation preserves UPI verification and rates while disabling all acco
  assert.ok(!f.writes.some(x=>/UPDATE wpay_auth.business_bank|INSERT INTO wpay_auth.commercial|DELETE/.test(x.sql)));
  const audit=f.writes.find(x=>x.sql.startsWith('INSERT INTO wpay_auth.panel_audit'));assert.equal(audit.args[3],'directory_reactivate');
 });
-test('reactivation rejects employee, unapproved account, active account and stale terms',async()=>{
- for(const f of [fixture('employee'),fixture('admin','suspended','pending'),fixture('admin','active')])await assert.rejects(f.call());
+test('reactivation rejects unapproved account, active account and stale terms',async()=>{
+ for(const f of [fixture('admin','suspended','pending'),fixture('admin','active')])await assert.rejects(f.call());
  const f=fixture();f.body.expectedVersion=2;await assert.rejects(f.call(),{code:'CONFLICT'});
 });
 test('reactivation is tenant scoped and requires suspend permission',async()=>{
  const f=fixture();f.context.adminScope.tenantIds=['other'];await assert.rejects(f.call(),{code:'FORBIDDEN'});
  const g=fixture();g.context.grants=['users.view'];await assert.rejects(g.call(),{code:'FORBIDDEN'});
+});
+
+test('Employee reactivation requires an explicit grant and matching tenant',async()=>{
+ const allowed=fixture('employee');assert.equal((await allowed.call()).status,'active');
+ const denied=fixture('employee');denied.context.grants=['users.view'];await assert.rejects(denied.call(),{code:'FORBIDDEN'});
+ const foreign=fixture('employee');foreign.context.adminScope.tenantIds=['other'];await assert.rejects(foreign.call(),{code:'FORBIDDEN'});
 });
 test('suspension stops routing before changing account state',async()=>{
  const f=fixture('admin','active');f.body.action='suspend';assert.equal((await f.call()).status,'suspended');

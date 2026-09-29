@@ -1402,8 +1402,8 @@
     const catalog=(data.permissionGroups||[]).flatMap(g=>g.permissions.map(p=>({...p,groupLabel:g.label})));
     const listed=new Set(catalog.map(p=>p.id));
     for(const p of [...catalog,...[...allowed.values()].filter(p=>!listed.has(p.id))]){
-      const module=p.module||p.id.split('.')[0];
-      if(!groups.has(module))groups.set(module,{id:module,label:employeePageLabels[module]||module.replaceAll('_',' '),group:p.groupLabel||"Page access",permissions:[],restricted:[]});
+      const module=p.highRisk&&p.selectable!==false&&!p.restricted?p.id:(p.module||p.id.split('.')[0]);
+      if(!groups.has(module))groups.set(module,{id:module,label:module===p.id?p.label+' (explicit action)':employeePageLabels[module]||module.replaceAll('_',' '),group:p.groupLabel||"Page access",permissions:[],restricted:[]});
       const page=groups.get(module);
       if(allowed.has(p.id)&&p.selectable!==false&&!p.restricted)page.permissions.push(p.id);else page.restricted.push(p.id);
     }
@@ -1434,7 +1434,7 @@
       metric(el,"Required self permissions",(data.requiredPermissions||[]).length,"Always retained"),
       metric(el,"Can update",data.canUpdate?"Yes":"No","Permission-enforced")
     );
-    container.append(metrics,el("p","Employee permissions are tenant-scoped and cannot exceed the current Admin's grants. Required self/account-security permissions stay enabled. Saving access, status or password changes invalidates existing Employee sessions. Employee MFA remains backend-required.","notice"));
+    container.append(metrics,el("p","Employee permissions are tenant-scoped and cannot exceed the current Admin's grants. Required self/account-security permissions stay enabled. Saving access, status or password changes invalidates existing Employee sessions. Employee authenticator is optional; enabled accounts require it at login. Sensitive actions require password confirmation.","notice"));
     const rows=employees.map(e=>[
       e.name+" · "+e.email,
       pill(el,e.status),

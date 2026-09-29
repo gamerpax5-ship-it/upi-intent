@@ -91,7 +91,7 @@ test("WPay dependency validation rejects rather than adding grants", () => {
   assert.equal(validateGrants(selection, "employee").reason, "MISSING_DEPENDENCY");
   assert.deepEqual(selection, ["users.approve"]);
   assert.equal(validateGrants(["users.view", "users.approve"], "employee").allowed, true);
-  for (const id of ["employees.permissions.update", "employees.create", "ledger.adjust", "security.configure", "api_credentials.create", "api_credentials.revoke"]) assert.equal(validateGrants([id], "employee").reason, "NON_DELEGABLE_PERMISSION");
+  for (const id of ["employees.permissions.update", "employees.create", "security.configure"]) assert.equal(validateGrants([id], "employee").reason, "NON_DELEGABLE_PERMISSION");
 });
 test("WPay administrative scope applies to both lists and records", () => {
   const input = request({ principal: principal("employee"), grants: ["users.view"], permissionId: "users.view", context: { kind: "list" }, adminScope: { tenantIds: ["tenant-a"] } });

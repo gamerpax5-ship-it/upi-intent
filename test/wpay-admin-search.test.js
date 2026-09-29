@@ -17,7 +17,7 @@ test('claim search keeps both tenant predicates and filters by digest before dec
  const {list}=require('../lib/wpay/operations/utr-review'),p=principal(),calls=[],client={query:async(sql,args)=>{calls.push({sql,args});return {rows:[]};}},crypto={open(){throw Error('No unmatched claim may be decrypted');}};
  await list(client,p.row,p.context,{utr:'123456789012',status:'all'},crypto);assert.deepEqual(calls[0].args[0],['tenant-a']);assert.match(calls[0].sql,/u\.tenant_id=ANY\(\$1\) AND m\.tenant_id=ANY\(\$1\)/);assert.equal(calls[0].args[3],createHash('sha256').update('123456789012').digest('hex'));
  for(const body of [{utr:123456789012},{utr:"' OR 1=1 --"},{utr:'123'}])await assert.rejects(list(client,p.row,p.context,body,crypto),{code:'INVALID_INPUT'});
- for(const p of [principal('user'),principal('employee'),principal('admin',[])])await assert.rejects(list(client,p.row,p.context,{utr:'123456789012'},crypto),{code:'FORBIDDEN'});
+ for(const p of [principal('user'),principal('employee',[]),principal('admin',[])])await assert.rejects(list(client,p.row,p.context,{utr:'123456789012'},crypto),{code:'FORBIDDEN'});
  assert.equal(calls.length,1);
 });
 async function readerFixture(){const calls=[],client={query:async(sql,args)=>{calls.push({sql,args});return {rows:[],rowCount:0};},release(){}},reader=await createLegacyReader({query:async()=>({rows:[{name:'wpay_legacy_reader',rolsuper:false}]}),connect:async()=>client});return {reader,calls};}
