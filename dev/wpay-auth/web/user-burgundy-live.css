@@ -136,6 +136,9 @@
 .user-burgundy #workspace #page-content .form-row :is(input,select,textarea){width:100%;min-width:0}
 .user-burgundy #workspace #page-content[data-section="upi-analytics"] table{min-width:950px}
 .user-burgundy #workspace #page-content[data-section="upi-analytics"] td{white-space:nowrap;overflow-wrap:normal}
+.user-burgundy .upi-routing-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:12px}
+.user-burgundy .upi-routing-actions .notice{flex-basis:100%;margin:0}
+.user-burgundy .upi-routing-status{display:inline-block;margin-top:6px;color:var(--muted,#b8a8af);font-size:13px;font-weight:500}
 @media(max-width:650px){.user-burgundy #workspace #page-content .form-row{grid-template-columns:1fr}.user-burgundy #workspace #page-content dialog.modal{padding:18px}.user-burgundy #workspace #page-content[data-section="commission"] .facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* ===== v7 dashboard intelligence + professional layout ===== */

@@ -2,6 +2,7 @@
 (function(root){
  const names={'upi-verification':['UPI Verification','Проверка UPI','UPI 验证'],statements:['Statements','Выписки','银行流水'],'upi-analytics':['UPI Analytics','Аналитика UPI','UPI 分析']};
  const words={verify:['Verify','Проверить','验证'],enable:['Enable','Включить','启用'],run:['Start','Запустить','开始'],stop:['Stop','Остановить','停止'],cancel:['Cancel','Отменить','取消'],close:['Close','Закрыть','关闭'],upload:['Upload statement','Загрузить выписку','上传流水'],waiting:['Waiting for verified payment evidence','Ожидание подтверждённых данных о платеже','等待经过验证的付款凭证'],verified:['Verified','Проверено','已验证'],statement:['Accepted statement','Принятая выписка','已接受的流水'],required:['Required for this bank version','Требуется для этой версии счёта','此账户版本必须提供'],accepted:['Accepted','Принято','已接受'],rejected:['Rejected','Отклонено','已拒绝'],notice:['Upload a CSV, XLS or XLSX statement, up to 1 MiB. Acceptance completes onboarding only; it does not credit payments or confirm bank ownership.','Загрузите CSV, XLS или XLSX до 1 МиБ. Принятие завершает только подготовку; платежи не зачисляются, владение счётом не подтверждается.','上传 CSV、XLS 或 XLSX，最大 1 MiB。接受仅完成开户准备，不记入付款，也不确认银行账户归属。'],synthetic:['SYNTHETIC TEST — do not make a real payment','СИНТЕТИЧЕСКИЙ ТЕСТ — не выполняйте реальный платёж','模拟测试 — 请勿实际付款'],empty:['No bank submissions','Нет заявок на банковские счета','暂无银行账户申请'],total:['Total orders','Всего заказов','订单总数'],successful:['Successful','Успешно','成功'],failed:['Failed','Неуспешно','失败'],pending:['Pending','Ожидают','待处理'],expired:['Expired','Истекли','已过期'],cancelled:['Cancelled / released','Отменены / освобождены','已取消／已释放'],volume:['Successful volume','Успешный объём','成功金额'],rate:['Success rate','Доля успешных','成功率'],formula:['Successful ÷ (successful + failed). Pending, expired and cancelled/released orders are excluded. No completed orders: rate unavailable.','Успешные ÷ (успешные + неуспешные). Ожидающие, истёкшие и отменённые исключены. Без завершённых заказов доля недоступна.','成功 ÷（成功 + 失败）。排除待处理、过期及取消／释放的订单。没有已完成订单时不显示成功率。']};
+ words.run=['Start routing','Запустить маршрутизацию','开始路由'];words.stop=['Stop routing','Остановить маршрутизацию','停止路由'];
  const text=(locale,key)=>(words[key]||names[key]||[key,key,key])[['en','ru','zh-CN'].indexOf(locale)]||key;
  const label=(locale,destination)=>text(locale,destination.replace('user.onboarding-',''));
  const money=value=>'₹'+(BigInt(value)/100n)+'.'+(BigInt(value)%100n).toString().padStart(2,'0');
@@ -11,6 +12,7 @@
   const button=(key,fn)=>{const b=el('button',t(key));b.type='button';b.onclick=()=>action(fn);return b;};
   const facts=(node,data)=>{const dl=el('dl',undefined,'facts');for(const [key,value]of Object.entries(data))dl.append(el('dt',key),el('dd',String(value)));node.append(dl);};
   const reload=()=>render(args);
+  card.append(button('Refresh',reload));
   async function popup(bank){
    let challenge=null,deviceState={ready:false,status:'checking',devices:[]},busy=false,closed=false,timer,lastRefresh=0,lastDraw='';
    const requestId=crypto.randomUUID(),dialog=el('dialog',undefined,'upi-challenge'),status=el('p','','notice'),apk=el('p','Checking linked APK…','notice'),count=el('strong','Test duration: 10 minutes from QR generation'),qrBox=el('section',undefined,'card'),rows=el('div'),statementStatus=el('p');
@@ -24,6 +26,7 @@
     const live=active();generate.disabled=!deviceState.ready||!!challenge;
     poll.disabled=!live;upload.disabled=!live;file.disabled=!live;fetchUtrs.disabled=!live;
     enable.disabled=challenge?.status!=='verified';
+    enable.textContent=challenge?.status==='verified'?t('run'):'Enable verified UPI';
     if(!challenge){count.textContent='Test duration: 10 minutes from QR generation';qrBox.replaceChildren(el('p','Bring the APK for this UPI’s registered mobile online, then generate the test QR.'));return;}
     const seconds=Math.max(0,Math.ceil((Date.parse(challenge.expiresAt)-Date.now())/1000));count.textContent=challenge.status==='verified'?'Verified':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' remaining';
     const drawKey=[challenge.id,challenge.status,live,deviceState.ready,utr.value].join('|');if(drawKey===lastDraw)return;lastDraw=drawKey;
@@ -63,7 +66,7 @@
     rows.append(table);if(!seen.size)rows.append(el('p','No exact-amount UTR candidate in this test window. You can upload a statement below.'));await check();
    }),enable=control('Enable verified UPI',async()=>{
     if(challenge?.status!=='verified')return;
-    await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'enable',reason:'Owner enabled verified UPI'});close();await reload();
+    await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'run',reason:'Owner started verified UPI routing'});close();await reload();
    });
    const file=el('input');file.type='file';file.accept='.csv,.xls,.xlsx';file.setAttribute('aria-label','Statement fallback');
    const upload=control('Upload statement',async()=>{
@@ -94,9 +97,9 @@
   }
   if(page==='upi-analytics'){
    const data=await request('onboarding/analytics');card.append(el('p',t('formula'),'notice'));
-   if(!data.banks.length)card.append(el('p',t('empty')));
+   if(!data.banks.length)card.append(el('p','No verified UPI started by you yet. Complete verification and choose Start routing.'));
    const wrap=el('div',undefined,'table-wrap'),table=el('table'),head=el('thead'),tr=el('tr');for(const label of ['UPI ID',...['total','successful','failed','pending','expired','cancelled','volume','rate'].map(t)])tr.append(el('th',label));head.append(tr);table.append(head);const body=el('tbody');
-   for(const b of data.banks){const row=el('tr');for(const value of [b.upi_id,...['total','successful','failed','pending','expired','cancelled'].map(k=>b[k]),money(b.successful_volume_minor),b.successRate===null?'—':b.successRate+'%'])row.append(el('td',String(value)));body.append(row);}table.append(body);wrap.append(table);card.append(wrap);return;
+   for(const b of data.banks){const row=el('tr'),identity=el('td'),status=el('small','Status: '+(b.routingStatus||b.status),'upi-routing-status');identity.append(el('strong',b.upi_id),el('br'),status);row.append(identity);for(const value of [...['total','successful','failed','pending','expired','cancelled'].map(k=>b[k]),money(b.successful_volume_minor),b.successRate===null?'—':b.successRate+'%'])row.append(el('td',String(value)));body.append(row);}table.append(body);wrap.append(table);card.append(wrap);return;
   }
   const data=await request('business/banks');if(!data.banks.length)card.append(el('p',t('empty')));
   if(page==='statements')card.append(el('p',t('notice'),'notice'));
@@ -106,9 +109,15 @@
    if(bank.verification?.synthetic)item.append(el('p',t('synthetic'),'notice'));
    if(bank.statement)facts(item,{'Last import':new Date(bank.statement.createdAt).toLocaleString(locale),'Import status':t(bank.statement.status)});
    const approved=bank.approved_version===bank.version&&!bank.frozen&&!bank.deactivated;
-   if(page==='upi-verification'&&approved){
-    if(['approved','verification_pending'].includes(bank.status))item.append(button('verify',()=>popup(bank)));
-    for(const command of [...(bank.status==='verified'?['enable']:[]),...(['enabled','stopped'].includes(bank.status)?['run']:[]),...(bank.status==='running'?['stop']:[])])item.append(button(command,async()=>{await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:command,reason:'Owner requested '+command});await reload();}));
+   if(page==='upi-verification'){
+    const actions=el('div',undefined,'upi-routing-actions');
+    if(approved&&['approved','verification_pending'].includes(bank.status))actions.append(button('verify',()=>popup(bank)));
+    else if(approved&&bank.verified_version===bank.version&&['verified','enabled','stopped','running'].includes(bank.status)){
+     const command=bank.status==='running'?'stop':'run';actions.append(button(command,async()=>{await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:command,reason:'Owner requested '+command});await reload();}));
+    }else{
+     const verify=button('verify',()=>popup(bank));verify.disabled=true;actions.append(verify,el('p',bank.frozen?'Frozen by Admin.':bank.deactivated?'UPI deactivated.':approved?'Admin-managed route; not User-verified.':bank.status==='rejected'?'Rejected by Admin. Edit and resubmit from Bank & UPI.':'Awaiting Admin approval for version '+bank.version+'. If just approved, click Refresh.','notice'));
+    }
+    item.append(actions);
    }
    if(page==='statements'&&approved){const form=el('form'),label=el('label',t('upload')),input=el('input');input.type='file';input.accept='.csv,.xls,.xlsx';input.required=true;label.append(input);form.append(label);
     const submit=el('button',t('upload'));submit.type='submit';form.append(submit);form.onsubmit=event=>{event.preventDefault();action(async()=>{const file=input.files[0];if(!file||file.size>1048576)throw Error('error.BODY_TOO_LARGE');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));await post('onboarding/upload',{bankId:bank.id,version:bank.version,requestId:crypto.randomUUID(),format:file.name.split('.').at(-1).toLowerCase(),base64:btoa(binary)});await reload();});};item.append(form);}
