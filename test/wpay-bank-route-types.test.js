@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{createHash}=require('node:crypto');
-const {bank}=require('../lib/wpay/business/validation'),{accountDigest,PaymentEvidence}=require('../lib/wpay/onboarding/evidence');
+const {bank}=require('../lib/wpay/business/bank-input'),{accountDigest,PaymentEvidence}=require('../lib/wpay/onboarding/evidence');
 const business={routeType:'business_upi',upiId:'TEST@upi',bankName:'Test Bank',holderName:'Test User',accountNumber:'1234',ifsc:'',mobile:'9876543210',bankLimitMinor:'100000',accountType:'business',providerName:'Business provider',notes:''};
 test('Business UPI accepts last four digits while retaining strict identity and non-secret notes',()=>{
  const result=bank(business);assert.equal(result.upiId,'test@upi');assert.equal(result.accountNumber,'1234');

@@ -1,6 +1,6 @@
 "use strict";
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const money=require('../lib/wpay/business/money'),routing=require('../lib/wpay/business/routing'),{bank}=require('../lib/wpay/business/validation');
+const money=require('../lib/wpay/business/money'),routing=require('../lib/wpay/business/routing'),{bank}=require('../lib/wpay/business/bank-input');
 const businessLocales=require('../dev/wpay-auth/web/business-locales');
 test('money preserves large exact values, sub-paisa rounding and negative display without Number conversion',()=>{
  assert.equal(money.fromDecimal('1234567890123456789012.34'),'123456789012345678901234');
