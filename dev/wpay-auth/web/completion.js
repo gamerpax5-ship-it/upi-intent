@@ -19,7 +19,10 @@
   }
   if(kind==='notifications'){
    const data=await post('panel/notifications',{offset:state.offset||0});card.append(el('p',t(data.emailDeliveryConfigured?'emailProviderReady':'delivery'),'notice'));const label=el('label',t('inApp')),input=el('input');input.type='checkbox';input.checked=data.preferences.in_app_notifications;input.disabled=!data.canUpdate;label.append(input);card.append(label);
-   if(data.canUpdate)card.append(button('save',async()=>{await post('panel/preferences',{inAppNotifications:input.checked});await reload();}));records(data);return;
+   label.classList.add('notification-preference');
+   if(data.canUpdate){card.append(button('save',async()=>{await post('panel/preferences',{inAppNotifications:input.checked});await reload();}));if(data.rows.some(r=>!r.read))card.append(button('markAllRead',async()=>{await post('panel/notifications/read-all',{});await reload();}));}
+   if(!data.rows.length)card.append(el('p',t('empty'),'notice'));
+   for(const r of data.rows){const item=el('article',undefined,'notification-item'),event=t(r.event),date=new Date(r.created_at);item.append(el('strong',event===r.event?r.event.replaceAll('_',' '):event),el('time',Number.isNaN(+date)?'—':date.toLocaleString(locale==='zh-CN'?'zh-CN':locale==='ru'?'ru-RU':'en-IN',{timeZone:'Asia/Kolkata',dateStyle:'medium',timeStyle:'short'})+' IST'),el('span',t(r.read?'read':'unread'),r.read?'pill':'pill unread'));card.append(item);}paging(data);return;
   }
   if(kind==='support'){
    const data=await post('panel/support',{offset:state.offset||0});card.append(el('p',t('noSecrets'),'notice'),el('p',t('delivery')));

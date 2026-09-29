@@ -32,7 +32,7 @@
    if(headline&&requirements){let notice=document.getElementById('account-requirements');if(!notice){notice=document.createElement('div');notice.id='account-requirements';notice.className='notice account-requirements';headline.after(notice);}const missing=[];
     if(requirements.approvalStatus!=='approved')missing.push('account approval');
     if(role==='user')for(const [key,label]of [['initialDepositSatisfied','initial deposit'],['approvedBankAccountAvailable','approved bank account'],['statementSatisfied','accepted statement'],['upiApproved','UPI approval'],['upiVerified','UPI verification'],['operationsEnabled','operations enabled by Admin']])if(!requirements[key])missing.push(label);
-    notice.hidden=!blocked;notice.textContent=missing.length?'Some sections are locked until setup is complete: '+missing.join(', ')+'. Start with Bank & UPI and USDT Deposit.':'Some sections are unavailable under your current account permissions. Contact Support for access.';
+    notice.hidden=!blocked;notice.textContent=missing.length?'Some sections are unavailable. Standard setup checks still pending: '+missing.join(', ')+'. Account-specific free-setup or unlimited-collection grants may waive funding for eligible features; check the relevant page before depositing.':'Some sections are unavailable under your current account permissions. Contact Support for access.';
    }
    for(const b of buttons){const available=!!nav.resolve(role,b.dataset.page,groups);b.disabled=!available;b.setAttribute('aria-disabled',String(!available));b.title=available?'':'Requires account permission or funding';}
    document.querySelectorAll('[data-account-name]').forEach(n=>{n.textContent=account.name;});

@@ -9,7 +9,7 @@
   function facts(node,rows){const dl=el('dl',undefined,'facts');for(const [key,value]of rows)dl.append(el('dt',t(key)),el('dd',String(value)));node.append(dl);}
   const capacity=(node,c)=>facts(node,[['capacity',decimal(c.available,2)],['signed',decimal(c.signedAvailable,2)],['deficit',decimal(c.deficit,2)]]);
   card.append(el('p',t('policy'),'notice'),el('p',t('warning')));
-  if(user){const config=await request('funding/config');capacity(card,config.capacity);card.append(el('p',t(config.providerConfigured?'configured':'missing'),'notice'));
+  if(user){const config=await request('funding/config');capacity(card,config.capacity);card.append(el('p',t('capacityExplanation'),'notice'),el('p',t(config.providerConfigured?'configured':'missing'),'notice'));
    if(config.settings){const s=config.settings.settings;facts(card,[['network',s.depositNetwork],['address',s.depositAddress],['rate',s.inrPerUsdt],['version',config.settings.version]]);const copyStatus=el('p');copyStatus.setAttribute('role','status');card.append(button('copy',async()=>{await navigator.clipboard.writeText(s.depositAddress);copyStatus.textContent=t('copied');}),copyStatus);
     if(config.canSubmit){const form=el('form'),amount=field(form,'amount'),confirm=field(form,'confirmRequest','','checkbox');amount.inputMode='decimal';amount.pattern='(0|[1-9][0-9]*)(\\.[0-9]{1,6})?';let key=crypto.randomUUID(),previous='';const submit=el('button',t('create'));submit.type='submit';form.append(submit);form.onsubmit=e=>{e.preventDefault();action(async()=>{if(!confirm.checked)return;if(previous&&previous!==amount.value)key=crypto.randomUUID();previous=amount.value;await post('funding/create',{idempotencyKey:key,amountUsdt:amount.value});await render(ctx);});};card.append(form);}
    }

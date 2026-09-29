@@ -78,3 +78,16 @@
 .user-burgundy #workspace .grid>*{min-width:0}
 .user-burgundy #workspace .table-wrap{width:100%;overflow-x:auto}
 .user-burgundy #workspace .card{border-radius:14px}
+.user-burgundy #workspace :is(.notice,.reference-description,.page-hero p){font-size:13px;color:#d4c6ce;line-height:1.65}
+.user-burgundy #workspace :is(.fact label,.metric-top,.hero-stat small){font-size:11px!important;color:#c5adbb}
+.user-burgundy #workspace .page-hero{padding:20px;gap:16px}
+.user-burgundy #workspace .page-hero h1{font-size:clamp(22px,3vw,30px)}
+.user-burgundy #workspace .notification-preference{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.user-burgundy #workspace .notification-preference input{width:auto;flex:0 0 auto}
+.user-burgundy #workspace .notification-item{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 0;border-bottom:1px solid #513447}
+.user-burgundy #workspace .notification-item strong{flex:1 1 220px;overflow-wrap:anywhere;font-size:14px}
+.user-burgundy #workspace .notification-item time{font-size:12px;color:#c5adbb}
+.user-burgundy #workspace .notification-item .unread{color:#f1d08d}
+.light .user-burgundy #workspace :is(.notice,.reference-description,.page-hero p){color:#573f4e}
+.light .user-burgundy #workspace :is(.fact label,.metric-top,.hero-stat small,.notification-item time){color:#69495b}
+.light .user-burgundy #workspace .notification-item .unread{color:#78500d}

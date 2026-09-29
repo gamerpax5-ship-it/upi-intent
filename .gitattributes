@@ -1,0 +1,3 @@
+# Public-site integrity checks hash exact bytes; preserve reviewed LF text.
+dev/wpay-public-site/index.html text eol=lf
+dev/wpay-public-site/assets/*.svg text eol=lf

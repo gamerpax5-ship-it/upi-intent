@@ -5,7 +5,7 @@
   login:['Enter your existing password exactly as saved. Maximum 128 characters / 512 UTF-8 bytes.','Введите существующий пароль точно как сохранён. Не более 128 символов / 512 байт UTF-8.','请准确输入已保存的现有密码。最多 128 个字符 / 512 个 UTF-8 字节。'],
   privileged:['15–128 characters, up to 512 UTF-8 bytes. Passwords are not trimmed.','15–128 символов, не более 512 байт UTF-8. Пробелы не удаляются.','15–128 个字符，最多 512 个 UTF-8 字节。不会去除空白。'],
   change:['Change password','Изменить пароль','更改密码'],newPassword:['New password','Новый пароль','新密码'],confirmPassword:['Confirm new password','Повторите новый пароль','确认新密码'],
-  changeHelp:['Your current password and a fresh authenticator code are required. Other sessions are invalidated; your authenticator and recovery codes stay unchanged.','Нужны текущий пароль и новый код аутентификатора. Другие сеансы будут завершены; аутентификатор и коды восстановления сохранятся.','需要当前密码和新的身份验证器验证码。其他会话将失效；身份验证器及恢复码保持不变。'],
+  changeHelp:['Your current password is required. If your authenticator is enabled, its code is also required. Other sessions are invalidated; your authenticator and recovery codes stay unchanged.','Нужен текущий пароль. Если аутентификатор включён, нужен и его код. Другие сеансы будут завершены; аутентификатор и коды восстановления сохранятся.','需要当前密码；如已启用身份验证器，还需要验证码。其他会话将失效；身份验证器及恢复码保持不变。'],
   mismatch:['Passwords must match.','Пароли должны совпадать.','两次密码必须一致。']
  };
  const text=(locale,key)=>words[key][Math.max(0,['en','ru','zh-CN'].indexOf(locale))];
