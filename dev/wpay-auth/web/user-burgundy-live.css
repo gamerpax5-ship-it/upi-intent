@@ -174,3 +174,46 @@
 .user-burgundy #workspace .user-analytics .card-head p{font-size:13px;line-height:1.6}
 @media(max-width:1100px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.user-burgundy #workspace .analytics-charts{grid-template-columns:1fr}}
 @media(max-width:600px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:1fr;gap:16px}.user-burgundy #workspace .user-analytics{gap:20px}.user-burgundy #workspace .analytics-charts>.card{padding:20px}.user-burgundy #workspace .analytics-kpis .dash-primary-card{min-height:148px;padding:20px}}
+
+/* Shared User sizing contract. Override the prototype's tiny important text. */
+.user-burgundy #workspace{--user-gap:16px;--user-pad:20px;font-size:14px;line-height:1.5}
+.user-burgundy #workspace #page-content :is(h1,.page-hero h1){font-size:26px!important;line-height:1.25;letter-spacing:-.025em}
+.user-burgundy #workspace #page-content :is(h2,.card-head h2,.section-title h2,.table-head h2){font-size:18px!important;line-height:1.35;margin:0 0 10px}
+.user-burgundy #workspace #page-content h3{font-size:15px!important;line-height:1.4}
+.user-burgundy #workspace #page-content :is(.page-hero p,.card-head p,.section-title p,.notice,.hint,.action small,.item-main small,.fact label,.dash-primary-card>small,.dash-primary-card>span,.dash-mini small,.dash-mini em){font-size:12px!important;line-height:1.6;color:var(--muted)}
+.user-burgundy #workspace #page-content :is(.fact strong,.item-main strong,.action strong,label,.control,input,select,textarea,td){font-size:14px!important;line-height:1.5}
+.user-burgundy #workspace #page-content :is(th,.pill){font-size:11px!important;line-height:1.5}
+.user-burgundy #workspace #page-content .eyebrow{font-size:10px!important;line-height:1.5;letter-spacing:.12em}
+.user-burgundy #workspace #page-content :is(button,.btn){font-size:13px!important;line-height:1.4;min-height:40px;height:auto;padding:10px 14px;white-space:normal;max-width:100%;vertical-align:middle}
+.user-burgundy #workspace #page-content :is(.card,details,td)>:is(button,a.btn){margin-block:4px;margin-inline-end:8px}
+.user-burgundy #workspace #page-content :is(.device-quick-links,.route-actions,.filterbar,.otp-filters,.tabs){gap:10px;flex-wrap:wrap}
+.user-burgundy #workspace #page-content :is(.card,.workflow-card,.owned-device-card){padding:var(--user-pad);border-radius:14px}
+.user-burgundy #workspace #page-content :is(.card,.workflow-card)+:is(.card,.workflow-card){margin-top:var(--user-gap)}
+.user-burgundy #workspace #page-content :is(.grid,.analytics-charts,.dashboard-chart-grid,.dashboard-lower-grid,.owned-device-grid)>:is(.card,.workflow-card){margin:0}
+.user-burgundy #workspace #page-content :is(.dashboard-primary-grid,.dashboard-secondary-grid,.analytics-kpis,.dashboard-chart-grid,.dashboard-lower-grid,.analytics-charts,.owned-device-grid){gap:var(--user-gap);align-items:stretch}
+.user-burgundy #workspace #page-content :is(.dash-primary-card,.analytics-kpis .dash-primary-card){padding:var(--user-pad);min-height:144px;gap:6px;border-radius:14px}
+.user-burgundy #workspace #page-content .dash-primary-card>strong{font-size:26px!important;line-height:1.2;margin:4px 0;letter-spacing:-.025em}
+.user-burgundy #workspace #page-content :is(.dash-mini,.analytics-secondary .dash-mini){min-height:108px;padding:18px;gap:12px;border-radius:14px}
+.user-burgundy #workspace #page-content .dash-mini strong{font-size:22px!important;line-height:1.3;margin:4px 0}
+.user-burgundy #workspace #page-content :is(.dash-mini>div,.card-head>div,.page-hero>div){min-width:0}
+.user-burgundy #workspace #page-content :is(.dash-card-icon,.mini-icon){width:32px;height:32px;flex:0 0 32px}
+.user-burgundy #workspace #page-content .dash-primary-card>small{padding-inline-end:40px}
+.user-burgundy #workspace #page-content .card-head{gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.user-burgundy #workspace #page-content .card-head :is(h2,p){margin:0}
+.user-burgundy #workspace #page-content .page-hero{padding:20px;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:0}
+.user-burgundy #workspace #page-content .page-hero :is(h1,p){margin-block:6px}
+.user-burgundy #workspace #page-content :is(.workflow-form,.facts){gap:14px}
+.user-burgundy #workspace #page-content .workflow-form{align-items:start}
+.user-burgundy #workspace #page-content :is(.table-wrap,.table-scroll){padding:0}
+.user-burgundy #workspace #page-content :is(th,td){padding:12px!important;vertical-align:top}
+.user-burgundy #workspace #page-content :is(.user-analytics,.live-content){gap:20px}
+.user-burgundy #workspace #page-content .analytics-rate>strong{font-size:32px;font-weight:500}
+.user-burgundy #workspace #page-content .dashboard-status-strip{gap:12px;padding:16px;flex-wrap:wrap}
+@media(max-width:600px){
+ .user-burgundy #workspace{--user-pad:16px;--user-gap:14px}
+ .user-burgundy #workspace #page-content :is(h1,.page-hero h1){font-size:23px!important}
+ .user-burgundy #workspace #page-content :is(.dash-primary-card,.analytics-kpis .dash-primary-card){min-height:132px}
+ .user-burgundy #workspace #page-content .page-hero{padding:16px}
+ .user-burgundy #workspace #page-content .hero-stat{max-width:100%;text-align:left}
+ .user-burgundy #workspace #page-content .owned-device-grid{grid-template-columns:minmax(0,1fr)}
+}
