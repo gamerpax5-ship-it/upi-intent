@@ -153,7 +153,7 @@ async function adminAccountSettings(){
 }
 async function security() {
   if(['admin','super_admin'].includes(account.accountType))return adminAccountSettings();
-  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",value.enabled?tr("freshHelp"):"Authenticator is optional. Enable it here to require a verification code at login. Confirm your password for security changes.","notice"));
+  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p","Authenticator is optional for login. Pages and features work with it on or off. Sensitive actions and password changes require your password only. The authenticator code below is used only to disable/replace the authenticator or regenerate recovery codes.","notice"));
   const form = el("form"), password = field(form,"password","password"), code = value.enabled?field(form,"code"):null;
   for (const route of (value.enabled?["replace","regenerate","stepup",...(["user","merchant"].includes(account.accountType)?["disable"]:[])]:["enable","stepup"])) form.append(button(route,() => action(async () => {
     const passwordOnly=route==='stepup'&&['user','merchant','admin','super_admin'].includes(account.accountType);
