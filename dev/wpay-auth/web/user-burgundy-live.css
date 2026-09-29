@@ -227,3 +227,45 @@
 @media(max-width:380px){.user-burgundy #workspace #page-content .owned-device-stats{grid-template-columns:1fr}}
 .user-burgundy #page-content :is(.notice,.hint):empty{display:none}
 .user-burgundy #page-content .reference-workflow-shell>button{margin-block:12px;margin-inline-end:8px}
+/* Screenshot-matched verification dialog; isolated from burgundy dashboard cards. */
+.user-burgundy #workspace #page-content dialog.upi-reference-popup{box-sizing:border-box;width:min(940px,94vw);max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;padding:28px;border:1px solid #343d50;border-radius:28px;background:#0e1320;color:#eef0f5;text-align:left;box-shadow:0 24px 80px #0009;font:400 14px/1.55 system-ui,sans-serif}
+.upi-reference-popup::backdrop{background:#040810bf;backdrop-filter:blur(5px)}
+.user-burgundy #workspace #page-content .upi-reference-popup :is(h2,h3,p,ol){margin:0;overflow-wrap:anywhere}
+.user-burgundy #workspace #page-content .upi-reference-popup h2{font:650 23px/1.3 system-ui,sans-serif;color:#f4f6fa}
+.user-burgundy #workspace #page-content .upi-reference-popup h3{font:650 17px/1.4 system-ui,sans-serif;color:#f4f6fa}
+.user-burgundy #workspace #page-content .upi-reference-popup p{font-size:13px;line-height:1.55;color:#bfc5d0}
+.user-burgundy #workspace #page-content .upi-reference-popup> *+*{margin-top:22px}
+.user-burgundy #workspace #page-content .upi-reference-popup button{width:auto;max-width:100%;margin:0;min-height:44px;padding:11px 18px;border:1px solid #aeb7c7;border-radius:18px;background:transparent;color:#e8edf5;font:600 14px/1.35 system-ui,sans-serif;white-space:normal;box-shadow:none}
+.user-burgundy #workspace #page-content .upi-reference-popup button:disabled{opacity:.45;cursor:not-allowed}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-primary{background:#73c5f4;color:#102237;border-color:#73c5f4;min-height:55px;box-shadow:0 5px 20px #58b6ec24}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-enable{width:100%;min-height:55px;background:#6ac466;border-color:#6ac466;color:#fff;font-size:17px}
+.user-burgundy #workspace #page-content .upi-reference-popup :is(.upi-popup-top,.upi-apk-status,.upi-capture-head){display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-popup-top>strong{font-size:13px;color:#8ed1f5;margin-left:auto}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-apk-status{padding:14px 18px;border:1px solid #36465a;border-radius:12px;background:#142031}
+.user-burgundy #workspace #page-content .upi-reference-popup .notice{background:none;border:0;padding:0;color:#ccd6e6}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-steps{padding:18px 20px 18px 42px;border:1px solid #2d3443;border-radius:7px;color:#bfc5d0}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-steps li+li{margin-top:7px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:18px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-latest-test{margin:0;padding:18px;background:#1a202e;border:1px solid #353c4b;border-radius:7px;min-width:0}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-caption{display:block;margin-bottom:12px;font-size:12px;font-weight:700;color:#c8cfda}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-layout{display:grid;grid-template-columns:minmax(125px,200px) minmax(0,1fr);align-items:center;gap:18px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-visual{padding:12px;background:#111827;border-radius:8px;min-width:0}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-visual img{display:block;width:100%;height:auto;max-width:200px;background:#fff}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-details h3{font-size:24px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-details> *+*{margin-top:9px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-details strong{font-size:12px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-utr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px}
+.user-burgundy #workspace #page-content .upi-reference-popup label{display:grid;gap:10px;font-weight:650;font-size:14px;color:#eef0f5}
+.user-burgundy #workspace #page-content .upi-reference-popup input{box-sizing:border-box;width:100%;min-width:0;padding:14px 18px;border:1px solid #354052;border-radius:18px;background:#121828;color:#eef0f5;font:400 16px/1.4 ui-monospace,monospace}
+.user-burgundy #workspace #page-content .upi-reference-popup :is(.upi-captured,.upi-statement-fallback){padding:18px;border:1px solid #353c4b;border-radius:7px;background:#1a202e;min-width:0}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-capture-head p{margin-top:5px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-table-wrap{max-width:100%;overflow:auto;margin-top:18px}
+.user-burgundy #workspace #page-content .upi-reference-popup table{width:100%;min-width:570px;border-collapse:collapse;table-layout:auto;font-size:13px;color:#e3e8f1}
+.user-burgundy #workspace #page-content .upi-reference-popup :is(th,td){padding:14px 12px;text-align:left;border-bottom:1px solid #364051;word-break:normal}
+.user-burgundy #workspace #page-content .upi-reference-popup th{font-size:11px;letter-spacing:.1em;background:#222b3d;color:#bbc5d7}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-match{display:inline-block;white-space:nowrap;font-size:10px;color:#81d78b;border:1px solid #315b3c;border-radius:5px;padding:4px 6px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-statement-fallback> *+*{margin-top:12px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-popup-footer{display:flex;justify-content:flex-end}
+.user-burgundy #workspace #page-content .upi-reference-popup> :is(.upi-apk-status,.upi-test-steps,.upi-test-row,.upi-utr-row,.upi-captured,.upi-statement-fallback,.upi-enable,.upi-popup-footer){margin-top:22px}
+.user-burgundy #workspace #page-content .upi-reference-popup .upi-apk-status .notice{font-size:14px;flex:1 1 300px}
+@media(max-width:650px){.user-burgundy #workspace #page-content dialog.upi-reference-popup{padding:18px;border-radius:18px}.user-burgundy #workspace #page-content .upi-reference-popup :is(.upi-test-row,.upi-utr-row){grid-template-columns:1fr}.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-layout{grid-template-columns:1fr}.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-visual{max-width:200px;justify-self:center}.user-burgundy #workspace #page-content .upi-reference-popup .upi-test-details h3{font-size:21px}}

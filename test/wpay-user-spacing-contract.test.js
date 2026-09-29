@@ -1,10 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const css=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8').split('/* Shared User sizing contract.')[1];
-test('User sizing contract wins against prototype typography without changing colours or visibility',()=>{
- assert.ok(css);assert.match(css,/font-size:26px!important/);assert.match(css,/font-size:18px!important/);assert.match(css,/font-size:14px!important/);assert.match(css,/font-size:12px!important/);
- assert.doesNotMatch(css,/display:none|pointer-events:none|--burg|--panel:|background:/);
+const css=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8'),reference=fs.readFileSync('dev/wpay-auth/web/user-burgundy.css','utf8');
+test('User reference owns typography and colours while live adapters retain visibility safeguards',()=>{
+ assert.match(css,/@import url\('\/wpay-auth\/reference-live\.css'\) layer\(live-defaults\)/);assert.match(css,/@layer live-defaults/);
+ assert.match(reference,/--font:Inter,ui-sans-serif/);assert.match(reference,/--burg:#781737;--burg2:#a72d57/);
+ assert.doesNotMatch(css,/font-size:\s*\d+px!important/);assert.match(css,/\[hidden\]\{display:none!important\}/);
 });
 test('User cards and inline actions keep gaps with compact mobile sizing',()=>{
- assert.match(css,/margin-inline-end:8px/);assert.match(css,/gap:var\(--user-gap\)/);assert.match(css,/min-height:40px;height:auto/);assert.match(css,/margin-top:var\(--user-gap\)/);assert.match(css,/@media\(max-width:600px\)/);assert.match(css,/--user-pad:16px;--user-gap:14px/);
+ assert.match(css,/margin-inline-end:8px/);assert.match(css,/#page-content.live-content\{gap:12px\}/);assert.match(css,/display:flex;flex-wrap:wrap;gap:8px/);assert.match(reference,/\.btn\{min-height:38px/);assert.match(css,/@media\(max-width:600px\)/);assert.match(css,/\.analytics-kpis\{grid-template-columns:1fr;gap:16px\}/);
 });

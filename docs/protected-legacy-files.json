@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "algorithm": "sha256",
   "repository": "gamerpax5-ship-it/upi-intent",
-  "baselineCommit": "8162d1dd81e8e8f20b8dfcc7dcc919fdf168d541",
-  "baselineBranch": "main",
+  "baselineCommit": "3d65c3257cd3c4b8a5abe77b5c113984930487b0",
+  "baselineBranch": "wpay/hosted-integration",
   "scope": "Every tracked file at the inspected baseline, including runtime, tests, vendor source, APK, configuration and existing documentation.",
   "files": [
     {
@@ -328,8 +328,8 @@
     },
     {
       "path": "lib/device-otp-router.js",
-      "bytes": 5598,
-      "sha256": "096f0ef3052a1671ffa9993b5ab16927218401b6f75e8b357c44d520fcad650e"
+      "bytes": 5768,
+      "sha256": "2ab9008a74c78e08fbeddfde636762415b6c85e3229e10dd126ad9ca44829779"
     },
     {
       "path": "lib/device-pairing.js",
@@ -389,12 +389,12 @@
     {
       "path": "public/downloads/WPAY-Agent.apk",
       "bytes": 1800303,
-      "sha256": "5c496ae59d16d913164e717550699aede6b18f211029505856ad51567a2b1158"
+      "sha256": "daea8fed6263bb61a3a35cb4c4cfd10ead6cd6c5d6a1886f8bba79f1c960a807"
     },
     {
       "path": "public/downloads/WPAY-Agent.json",
       "bytes": 156,
-      "sha256": "2aefec9e2680b7f0f0200b29101dc27ecbb1208fe4567be4946ac5435f93e9ac"
+      "sha256": "f78086c8cc5e7d9f05d00e60811f5dcfa44212ce2a828a620f0b540f2ea430e1"
     },
     {
       "path": "public/generator.js",
@@ -493,8 +493,8 @@
     },
     {
       "path": "test/device-otp-router.test.js",
-      "bytes": 1854,
-      "sha256": "2582e62a64fb80335369d9dbfdb26598b06b84c7d6a7d1bfc8da95ebfbd3d7c9"
+      "bytes": 1856,
+      "sha256": "26b065df92dfa9ec24bd3af6890a05ce3ae19e188b4171daabc32ac0ed94b6d7"
     },
     {
       "path": "test/pages.test.js",

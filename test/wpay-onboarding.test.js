@@ -8,7 +8,7 @@ test('onboarding executes the protected UPI builder and real QR library with exa
 });
 test('onboarding bounded parser preserves CSV/XLS/XLSX extraction without financial output',async()=>{
  const XLSX=require('../public/vendor/smart-upi-parser-runtime/xlsx.full.min.js'),book=XLSX.read(csv,{type:'string'});
- for(const format of ['csv','xls','xlsx']){const bytes=Buffer.from(XLSX.write(book,{type:'buffer',bookType:format==='xls'?'biff8':format})),result=await statements.parseStatement(statements.fileInput(format,bytes.toString('base64')),format);assert.equal(result.ok,true);assert.equal(result.credits,1);assert.deepEqual(Object.keys(result).sort(),['credits','ok','resultDigest','rows']);}
+ for(const format of ['csv','xls','xlsx']){const bytes=Buffer.from(XLSX.write(book,{type:'buffer',bookType:format==='xls'?'biff8':format})),result=await statements.parseStatement(statements.fileInput(format,bytes.toString('base64')),format);assert.equal(result.ok,true);assert.equal(result.credits,1);assert.deepEqual(Object.keys(result).sort(),['credits','ok','resultDigest','rows','transactions']);assert.equal(result.transactions.length,1);assert.equal(result.transactions[0].utr,'123456789012');assert.equal(result.transactions[0].amount,'1250.50');assert.deepEqual(Object.keys(result.transactions[0]).sort(),['amount','date','mode','utr']);}
  for(const [format,base64]of [['pdf','YQ=='],['csv',''],['csv','###'],['csv',Buffer.alloc(1048577).toString('base64')]])assert.throws(()=>statements.fileInput(format,base64),{code:'INVALID_INPUT'});
  assert.equal((await statements.parseStatement(Buffer.from('not a statement'),'csv')).ok,false);
  assert.equal(statements.fileInput('csv',Buffer.alloc(1048576).toString('base64')).length,1048576);

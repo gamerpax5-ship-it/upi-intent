@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 test('panel polish retains readable headings, medium controls and contained tables',()=>{
- for(const file of ['admin-ui.css','merchant-premium.css','user-burgundy-live.css']){
+ for(const file of ['admin-ui.css','merchant-premium.css']){
   const css=fs.readFileSync('dev/wpay-auth/web/'+file,'utf8');
   assert.match(css,/#workspace[^{}]*\{[^{}]*font-weight:400/);
   assert.match(css,/#workspace :is\(h1,h2,h3,h4\)\{[^{}]*font-weight:600/);
@@ -9,6 +9,9 @@ test('panel polish retains readable headings, medium controls and contained tabl
   assert.match(css,/min-width:0;max-width:100%/);assert.match(css,/overflow-x:auto/);
  }
  const css=fs.readFileSync('dev/wpay-auth/web/admin-ui.css','utf8');assert.ok(css.includes('minmax(min(100%,340px),1fr)'));assert.ok(css.includes('#page-content .grid>*{min-width:0}'));
+ const user=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8'),reference=fs.readFileSync('dev/wpay-auth/web/user-burgundy.css','utf8');
+ assert.match(user,/@layer live-defaults/);assert.match(reference,/font:13px\/1\.45 var\(--font\)/);assert.match(reference,/button,input,select,textarea\{font:inherit\}/);
+ assert.match(user,/#page-content :is\(\.card,\.grid,\.facts,\.field\)\{min-width:0\}/);assert.match(user,/max-width:100%;overflow-x:auto/);
 });
 test('Merchant final typography wins over legacy important prototype rules',()=>{
  const css=fs.readFileSync('dev/wpay-auth/web/merchant-premium.css','utf8');

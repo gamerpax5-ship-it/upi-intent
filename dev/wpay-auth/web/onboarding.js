@@ -12,9 +12,10 @@
   const facts=(node,data)=>{const dl=el('dl',undefined,'facts');for(const [key,value]of Object.entries(data))dl.append(el('dt',key),el('dd',String(value)));node.append(dl);};
   const reload=()=>render(args);
   async function popup(bank){
-   let challenge=null,deviceState={ready:false,status:'checking',devices:[]},busy=false,closed=false,timer,lastRefresh=0;
+   let challenge=null,deviceState={ready:false,status:'checking',devices:[]},busy=false,closed=false,timer,lastRefresh=0,lastDraw='';
    const requestId=crypto.randomUUID(),dialog=el('dialog',undefined,'upi-challenge'),status=el('p','','notice'),apk=el('p','Checking linked APK…','notice'),count=el('strong','Test duration: 10 minutes from QR generation'),qrBox=el('section',undefined,'card'),rows=el('div'),statementStatus=el('p');
-   Object.assign(dialog.style,{width:'min(940px,94vw)',maxWidth:'calc(100vw - 24px)',maxHeight:'92vh',overflow:'auto',padding:'24px',borderRadius:'20px',textAlign:'left',background:'var(--panel, #211019)',color:'var(--text, #f4e7ed)',border:'1px solid var(--line2, #4b2d3a)'});dialog.setAttribute('aria-label','Verify UPI');
+   dialog.className+=' upi-reference-popup';dialog.setAttribute('aria-label','Verify UPI');
+   const utr=el('input');utr.type='text';utr.inputMode='numeric';utr.maxLength=12;utr.pattern='[0-9]{12}';utr.placeholder='Saved UTR will be checked';utr.setAttribute('aria-label','12-digit UTR');
    status.setAttribute('role','status');apk.setAttribute('role','status');
    const control=(label,fn)=>{const b=el('button',label,'btn');b.type='button';b.onclick=()=>action(async()=>{try{await fn();}catch(e){status.textContent=root.WPayLocales?.translate(locale,e.message)||e.message;throw e;}});return b;};
    const active=()=>challenge?.status==='waiting'&&Date.parse(challenge.expiresAt)>Date.now();
@@ -25,36 +26,41 @@
     enable.disabled=challenge?.status!=='verified';
     if(!challenge){count.textContent='Test duration: 10 minutes from QR generation';qrBox.replaceChildren(el('p','Bring the APK for this UPI’s registered mobile online, then generate the test QR.'));return;}
     const seconds=Math.max(0,Math.ceil((Date.parse(challenge.expiresAt)-Date.now())/1000));count.textContent=challenge.status==='verified'?'Verified':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' remaining';
-    qrBox.replaceChildren();
+    const drawKey=[challenge.id,challenge.status,live,deviceState.ready,utr.value].join('|');if(drawKey===lastDraw)return;lastDraw=drawKey;
+    qrBox.replaceChildren();const caption=el('small','LATEST TEST','upi-test-caption'),layout=el('div',undefined,'upi-test-layout'),visual=el('div',undefined,'upi-test-visual'),details=el('div',undefined,'upi-test-details');qrBox.append(caption,layout);layout.append(visual,details);
     if(challenge.synthetic)qrBox.append(el('p',t('synthetic'),'notice'));
-    qrBox.append(el('h3','Pay exactly INR '+money(challenge.amountMinor).slice(1)),el('p',bank.details.upiId));qrBox.style.textAlign='center';
-    if(live&&deviceState.ready){const image=el('img');image.src=challenge.qr;image.alt='UPI test payment QR';image.width=image.height=256;image.style.maxWidth='100%';qrBox.append(image);}
-    else qrBox.append(el('p',challenge.status==='verified'?'Payment verified.':!seconds?'Test expired. Do not pay this QR. Close and start a new test.':'QR hidden while the matching APK is offline.'));
-    qrBox.append(el('p','Expires: '+new Date(challenge.expiresAt).toLocaleString()));
+    details.append(el('h3','Pay exactly INR '+money(challenge.amountMinor).slice(1)),el('p',bank.details.upiId),el('p','Expires: '+new Date(challenge.expiresAt).toLocaleString()));
+    if(utr.value)details.append(el('strong','Submitted UTR: '+utr.value));
+    if(live&&deviceState.ready){const image=el('img');image.src=challenge.qr;image.alt='UPI test payment QR';image.width=image.height=200;visual.append(image);}
+    else visual.append(el('p',challenge.status==='verified'?'Payment verified.':!seconds?'Test expired. Do not pay this QR. Close and start a new test.':'QR hidden while the matching APK is offline.'));
    };
    const refreshDevice=async()=>{
     try{deviceState=await post('onboarding/device-status',{bankId:bank.id,version:bank.version});}
     catch(e){deviceState={ready:false,status:'unavailable',devices:[]};throw e;}
     finally{if(!closed){apk.textContent='APK status: '+deviceState.status+' · registered mobile '+bank.details.mobile+(deviceState.ready?' · online and linked to your account':' · open WPay Agent on the matching phone and keep it connected');draw();}}
    };
-   const check=async()=>{if(!active())return draw();challenge=await post('onboarding/poll',{challengeId:challenge.id});status.textContent=(challenge.message||challenge.status)+(challenge.verificationMethod?' · '+challenge.verificationMethod:'');draw();};
+   const check=async()=>{if(!active())return draw();const selected=utr.value.trim();if(selected&&!/^\d{12}$/.test(selected))throw Error('Enter a valid 12-digit UTR.');challenge=await post('onboarding/poll',{challengeId:challenge.id,...(selected?{utr:selected}:{})});status.textContent=(challenge.message||challenge.status)+(challenge.verificationMethod?' · '+challenge.verificationMethod:'');draw();};
    const generate=control('Generate Test QR',async()=>{
     if(challenge)return;await refreshDevice();if(!deviceState.ready)return;
     challenge=await post('onboarding/create',{bankId:bank.id,version:bank.version,requestId});status.textContent=challenge.message||challenge.status;draw();
-   }),poll=control('Check status',check),fetchUtrs=control('Fetch captured APK UTRs',async()=>{
+   }),poll=control('Check status',check),fetchUtrs=control('Fetch',async()=>{
     if(!active())return;await refreshDevice();rows.replaceChildren();
-    const devices=deviceState.devices||[];
+    const devices=deviceState.devices||[],table=el('table'),thead=el('thead'),head=el('tr'),tbody=el('tbody');for(const label of ['UTR','AMOUNT','RECEIVED','MATCH','ACTION'])head.append(el('th',label));thead.append(head);table.append(thead,tbody);
+    const seen=new Set();
     for(const device of devices){
-     const result=await post('operations/device-setup/utrs',{device:device.device});
+     let before;for(let page=0;page<5;page++){
+     const result=await post('operations/device-setup/utrs',{device:device.device,...(before?{before}:{})});
      const relevant=(result.records||[]).filter(r=>{
       const at=Date.parse(r.capturedAt),amount=String(r.amount||'');
       if(!/^\d+(\.\d{1,2})?$/.test(amount))return false;
       const [whole,fraction='']=amount.split('.');
       return r.status==='CREDIT_RECEIVED'&&!r.historical&&BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))===BigInt(challenge.amountMinor)&&at>=Date.parse(challenge.createdAt)&&at<Date.parse(challenge.expiresAt)&&at<=Date.now()&&/^\d{12}$/.test(r.utr);
      });
-     for(const r of relevant){const item=el('p',r.utr+' · INR '+r.amount+' · '+new Date(r.capturedAt).toLocaleString()+' · Exact amount received; checking reuse and device binding');rows.append(item);}
+     for(const r of relevant){if(seen.has(r.utr))continue;seen.add(r.utr);const tr=el('tr'),match=el('td'),cell=el('td');tr.append(el('td',r.utr),el('td','INR '+r.amount),el('td',new Date(r.capturedAt).toLocaleString()));match.append(el('span','AMOUNT MATCH','upi-match'));cell.append(control('Use UTR',async()=>{utr.value=r.utr;await check();}));tr.append(match,cell);tbody.append(tr);}
+     if(!result.nextCursor)break;before=result.nextCursor;
+     }
     }
-    if(!rows.children.length)rows.append(el('p','No exact-amount UTR candidate in this test window. You can upload a statement below.'));await check();
+    rows.append(table);if(!seen.size)rows.append(el('p','No exact-amount UTR candidate in this test window. You can upload a statement below.'));await check();
    }),enable=control('Enable verified UPI',async()=>{
     if(challenge?.status!=='verified')return;
     await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'enable',reason:'Owner enabled verified UPI'});close();await reload();
@@ -69,14 +75,14 @@
     statementStatus.textContent='Statement '+result.status+' · '+result.creditCount+' credit rows. Checking the current test amount, transaction date and unused 12-digit UTR. Status refreshes automatically.';
     await check();
    });
-   dialog.append(el('h2','Verify UPI'),apk,control('Refresh APK status',refreshDevice),count,
-    el('p','1. Connect the matching APK. 2. Generate the QR. 3. Pay the exact test amount. 4. Let the APK capture the credit UTR, or upload your statement. 5. Enable after the UTR and amount match.'),
-    qrBox,generate,poll,status,el('h3','Captured APK UTRs'),fetchUtrs,rows,
-    el('h3','Statement fallback'),el('p','SMS missing? Upload this account’s CSV/XLS/XLSX statement (maximum 1 MiB) before the timer ends. It must contain today’s credit with the exact test amount and an unused 12-digit UTR. Date-only statements are checked by transaction date and upload time, not bank posting time. This verifies UPI setup only; it does not credit your balance.'),file,upload,statementStatus,enable,
-    control('Cancel test',async()=>{if(active())await post('onboarding/cancel',{challengeId:challenge.id});close();await reload();}),control('Close',close));
-   for(const b of [generate,poll,fetchUtrs,upload,enable]){b.style.margin='8px';}
-   enable.style.width='calc(100% - 16px)';enable.style.minHeight='44px';file.style.maxWidth='100%';
-   for(const node of [qrBox,rows,statementStatus,apk]){node.style.marginBlock='16px';node.style.overflowWrap='anywhere';}
+   const top=el('header',undefined,'upi-popup-top'),apkRow=el('section',undefined,'upi-apk-status'),steps=el('ol',undefined,'upi-test-steps'),testRow=el('div',undefined,'upi-test-row'),utrRow=el('div',undefined,'upi-utr-row'),utrLabel=el('label','12-digit UTR'),captured=el('section',undefined,'upi-captured'),captureHead=el('div',undefined,'upi-capture-head'),captureTitle=el('div'),fallback=el('section',undefined,'upi-statement-fallback'),footer=el('footer',undefined,'upi-popup-footer');
+   top.append(el('h2','Verify UPI'),count,control('Close',close));apkRow.append(apk,control('Refresh APK status',refreshDevice));
+   for(const line of ['Make sure your APK is connected.','Generate the test QR.','Scan and pay the exact amount shown.','Wait for the credit SMS, or upload your statement below.','Enter the 12-digit UTR.'])steps.append(el('li',line));
+   generate.className+=' upi-primary';poll.className+=' upi-primary';enable.className+=' upi-enable';qrBox.className+=' upi-latest-test';rows.className+=' upi-table-wrap';
+   testRow.append(qrBox,generate);utrLabel.append(utr);utrRow.append(utrLabel,poll);captureTitle.append(el('h3','Captured APK UTRs'),el('p','Recent credit messages from the linked device for this UPI test.'));captureHead.append(captureTitle,fetchUtrs);captured.append(captureHead,rows);
+   fallback.append(el('h3','Statement fallback'),el('p','APK SMS missing? Upload this account’s CSV/XLS/XLSX statement (maximum 1 MiB) within the 10-minute test. The exact amount and an unused 12-digit credit UTR must match. Statement-date matching verifies setup only, not financial credit.'),file,upload,statementStatus);
+   footer.append(control('Cancel test',async()=>{if(active())await post('onboarding/cancel',{challengeId:challenge.id});close();await reload();}));
+   dialog.append(top,apkRow,steps,testRow,utrRow,status,captured,fallback,enable,footer);
    container.append(dialog);dialog.showModal();draw();
    try{await refreshDevice();}catch(e){status.textContent='APK status is unavailable. QR generation stays blocked.';}
    timer=setInterval(async()=>{

@@ -18,7 +18,7 @@ test('PostgreSQL admin report includes manual receipts and reactivation leaves r
  await pool.query('INSERT INTO wpay_auth.commercial_versions(id,account_id,version,settings,actor_id) VALUES($1,$2,1,$3,$4)',[randomUUID(),user,{inrPerUsdt:'107',depositNetwork:'ETHEREUM-ERC20',depositAddress:'0x'+'1'.repeat(40)},admin]);
  const workflow=new FundingWorkflow(),r=await retry(pool,c=>workflow.create(c,{id:user,tenant_id:tenant},{idempotencyKey:randomUUID(),amountUsdt:'2000'}));
  await retry(pool,c=>manualReview(workflow,c,r,{requestId:r.id,action:'manual_confirm',amountUsdt:'2100',reason:'Synthetic confirmed receipt'},admin));
- const row={id:admin,account_type:'admin',database_now:new Date(),mfa_at:new Date()},context={principal:{id:admin,type:'admin',tenantId:tenant,status:'active',permissionVersion:1},currentPermissionVersion:1,grants:['reports.view','users.view','users.suspend'],adminScope:{tenantIds:[tenant]}};
+ const now=new Date(),row={id:admin,account_type:'admin',database_now:now,mfa_at:now,transaction_password_at:now},context={principal:{id:admin,type:'admin',tenantId:tenant,status:'active',permissionVersion:1},currentPermissionVersion:1,grants:['reports.view','users.view','users.suspend'],adminScope:{tenantIds:[tenant]}};
  const report=await api.run(pool,row,context,'panel/admin-finance',{});
  assert.equal(report.funding.usdt,'2100000000');assert.equal(report.funding.inr,'22470000');assert.equal(report.funding.capacity,'21400000');assert.equal(report.fxProfit,'-22470000');
  const assignment=randomUUID();await pool.query("INSERT INTO wpay_auth.business_assignments(id,merchant_id,user_id,status,min_minor,max_minor,created_by) VALUES($1,$2,$3,'active',1,10000,$4)",[assignment,merchant,user,admin]);

@@ -36,10 +36,10 @@ test('optional authenticator lifecycle and upgrade on disposable PostgreSQL',asy
   const checked=await service.mfa.challenge(setup.challengeToken,'verify',{code},type),enabled=await service.mfa.challenge(checked.challengeToken,'complete',{saved:true},type);
   assert.equal((await service.authenticated(enabled.sessionToken,'security')).enabled,true);
   assert.equal((await service.login({email,password:password+' changed'},'127.0.0.1',type)).stage,'challenge');
-  await assert.rejects(service.authenticated(enabled.sessionToken,'security/disable',0,{password:password+' changed',code:'invalid'}),{code:'MFA_FAILED'});
-  // Wait for the next real TOTP step: never weaken replay protection for the test.
-  await new Promise(r=>setTimeout(r,31000-Date.now()%30000));
-  const fresh=await crypto.libraries().otp.generate({secret:q.setupKey}),disabled=await service.authenticated(enabled.sessionToken,'security/disable',0,{password:password+' changed',code:fresh});
+  await assert.rejects(service.authenticated(enabled.sessionToken,'security/disable',0,{password:'incorrect-password'}),{code:'AUTH_FAILED'});
+  assert.equal((await service.authenticated(enabled.sessionToken,'security')).enabled,true);
+  // Login MFA remains enabled until current-password confirmation; no repeat TOTP.
+  const disabled=await service.authenticated(enabled.sessionToken,'security/disable',0,{password:password+' changed'});
   assert.equal((await service.authenticated(disabled.sessionToken,'security')).enabled,false);
   await assert.rejects(service.authenticated(enabled.sessionToken,'me'),{code:'AUTH_FAILED'});
   assert.equal((await service.login({email,password:password+' changed'},'127.0.0.1',type)).stage,'authenticated');

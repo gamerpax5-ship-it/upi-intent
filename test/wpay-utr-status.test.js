@@ -44,7 +44,7 @@ test('claim expiry, admin verification isolation and trusted recovery on real Po
  await assert.rejects(tx(c=>queue(c,row,{...context,adminScope:{tenantIds:['other']}},body,crypto)),{code:'FORBIDDEN'});
  await assert.rejects(tx(c=>queue(c,row,{...context,grants:['utr_center.view']},body,crypto)),{code:'FORBIDDEN'});
  await assert.rejects(tx(c=>queue(c,row,context,{...body,utr:'bad'},crypto)),{code:'INVALID_INPUT'});
- await assert.rejects(tx(c=>queue(c,{...row,password_at:new Date(0)},context,body,crypto)),{code:'RECENT_MFA_REQUIRED'});
+ await assert.rejects(tx(c=>queue(c,{...row,password_at:new Date(0)},context,body,crypto)),{code:'RECENT_PASSWORD_REQUIRED'});
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
  gateway.verifier=async s=>({...s,status:'confirmed',verified:true,final:true,synthetic:true,source:'recovery',utr:s.claims[0],evidenceId:'receipt-'+s.orderId,economicId:'bank-'+s.orderId,receivedAt:new Date().toISOString()});
  assert.equal((await gateway.verifyOrder(noClaim.id)).status,'successful');await gateway.verifyOrder(noClaim.id);

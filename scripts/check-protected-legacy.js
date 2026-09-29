@@ -5,8 +5,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
-const BASELINE_COMMIT = "8162d1dd81e8e8f20b8dfcc7dcc919fdf168d541";
-const MANIFEST_SHA256 = "26bfc9a6ac908fa9f2e19c8ee47f0351d8079b37916c69aefbaf28af6b5d5243";
+const BASELINE_COMMIT = "3d65c3257cd3c4b8a5abe77b5c113984930487b0";
+const MANIFEST_SHA256 = "7b2a9d94fe5a48abb5fd42c6464ab7ca1e74fe4b723ee91c9fa9869e97bc328a";
 const MANIFEST_PATH = "docs/protected-legacy-files.json";
 const digest = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 

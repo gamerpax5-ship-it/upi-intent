@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID
 const {run}=require('../lib/wpay/panels/api');
 function fixture(type='admin',status='suspended',approval='approved'){
  const id=randomUUID(),target=randomUUID(),now=new Date(),writes=[];
- const row={id,account_type:type,database_now:now,mfa_at:now};
+ const row={id,account_type:type,database_now:now,mfa_at:now,transaction_password_at:now};
  const context={principal:{id,type,tenantId:'tenant-a',status:'active',permissionVersion:1},currentPermissionVersion:1,grants:['users.view','users.suspend'],adminScope:{tenantIds:['tenant-a']}};
  const c={query:async(sql,args)=>{writes.push({sql,args});if(sql.includes('SELECT a.*,e.approval_status'))return {rows:[{id:target,account_type:'user',tenant_id:'tenant-a',status,approval_status:approval}]};if(sql.includes('COALESCE(max(version)'))return {rows:[{n:3}]};return {rows:[],rowCount:0};}};
  const body={id:target,requestId:randomUUID(),action:'reactivate',settings:null,expectedVersion:3,reason:'Account review completed'};
@@ -27,4 +27,12 @@ test('reactivation is tenant scoped and requires suspend permission',async()=>{
 test('suspension stops routing before changing account state',async()=>{
  const f=fixture('admin','active');f.body.action='suspend';assert.equal((await f.call()).status,'suspended');
  assert.ok(f.writes.findIndex(x=>x.sql.startsWith('UPDATE wpay_auth.business_assignments'))<f.writes.findIndex(x=>x.sql.startsWith('UPDATE wpay_auth.accounts SET status')));
+});
+
+test('reactivation rejects missing or expired password confirmation even with recent MFA',async()=>{
+ for(const transaction_password_at of [null,new Date(0)]){
+  const f=fixture();f.row.transaction_password_at=transaction_password_at;
+  await assert.rejects(f.call(),{code:'RECENT_PASSWORD_REQUIRED'});
+  assert.equal(f.writes.length,0);
+ }
 });

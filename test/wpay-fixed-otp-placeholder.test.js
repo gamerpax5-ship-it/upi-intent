@@ -4,8 +4,14 @@ const {maskedEvent}=require('../lib/wpay/telegram/format');
 test('notification placeholder never depends on the supplied OTP or SMS',()=>{
  const base={phone:'synthetic-device',receivedAt:'2026-09-28T00:00:00Z'};
  const expected=maskedEvent(base);
- assert.match(expected,/OTP received: 1234 \[MASKED\]/);
+ assert.match(expected,/OTP received: \[MASKED\]/);
  for(const code of ['872194','SECRET','12345678'])assert.equal(maskedEvent({...base,code,message:'Private SMS '+code}),expected);
+ for(const otpLength of [4,5,6,7,8]){
+  const formatted=maskedEvent({...base,otpLength,contentMasked:true,sender:'TESTBANK',maskedMessage:'Your OTP is 872194',code:'872194',message:'RAW PRIVATE MESSAGE'});
+  assert.ok(formatted.includes('OTP received: '+'12345678'.slice(0,otpLength)+' [MASKED]'));
+  assert.match(formatted,/Sender: TESTBANK/);
+  assert.doesNotMatch(formatted,/872194|RAW PRIVATE MESSAGE/);
+ }
 });
 test('every dashboard role ignores the OTP field even when the reply claims to be masked',async()=>{
  class Element{constructor(tag,text=''){this.tagName=tag;this.textContent=text;this.children=[];this.style={};this.dataset={};}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}setAttribute(k,v){this[k]=v;}}

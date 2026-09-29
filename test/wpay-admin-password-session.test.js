@@ -4,14 +4,14 @@ const {passwordAssurance,sessionAssurance,recentAuthenticationAt}=require('../li
 const {begin,change,issue}=require('../lib/wpay/auth/runtime/admin-account');
 const {hashPassword}=require('../lib/wpay/auth/runtime/passwords');
 const now=new Date('2026-09-22T12:00:00Z');
-const row={id:'test',account_type:'admin',status:'active',auth_method:'password',mfa_at:null,password_at:now,created_at:now,database_now:now,security_version:1,session_security_version:1,factor_version:0,session_factor_version:0};
+const row={id:'test',account_type:'admin',status:'active',mfa_enabled:false,auth_method:'password',mfa_at:null,password_at:now,created_at:now,database_now:now,security_version:1,session_security_version:1,factor_version:0,session_factor_version:0};
 test('password assurance only authorizes active admin roles with valid provenance',()=>{
  for(const role of ['admin','super_admin'])assert.equal(passwordAssurance({...row,account_type:role}),true);
  for(const role of ['user','merchant','employee'])assert.equal(sessionAssurance({...row,account_type:role}),false);
  for(const patch of [{status:'disabled'},{password_at:null},{password_at:new Date(+now+1)},{password_at:new Date(+now-1)},{session_security_version:2},{session_factor_version:1},{mfa_at:now},{auth_method:'mfa'}])assert.equal(passwordAssurance({...row,...patch}),false);
  assert.equal(recentAuthenticationAt(row),now);
 });
-test('nonadmin sessions still require MFA',()=>{
+test('employee sessions still require MFA',()=>{
  const mfa={...row,account_type:'employee',auth_method:'mfa',mfa_enabled:true,mfa_at:now,factor_version:1,session_factor_version:1};
  assert.equal(sessionAssurance(mfa),true);assert.equal(sessionAssurance({...mfa,mfa_enabled:false}),false);
 });

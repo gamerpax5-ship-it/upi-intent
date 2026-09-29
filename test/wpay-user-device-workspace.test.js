@@ -19,12 +19,12 @@ test('foreign device details are denied before metadata, OTP or UTR reads',async
  await assert.rejects(setup.detail({query:async()=>({rows:[{owner_id:other}]})},row(owner),context(owner),{id:randomUUID()}),{code:'FORBIDDEN'});assert.equal(reads,0);
 });
 
-test('user device cards expose scoped masked OTP and captured UTR controls with role-specific APK download',async()=>{
+test('user device cards expose scoped masked OTP and captured UTR controls without repeated APK downloads',async()=>{
  class Element{constructor(tag,text){this.tagName=tag;this.textContent=text;this.children=[];this.dataset={};}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}}
  const ctx={crypto:{randomUUID},setTimeout,setInterval,clearInterval};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/device-setup.js','utf8'),ctx);
  const el=(tag,text,cls)=>Object.assign(new Element(tag,text),{className:cls}),container=el('main'),calls=[],all=n=>[n,...n.children.flatMap(all)];
  await ctx.WPayDeviceSetupPage.render({destination:'operations.devices',account:{accountType:'user'},el,container,title:el('h1'),action:fn=>fn(),post:async(path,body)=>{calls.push({path,body});if(path==='operations/device-setup')return {devices:[{id:randomUUID(),device:'owned-device-01',model:'My phone',phone:'+910000000000',locationLabel:'0.00000, 77.00000'}]};if(path==='operations/otp')return {masked:false,events:[{otpLength:6,message:'UNSAFE',receivedAt:new Date()}]};return {records:[{utr:'123456789012',amount:'1200.50',capturedAt:new Date()}]};}});
- assert.equal(all(container).find(n=>n.tagName==='a').href,'/wpay-auth/roles/user/apk/download');
+ assert.equal(all(container).some(n=>n.tagName==='a'&&n.href?.includes('/apk/download')),false);
  await all(container).find(n=>n.tagName==='button'&&n.textContent==='Captured UTRs').onclick();assert.equal(calls.at(-1).body.device,'owned-device-01');assert.match(all(container).map(n=>n.textContent).join(' '),/123456789012/);
  await all(container).find(n=>n.tagName==='button'&&n.textContent==='Masked OTP'&&n.onclick).onclick();assert.equal(calls.at(-1).body.device,'owned-device-01');assert.equal(calls.at(-1).body.includeHistory,undefined);const text=all(container).map(n=>n.textContent).join(' ');assert.match(text,/123456 \[Masked\]/);assert.doesNotMatch(text,/UNSAFE/);
 });
