@@ -141,3 +141,36 @@
  .user-burgundy #workspace .action-rail .action{padding:14px}
 }
 @media(prefers-reduced-motion:reduce){.user-burgundy #workspace :is(.btn,button.action,.nav-item){transition:none}}
+
+/* Spacious User performance layout; retain the existing Burgundy/gold palette. */
+.user-burgundy #workspace #page-content>div:not(.page-hero){min-width:0}
+.user-burgundy #workspace :is(.dashboard-primary-grid,.dashboard-secondary-grid,.dashboard-chart-grid,.dashboard-lower-grid){gap:20px;margin-top:22px;margin-bottom:22px}
+.user-burgundy #workspace :is(.dash-primary-card,.dash-mini){border-radius:16px}
+.user-burgundy #workspace :is(h1,h2,h3,h4){font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif!important;font-weight:600!important}
+.user-burgundy #workspace :is(.dash-primary-card>strong,.dash-mini strong){font-family:inherit!important;font-weight:500!important}
+.user-burgundy #workspace .user-analytics{display:grid;gap:24px}
+.user-burgundy #workspace .user-analytics .page-hero{margin:0}
+.user-burgundy #workspace .analytics-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.user-burgundy #workspace .analytics-kpis .dash-primary-card{min-height:174px;padding:24px}
+.user-burgundy #workspace .analytics-secondary .dash-mini{padding:20px;min-height:118px}
+.user-burgundy #workspace .analytics-charts{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:24px}
+.user-burgundy #workspace .analytics-charts>.card{padding:26px;margin:0}
+.user-burgundy #workspace .analytics-legend{display:flex;gap:22px;font-size:13px;margin-bottom:14px}
+.user-burgundy #workspace .analytics-legend .success{color:#d25a82}
+.user-burgundy #workspace .analytics-legend .pending{color:#e8ca7d}
+.user-burgundy #workspace .analytics-rate{display:flex;align-items:baseline;gap:12px;margin:24px 0}
+.user-burgundy #workspace .analytics-rate>strong{font-size:42px;font-weight:500;color:var(--text);letter-spacing:-.04em}
+.user-burgundy #workspace .analytics-rate>span{color:var(--muted);font-size:13px}
+.user-burgundy #workspace .analytics-outcomes{display:grid;gap:18px}
+.user-burgundy #workspace .analytics-outcome>div{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:7px}
+.user-burgundy #workspace .analytics-outcome strong{font-weight:500}.user-burgundy #workspace .analytics-outcome small{font-weight:400;color:var(--muted);margin-left:5px}
+.user-burgundy #workspace .analytics-outcome progress{display:block;width:100%;height:8px;border:0;border-radius:9px;overflow:hidden;accent-color:#d25a82;background:var(--line)}
+.user-burgundy #workspace .analytics-outcome progress::-webkit-progress-bar{background:var(--line)}
+.user-burgundy #workspace .analytics-outcome progress::-webkit-progress-value{background:#d25a82;border-radius:9px}
+.user-burgundy #workspace .analytics-outcome.pending progress::-webkit-progress-value{background:#e8ca7d}
+.user-burgundy #workspace .analytics-outcome.other progress::-webkit-progress-value{background:#967e88}
+.user-burgundy #workspace .analytics-footer{display:flex;flex-wrap:wrap;gap:16px 28px;color:var(--muted);font-size:13px;padding:8px 0}
+.user-burgundy #workspace .analytics-summary .section-title{margin:0 0 18px}
+.user-burgundy #workspace .user-analytics .card-head p{font-size:13px;line-height:1.6}
+@media(max-width:1100px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.user-burgundy #workspace .analytics-charts{grid-template-columns:1fr}}
+@media(max-width:600px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:1fr;gap:16px}.user-burgundy #workspace .user-analytics{gap:20px}.user-burgundy #workspace .analytics-charts>.card{padding:20px}.user-burgundy #workspace .analytics-kpis .dash-primary-card{min-height:148px;padding:20px}}

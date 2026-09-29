@@ -47,5 +47,22 @@
   }
   container.replaceChildren(page);
  }
- root.WPayUserBurgundyDashboard={render,payins};
+ async function analytics(args){
+  const {container,title,request,el,action}=args;title.textContent='Analytics';
+  const loading=el('p','Loading your performance…','notice');container.replaceChildren(loading);
+  const data=await request('business/user-dashboard');if(!loading.isConnected)return;
+  const p=data.payins,o=data.payouts,total=Number(p.total),success=Number(p.successful),failed=Number(p.failed),pending=Number(p.pending),other=Math.max(0,total-success-failed-pending);
+  const rate=total?(success*100/total).toFixed(1)+'%':'—';
+  const breakdown=[['Successful',success,'success'],['Failed',failed,'failed'],['Pending',pending,'pending'],['Expired / other',other,'other']];
+  const page=el('div',undefined,'user-analytics');
+  page.innerHTML=`<header class="page-hero"><div><div class="eyebrow">Performance overview</div><h1>Your payment analytics</h1><p>Own-account activity · all-time totals · today follows India time (IST).</p></div><button type="button" class="btn ghost" data-analytics-refresh>Refresh data</button></header>
+   <div class="analytics-kpis">${primary('Success rate',rate,'Successful pay-ins ÷ all pay-in orders',true)}${primary('Today collection',money(p.today_volume),'Successful collections paid today')}${primary('Successful orders',success,'All-time successful pay-ins')}${primary('Failed orders',failed,'Failed pay-ins; excludes expired orders')}</div>
+   <div class="analytics-kpis analytics-secondary">${mini('Total orders',total,'All pay-in statuses')}${mini('Pending orders',pending,'Payment or verification pending')}${mini('Today orders',p.today_orders,'Pay-ins created today (IST)')}${mini('Average successful payment',success?money(BigInt(p.volume)/BigInt(success)):'—','All-time successful pay-in average')}</div>
+   <div class="analytics-charts"><section class="card pad"><div class="card-head"><div><h2>Collection & payout trend</h2><p>Successful volume · rolling last 7 days · India dates</p></div></div><div class="analytics-legend"><span class="success">● Collections</span><span class="pending">● Payouts</span></div><div class="chart-wrap dashboard-chart">${chart(data.trend)}</div></section>
+   <section class="card pad"><div class="card-head"><div><h2>Order outcomes</h2><p>All-time pay-in distribution · ${esc(total)} orders</p></div></div><div class="analytics-rate"><strong>${rate}</strong><span>success rate</span></div><div class="analytics-outcomes">${breakdown.map(([label,count,cls])=>`<div class="analytics-outcome ${cls}"><div><span>${label}</span><strong>${count}<small> ${total?(count*100/total).toFixed(1):'0.0'}%</small></strong></div><progress max="${Math.max(1,total)}" value="${count}" aria-label="${label} orders">${count}</progress></div>`).join('')}</div>${!total?'<p class="empty">No pay-in orders yet.</p>':''}</section></div>
+   <section class="analytics-summary"><div class="section-title"><div><h2>Volume & earnings</h2><p>Successful activity only; captured SMS is not counted as payment success.</p></div></div><div class="analytics-kpis analytics-secondary">${mini('Collection volume',money(p.volume),'Successful pay-ins · all time')}${mini('Payout volume',money(o.volume),o.successful+' completed payouts')}${mini('Parking completed',money(data.parking.volume),'Completed Parking payments')}${mini('Total commission',money(data.commission?.gross),'Available: '+money(data.commission?.available))}</div></section>
+   <div class="analytics-footer"><span>${esc(data.banks.filter(b=>b.status==='running'&&!b.frozen&&!b.deactivated).length)} running UPI routes</span><span>${esc(o.review)} payouts in Merchant review</span><span>Total successful volume: ${money(data.totalVolumeMinor)}</span></div>`;
+  page.querySelector('[data-analytics-refresh]').onclick=()=>action(()=>analytics(args));container.replaceChildren(page);
+ }
+ root.WPayUserBurgundyDashboard={render,payins,analytics};
 })(globalThis);
