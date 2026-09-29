@@ -146,15 +146,15 @@ async function adminAccountSettings(){
   });};root.append(form);
  }
  const factor=el('form');factor.append(el('h3','Optional login authenticator'),el('p',value.enabled?'Enabled: a code is required at login. Transactions ask for password only.':'Off: sign in with your password. Transactions may ask you to confirm it.','notice'));
- const factorPassword=input(factor,'Current password','password','current-password'),factorCode=value.enabled?input(factor,'Authenticator code to disable','text','one-time-code'):null,toggle=el('button',value.enabled?'Disable authenticator':'Enable authenticator','primary');toggle.type='submit';factor.append(toggle);
+ const factorPassword=input(factor,'Current password','password','current-password'),factorCode=null,toggle=el('button',value.enabled?'Disable authenticator':'Enable authenticator','primary');toggle.type='submit';factor.append(toggle);
  factor.onsubmit=event=>{event.preventDefault();action(async()=>{const body={password:factorPassword.value,...(factorCode?{code:factorCode.value}:{})};factorPassword.value='';if(factorCode)factorCode.value='';try{const result=await post(value.enabled?'security/disable':'security/enable',body);if(result.stage)return handleStage(result);await load('security');}finally{body.password=body.code='';}});};root.append(factor);
  root.append(el('h3','Active sessions'));for(const s of value.sessions)root.append(el('p',`${s.current?'This session · ':''}Created: ${s.createdAt} · Expires: ${s.expiresAt}`));
  root.append(button('logoutAll',()=>action(logoutAll)));$('page-content').replaceChildren(root);
 }
 async function security() {
   if(['admin','super_admin'].includes(account.accountType))return adminAccountSettings();
-  const value = await request("security"), root = el("section",undefined,"card"); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p","Authenticator is optional for login. Pages and features work with it on or off. Sensitive actions and password changes require your password only. The authenticator code below is used only to disable/replace the authenticator or regenerate recovery codes.","notice"));
-  const form = el("form"), password = field(form,"password","password"), code = value.enabled?field(form,"code"):null;
+  const value = await request("security"), root = el("section",undefined,"card"),loginOnly=['user','merchant','admin','super_admin'].includes(account.accountType); $("page-title").textContent = tr("security"); root.append(el("p",value.enabled?tr("securityEnabled"):"Authenticator is off — sign in with email and password."),el("p",loginOnly?"Authenticator is optional and used only at login when enabled. Features and security changes require no authenticator code. Sensitive actions still require your current password. New authenticator setup includes a verification code to confirm setup.":tr('freshHelp'),"notice"));
+  const form = el("form"), password = field(form,"password","password"), code = value.enabled&&!loginOnly?field(form,"code"):null;
   for (const route of (value.enabled?["replace","regenerate","stepup",...(["user","merchant"].includes(account.accountType)?["disable"]:[])]:["enable","stepup"])) form.append(button(route,() => action(async () => {
     const passwordOnly=route==='stepup'&&['user','merchant','admin','super_admin'].includes(account.accountType);
     if (!(passwordOnly?password.reportValidity():form.reportValidity())) return; const body = {password:password.value,...(code?{code:code.value}:{})}; password.value = "";if(code)code.value="";
