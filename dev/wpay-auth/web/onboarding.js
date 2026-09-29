@@ -33,7 +33,8 @@
   if(page==='upi-analytics'){
    const data=await request('onboarding/analytics');card.append(el('p',t('formula'),'notice'));
    if(!data.banks.length)card.append(el('p',t('empty')));
-   for(const b of data.banks){const item=el('article',undefined,'business-row');item.append(el('h2',b.upi_id));facts(item,Object.fromEntries(['total','successful','failed','pending','expired','cancelled'].map(key=>[t(key),b[key]])));facts(item,{[t('volume')]:money(b.successful_volume_minor),[t('rate')]:b.successRate===null?'—':b.successRate+'%'});card.append(item);}return;
+   const wrap=el('div',undefined,'table-wrap'),table=el('table'),head=el('thead'),tr=el('tr');for(const label of ['UPI ID',...['total','successful','failed','pending','expired','cancelled','volume','rate'].map(t)])tr.append(el('th',label));head.append(tr);table.append(head);const body=el('tbody');
+   for(const b of data.banks){const row=el('tr');for(const value of [b.upi_id,...['total','successful','failed','pending','expired','cancelled'].map(k=>b[k]),money(b.successful_volume_minor),b.successRate===null?'—':b.successRate+'%'])row.append(el('td',String(value)));body.append(row);}table.append(body);wrap.append(table);card.append(wrap);return;
   }
   const data=await request('business/banks');if(!data.banks.length)card.append(el('p',t('empty')));
   if(page==='statements')card.append(el('p',t('notice'),'notice'));

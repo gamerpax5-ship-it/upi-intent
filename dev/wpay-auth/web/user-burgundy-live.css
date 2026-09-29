@@ -1,5 +1,7 @@
+@import url('/wpay-auth/reference-live.css') layer(live-defaults);
+/* Live-only adapters. Unlayered reference rules own the visual design. */
+@layer live-defaults {
 /* Live controls use the supplied Burgundy tokens and layout. */
-.user-burgundy{--panel2:#211019;--panel3:#2b1420;--line2:rgba(209,91,134,.22);--muted:#b6a1ab;--violet:#a82c58}
 .user-burgundy .page-head{display:flex;align-items:center;gap:18px;padding:20px 22px;margin-bottom:12px;border:1px solid rgba(209,91,134,.13);border-radius:13px;background:radial-gradient(circle at 86% 20%,rgba(232,202,125,.075),transparent 18rem),linear-gradient(120deg,#280e1a,#14090f)}
 .user-burgundy .page-head>div{flex:1}.user-burgundy .page-head h1{font:400 34px/1.1 Georgia,serif;margin:4px 0 7px}
 .user-burgundy .reference-description{color:var(--muted);margin:0}.user-burgundy #language{width:auto;max-width:105px}
@@ -21,7 +23,7 @@
 .user-burgundy .route-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
 .user-burgundy dialog.modal{width:min(690px,94vw);max-height:91vh;overflow:auto}
 /* Reference theme applied to live workflow nodes; forms retain their handlers. */
-.user-burgundy .live-content{font-size:14px;line-height:1.55;min-width:0}
+.user-burgundy .live-content{font-size:13px;line-height:1.45;min-width:0}
 .user-burgundy .live-content>.page-hero{margin-bottom:14px}
 .user-burgundy .live-content .workflow-card{margin:12px 0;border:1px solid var(--line2);background:linear-gradient(145deg,#24121c,#180c13)}
 .user-burgundy .live-content .workflow-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;padding:18px;border:1px solid var(--line2);border-radius:12px;background:rgba(255,255,255,.018)}
@@ -68,20 +70,7 @@
 .login-visual .visual-foot{grid-row:4}
 @media(max-width:600px){.login-visual{grid-template-rows:auto auto auto;min-height:520px}.login-visual .visual-copy{grid-row:2}.login-visual .visual-foot{grid-row:3}}
 
-/* Keep the User workspace readable without heavy text or expanding cards. */
-.user-burgundy #workspace{font-weight:400;line-height:1.5}
-.user-burgundy #workspace :is(h1,h2,h3,h4){font-family:inherit;font-weight:600;letter-spacing:-.015em}
-.user-burgundy #workspace :is(button,.btn,.nav-item){font-weight:500}
-.user-burgundy #workspace :is(strong,b,.metric-value){font-weight:600}
-.user-burgundy #workspace :is(label,th,.eyebrow){font-weight:500}
-.user-burgundy #workspace :is(.card,.panel,.grid,.table-wrap){min-width:0;max-width:100%}
-.user-burgundy #workspace .grid>*{min-width:0}
-.user-burgundy #workspace .table-wrap{width:100%;overflow-x:auto}
-.user-burgundy #workspace .card{border-radius:14px}
-.user-burgundy #workspace :is(.notice,.reference-description,.page-hero p){font-size:13px;color:#d4c6ce;line-height:1.65}
-.user-burgundy #workspace :is(.fact label,.metric-top,.hero-stat small){font-size:11px!important;color:#c5adbb}
-.user-burgundy #workspace .page-hero{padding:20px;gap:16px}
-.user-burgundy #workspace .page-hero h1{font-size:clamp(22px,3vw,30px)}
+
 .user-burgundy #workspace .notification-preference{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .user-burgundy #workspace .notification-preference input{width:auto;flex:0 0 auto}
 .user-burgundy #workspace .notification-item{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 0;border-bottom:1px solid #513447}
@@ -92,62 +81,7 @@
 .light .user-burgundy #workspace :is(.fact label,.metric-top,.hero-stat small,.notification-item time){color:#69495b}
 .light .user-burgundy #workspace .notification-item .unread{color:#78500d}
 
-/* User glass refinement: presentation only; retain Burgundy theme tokens. */
-.user-burgundy #workspace{font-family:"Segoe UI Variable Text","Segoe UI",Inter,ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:400;letter-spacing:.005em}
-.user-burgundy #workspace :is(h1,h2,h3,h4,.hero-stat strong){font-family:inherit;font-weight:600;letter-spacing:-.025em;line-height:1.25}
-.user-burgundy #workspace :is(button,input,select,textarea){font-family:inherit}
-.user-burgundy #workspace :is(.dash-primary-card,.dash-mini,.card,.workflow-card,.owned-device-card){border-radius:18px;border:1px solid var(--line2);box-shadow:inset 0 1px 0 #ffffff08,0 8px 24px #00000018;min-width:0}
-.user-burgundy #workspace :is(.dash-primary-card:not(.featured),.dash-mini,.workflow-card){background-color:var(--panel);background-image:linear-gradient(135deg,#ffffff05,transparent 65%)}
-@supports (backdrop-filter:blur(12px)){
- .user-burgundy #workspace :is(.dash-primary-card:not(.featured),.dash-mini,.workflow-card){background-color:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(12px)}
- .user-burgundy #workspace .topbar{backdrop-filter:blur(18px)}
-}
-.user-burgundy #workspace :is(.dashboard-primary-grid,.dashboard-secondary-grid,.dashboard-chart-grid,.dashboard-lower-grid){gap:14px}
-.user-burgundy #workspace .dashboard-primary-grid{padding:0;background:none;overflow:visible}
-.user-burgundy #workspace .dash-primary-card{padding:20px;min-height:148px;display:flex;flex-direction:column;gap:7px}
-.user-burgundy #workspace .dash-primary-card>strong{font-size:clamp(24px,2.5vw,32px);font-weight:600;line-height:1.2;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.user-burgundy #workspace .dash-primary-card>small{font-size:12px;font-weight:500;letter-spacing:.01em}
-.user-burgundy #workspace .dash-primary-card>span{font-size:12px;line-height:1.5;color:var(--muted);max-width:100%}
-.user-burgundy #workspace .dash-card-icon{border-radius:12px;width:34px;height:34px}
-.user-burgundy #workspace .dash-mini{padding:16px;gap:12px;align-items:flex-start}
-.user-burgundy #workspace .dash-mini :is(small,em){font-size:12px;font-style:normal;line-height:1.5}
-.user-burgundy #workspace .dash-mini strong{font-size:20px;font-weight:600;letter-spacing:-.025em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.user-burgundy #workspace .mini-icon{border-radius:10px;flex-shrink:0}
-.user-burgundy #workspace .page-hero{padding:22px 24px;border-radius:20px;box-shadow:inset 0 1px 0 #ffffff08;margin-bottom:18px}
-.user-burgundy #workspace .page-hero h1{font-size:clamp(24px,3vw,34px);margin:6px 0 8px}
-.user-burgundy #workspace .hero-stat strong{font-size:clamp(20px,2.4vw,28px);overflow-wrap:anywhere}
-.user-burgundy #workspace .eyebrow{font-size:10px;letter-spacing:.14em;font-weight:500}
-.user-burgundy #workspace :is(.card-head,.section-title) h2{font-size:18px;font-weight:600}
-.user-burgundy #workspace :is(.card-head,.section-title) p{font-size:12px;line-height:1.5}
-.user-burgundy #workspace .card.pad{padding:20px}
-.user-burgundy #workspace .action-rail{gap:10px;border:0;background:none;overflow:visible}
-.user-burgundy #workspace .action-rail .action{border:1px solid var(--line2);border-radius:14px;padding:16px;min-width:0;box-shadow:inset 0 1px 0 #ffffff06}
-.user-burgundy #workspace .action strong{font-size:13px;font-weight:600}
-.user-burgundy #workspace .action small{font-size:12px;line-height:1.45}
-.user-burgundy #workspace :is(.fact,.workflow-form){border-radius:12px}
-.user-burgundy #workspace :is(.btn,button.action){transition:border-color .16s ease,box-shadow .16s ease}
-.user-burgundy #workspace :is(.btn,button.action):hover{transform:none;box-shadow:0 4px 14px #00000018}
-.user-burgundy #workspace :is(.btn,.control,input:not([type=checkbox]):not([type=radio]),select){min-height:40px;border-radius:11px}
-.user-burgundy #workspace .nav-item{font-size:13px;min-height:42px;border-radius:11px;font-weight:500}
-.user-burgundy #workspace :is(td,.fact strong,.hero-stat strong){font-variant-numeric:tabular-nums}
-.user-burgundy #workspace th{font-size:11px;font-weight:500;letter-spacing:.06em}
-.user-burgundy #workspace .pill{font-size:11px;font-weight:500;padding:4px 9px}
-@media(max-width:650px){
- .user-burgundy #workspace .page-hero{padding:18px;gap:14px}
- .user-burgundy #workspace .page-hero .hero-stat{max-width:100%;text-align:left}
- .user-burgundy #workspace .dash-primary-card{min-height:132px;padding:18px}
- .user-burgundy #workspace .dash-mini{padding:14px}
- .user-burgundy #workspace .card.pad{padding:16px}
- .user-burgundy #workspace .action-rail .action{padding:14px}
-}
-@media(prefers-reduced-motion:reduce){.user-burgundy #workspace :is(.btn,button.action,.nav-item){transition:none}}
 
-/* Spacious User performance layout; retain the existing Burgundy/gold palette. */
-.user-burgundy #workspace #page-content>div:not(.page-hero){min-width:0}
-.user-burgundy #workspace :is(.dashboard-primary-grid,.dashboard-secondary-grid,.dashboard-chart-grid,.dashboard-lower-grid){gap:20px;margin-top:22px;margin-bottom:22px}
-.user-burgundy #workspace :is(.dash-primary-card,.dash-mini){border-radius:16px}
-.user-burgundy #workspace :is(h1,h2,h3,h4){font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif!important;font-weight:600!important}
-.user-burgundy #workspace :is(.dash-primary-card>strong,.dash-mini strong){font-family:inherit!important;font-weight:500!important}
 .user-burgundy #workspace .user-analytics{display:grid;gap:24px}
 .user-burgundy #workspace .user-analytics .page-hero{margin:0}
 .user-burgundy #workspace .analytics-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
@@ -175,45 +109,68 @@
 @media(max-width:1100px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.user-burgundy #workspace .analytics-charts{grid-template-columns:1fr}}
 @media(max-width:600px){.user-burgundy #workspace .analytics-kpis{grid-template-columns:1fr;gap:16px}.user-burgundy #workspace .user-analytics{gap:20px}.user-burgundy #workspace .analytics-charts>.card{padding:20px}.user-burgundy #workspace .analytics-kpis .dash-primary-card{min-height:148px;padding:20px}}
 
-/* Shared User sizing contract. Override the prototype's tiny important text. */
-.user-burgundy #workspace{--user-gap:16px;--user-pad:20px;font-size:14px;line-height:1.5}
-.user-burgundy #workspace #page-content :is(h1,.page-hero h1){font-size:26px!important;line-height:1.25;letter-spacing:-.025em}
-.user-burgundy #workspace #page-content :is(h2,.card-head h2,.section-title h2,.table-head h2){font-size:18px!important;line-height:1.35;margin:0 0 10px}
-.user-burgundy #workspace #page-content h3{font-size:15px!important;line-height:1.4}
-.user-burgundy #workspace #page-content :is(.page-hero p,.card-head p,.section-title p,.notice,.hint,.action small,.item-main small,.fact label,.dash-primary-card>small,.dash-primary-card>span,.dash-mini small,.dash-mini em){font-size:12px!important;line-height:1.6;color:var(--muted)}
-.user-burgundy #workspace #page-content :is(.fact strong,.item-main strong,.action strong,label,.control,input,select,textarea,td){font-size:14px!important;line-height:1.5}
-.user-burgundy #workspace #page-content :is(th,.pill){font-size:11px!important;line-height:1.5}
-.user-burgundy #workspace #page-content .eyebrow{font-size:10px!important;line-height:1.5;letter-spacing:.12em}
-.user-burgundy #workspace #page-content :is(button,.btn){font-size:13px!important;line-height:1.4;min-height:40px;height:auto;padding:10px 14px;white-space:normal;max-width:100%;vertical-align:middle}
-.user-burgundy #workspace #page-content :is(.card,details,td)>:is(button,a.btn){margin-block:4px;margin-inline-end:8px}
-.user-burgundy #workspace #page-content :is(.device-quick-links,.route-actions,.filterbar,.otp-filters,.tabs){gap:10px;flex-wrap:wrap}
-.user-burgundy #workspace #page-content :is(.card,.workflow-card,.owned-device-card){padding:var(--user-pad);border-radius:14px}
-.user-burgundy #workspace #page-content :is(.card,.workflow-card)+:is(.card,.workflow-card){margin-top:var(--user-gap)}
-.user-burgundy #workspace #page-content :is(.grid,.analytics-charts,.dashboard-chart-grid,.dashboard-lower-grid,.owned-device-grid)>:is(.card,.workflow-card){margin:0}
-.user-burgundy #workspace #page-content :is(.dashboard-primary-grid,.dashboard-secondary-grid,.analytics-kpis,.dashboard-chart-grid,.dashboard-lower-grid,.analytics-charts,.owned-device-grid){gap:var(--user-gap);align-items:stretch}
-.user-burgundy #workspace #page-content :is(.dash-primary-card,.analytics-kpis .dash-primary-card){padding:var(--user-pad);min-height:144px;gap:6px;border-radius:14px}
-.user-burgundy #workspace #page-content .dash-primary-card>strong{font-size:26px!important;line-height:1.2;margin:4px 0;letter-spacing:-.025em}
-.user-burgundy #workspace #page-content :is(.dash-mini,.analytics-secondary .dash-mini){min-height:108px;padding:18px;gap:12px;border-radius:14px}
-.user-burgundy #workspace #page-content .dash-mini strong{font-size:22px!important;line-height:1.3;margin:4px 0}
-.user-burgundy #workspace #page-content :is(.dash-mini>div,.card-head>div,.page-hero>div){min-width:0}
-.user-burgundy #workspace #page-content :is(.dash-card-icon,.mini-icon){width:32px;height:32px;flex:0 0 32px}
-.user-burgundy #workspace #page-content .dash-primary-card>small{padding-inline-end:40px}
-.user-burgundy #workspace #page-content .card-head{gap:16px;flex-wrap:wrap;margin-bottom:16px}
-.user-burgundy #workspace #page-content .card-head :is(h2,p){margin:0}
-.user-burgundy #workspace #page-content .page-hero{padding:20px;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:0}
-.user-burgundy #workspace #page-content .page-hero :is(h1,p){margin-block:6px}
-.user-burgundy #workspace #page-content :is(.workflow-form,.facts){gap:14px}
-.user-burgundy #workspace #page-content .workflow-form{align-items:start}
-.user-burgundy #workspace #page-content :is(.table-wrap,.table-scroll){padding:0}
-.user-burgundy #workspace #page-content :is(th,td){padding:12px!important;vertical-align:top}
-.user-burgundy #workspace #page-content :is(.user-analytics,.live-content){gap:20px}
-.user-burgundy #workspace #page-content .analytics-rate>strong{font-size:32px;font-weight:500}
-.user-burgundy #workspace #page-content .dashboard-status-strip{gap:12px;padding:16px;flex-wrap:wrap}
-@media(max-width:600px){
- .user-burgundy #workspace{--user-pad:16px;--user-gap:14px}
- .user-burgundy #workspace #page-content :is(h1,.page-hero h1){font-size:23px!important}
- .user-burgundy #workspace #page-content :is(.dash-primary-card,.analytics-kpis .dash-primary-card){min-height:132px}
- .user-burgundy #workspace #page-content .page-hero{padding:16px}
- .user-burgundy #workspace #page-content .hero-stat{max-width:100%;text-align:left}
- .user-burgundy #workspace #page-content .owned-device-grid{grid-template-columns:minmax(0,1fr)}
+
+.user-burgundy #workspace #page-content[data-section="usdt-deposit"],.user-burgundy #workspace #page-content[data-section="withdraw"]{width:100%;max-width:880px;margin-inline:auto}
+.user-burgundy #workspace #page-content .compact-disclosure{border:1px solid var(--line2);border-radius:8px;padding:14px 16px;margin-top:16px}
+.user-burgundy #workspace #page-content .compact-disclosure>summary{cursor:pointer;font-size:14px;font-weight:500;padding:3px 0}
+.user-burgundy #workspace #page-content .compact-disclosure[open]>summary{margin-bottom:16px}
+.user-burgundy #workspace #page-content .deposit-focused>.facts{grid-template-columns:1fr}
+.user-burgundy #workspace #page-content .deposit-focused>form{grid-template-columns:1fr;max-width:100%;margin:16px 0}
+.user-burgundy #workspace #page-content label:has(>input[type="checkbox"]){display:flex;flex-direction:row;align-items:flex-start;gap:10px;grid-column:1/-1}
+.user-burgundy #workspace #page-content input[type="checkbox"]{flex:0 0 auto;width:18px;height:18px;min-height:18px;margin-top:3px}
+.user-burgundy #workspace #page-content .withdraw-method-picker{display:flex;gap:14px;padding:16px 0;margin-top:12px;border-bottom:1px solid var(--line2)}
+.user-burgundy #workspace #page-content .withdraw-method-picker>label{width:min(100%,320px)}
+.user-burgundy #workspace #page-content .withdraw-method-panel{padding-top:20px}
+.user-burgundy #workspace #page-content[data-section="commission"] .facts{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.user-burgundy #workspace #page-content[data-section="commission"] .fact{border-radius:4px;min-height:92px;padding:18px;display:flex;flex-direction:column;justify-content:center}
+.user-burgundy #workspace #page-content[data-section="commission"] .fact strong{font-size:20px;font-weight:500}
+.user-burgundy #workspace #page-content[data-section="commission"] .card{border-radius:6px}
+.user-burgundy #workspace #page-content[data-section="bank-upi"] .route-card{overflow:visible;min-width:0}
+.user-burgundy #workspace #page-content[data-section="bank-upi"] :is(.card-head p,.fact strong,.route-login-note strong){overflow-wrap:anywhere;white-space:normal;max-width:100%}
+.user-burgundy #workspace #page-content[data-section="bank-upi"] .card-head{align-items:flex-start}
+.user-burgundy #workspace #page-content[data-section="bank-upi"] .card-head>div{flex:1 1 200px}
+.user-burgundy #workspace #page-content dialog.modal{margin:auto;position:fixed;inset:0;width:min(680px,calc(100vw - 32px));height:fit-content;max-height:calc(100dvh - 32px);overflow:auto;padding:24px}
+.user-burgundy #workspace #page-content form.workflow-form:has(>.form-row){grid-template-columns:1fr;padding:0;border:0;background:none}
+.user-burgundy #workspace #page-content .form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:100%;min-width:0}
+.user-burgundy #workspace #page-content .form-row>.field{min-width:0;width:100%}
+.user-burgundy #workspace #page-content .form-row :is(input,select,textarea){width:100%;min-width:0}
+.user-burgundy #workspace #page-content[data-section="upi-analytics"] table{min-width:950px}
+.user-burgundy #workspace #page-content[data-section="upi-analytics"] td{white-space:nowrap;overflow-wrap:normal}
+@media(max-width:650px){.user-burgundy #workspace #page-content .form-row{grid-template-columns:1fr}.user-burgundy #workspace #page-content dialog.modal{padding:18px}.user-burgundy #workspace #page-content[data-section="commission"] .facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ===== v7 dashboard intelligence + professional layout ===== */
+.dash-primary-card{min-height:122px;padding:15px 16px;background:linear-gradient(160deg,rgba(38,15,25,.98),rgba(18,9,14,.98));position:relative}
+.dash-primary-card.featured{background:radial-gradient(circle at 92% 4%,rgba(232,202,125,.07),transparent 14rem),linear-gradient(160deg,rgba(53,18,32,.99),rgba(21,9,15,.99))}
+.dash-card-icon{position:absolute;right:13px;top:13px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#dfc27c;background:rgba(232,202,125,.045);border:1px solid rgba(232,202,125,.10)}
+.dash-card-icon svg{width:17px}.dash-primary-card>small{display:block;color:#967e88;font-size:10px}.dash-primary-card>strong{display:block;font-size:24px;letter-spacing:-.6px;margin-top:9px;color:#f7eef1}.dash-primary-card.featured>strong{font-size:29px;color:#f4dda0}.dash-primary-card>span{display:block;color:#806c75;font-size:9px;line-height:1.45;margin-top:7px;max-width:88%}
+.dash-mini{min-height:87px;display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.012)}
+.mini-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 34px;color:#d7afbd;background:rgba(168,43,87,.08);border:1px solid rgba(210,90,130,.10)}.mini-icon svg{width:16px}
+.dash-mini small{display:block;color:#806b74;font-size:9px}.dash-mini strong{display:block;font-size:17px;margin-top:3px}.dash-mini em{display:block;font-style:normal;color:#745f68;font-size:8px;margin-top:3px}
+.dashboard-status-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:9px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:9px 0}
+.dashboard-status-strip>div{padding:2px 15px}.dashboard-status-strip>div+div{border-left:1px solid var(--line)}.dashboard-status-strip small{display:block;color:#74616a;font-size:9px}.dashboard-status-strip strong{display:block;margin-top:4px;font-size:13px}
+.dashboard-chart-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.75fr);gap:12px;margin-top:12px}
+.dashboard-chart{min-height:275px}.dashboard-volume-svg .dashboard-x{font-size:9px}.chart-legend{display:flex;align-items:center;gap:12px;color:#846f78;font-size:9px}.chart-legend span{display:flex;align-items:center;gap:5px}.chart-legend i{width:16px;height:2px;border-radius:2px}.legend-payin{background:#d25a82}.legend-payout{background:#e8ca7d}
+.dash-route-list{display:grid;gap:11px}.dash-route{padding:10px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.01)}.dash-route-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.dash-route-head strong{display:block;font-size:11px}.dash-route-head small{display:block;color:#745f68;font-size:8px;margin-top:3px}.dash-route-head>span{font-size:9px}.dash-route-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;color:#765f68;font-size:8px}
+.dashboard-lower-grid{display:grid;grid-template-columns:minmax(350px,.72fr) minmax(0,1.28fr);gap:12px;margin-top:12px}.ops-snapshot{display:grid;grid-template-columns:1fr 1fr;gap:1px;padding:1px;border-radius:10px;overflow:hidden;background:rgba(210,90,130,.08)}.ops-snapshot>div{position:relative;padding:11px 12px 11px 28px;background:#160b11}.ops-snapshot small{display:block;color:#78636c;font-size:9px}.ops-snapshot strong{display:block;font-size:19px;margin-top:3px}.ops-dot{position:absolute;left:11px;top:16px;width:7px;height:7px;border-radius:50%}.green-dot{background:var(--green)}.amber-dot{background:var(--amber)}.red-dot{background:var(--red)}
+@media(max-width:1250px){.dashboard-primary-grid{grid-template-columns:repeat(2,1fr)}.dashboard-secondary-grid{grid-template-columns:repeat(2,1fr)}.dashboard-chart-grid,.dashboard-lower-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.dashboard-primary-grid,.dashboard-secondary-grid{grid-template-columns:1fr}.dashboard-status-strip{grid-template-columns:1fr 1fr}.dashboard-status-strip>div{border-left:0;border-bottom:1px solid var(--line);padding:8px 10px}.ops-snapshot{grid-template-columns:1fr}.dash-route-meta{flex-direction:column}.chart-legend{display:none}}
+
+
+
 }
+/* Functional safeguards, not prototype demo behaviour. */
+[hidden]{display:none!important}
+.user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
+.user-burgundy #page-content{min-width:0}
+.user-burgundy #page-content :is(.card,.grid,.facts,.field){min-width:0}
+.user-burgundy #page-content :is(.table-wrap,.table-scroll){max-width:100%;overflow-x:auto}
+.user-burgundy #page-content :is(.device-quick-links,.route-actions,.otp-filters){display:flex;flex-wrap:wrap;gap:8px}
+.user-burgundy #page-content :is(.card,details,td)>:is(button,a.btn){margin-block:4px;margin-inline-end:8px}
+.user-burgundy #page-content form:has(>.form-row){grid-template-columns:1fr}
+.user-burgundy #page-content .form-row{width:100%;min-width:0}
+.user-burgundy #page-content .workflow-form{padding:0;border:0;background:none}
+.user-burgundy #page-content dialog.modal{position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100dvh - 32px);overflow:auto}
+.user-burgundy #page-content label:has(>input[type=checkbox]){display:flex;flex-direction:row;align-items:flex-start;gap:10px}
+.user-burgundy #page-content input[type=checkbox]{width:18px;min-height:18px;flex:0 0 auto}
+.user-burgundy #page-content :is(.dash-kpi,.mini-stat)>div{min-width:0}
+.user-burgundy #page-content :is(.dash-kpi,.mini-stat) strong{overflow-wrap:anywhere}

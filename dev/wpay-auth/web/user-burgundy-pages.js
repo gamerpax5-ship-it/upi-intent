@@ -3,6 +3,12 @@
  function enhance(host,metadata,account,key){
   // OTP rendering and content remain owned by the existing, unchanged module.
   if(!metadata||key==='otp'||host.querySelector('.reference-dashboard'))return;
+  for(const card of host.querySelectorAll('.card:not(.table-card)'))card.classList.add('pad');
+  for(const input of host.querySelectorAll('input,select,textarea'))input.classList.add('control');
+  if(key==='withdraw'&&!host.querySelector('.withdraw-history')){
+   const card=host.querySelector('.business-card'),panel=card?.querySelector('.withdraw-method-panel:last-of-type');
+   if(panel){const history=document.createElement('details'),summary=document.createElement('summary');history.className='compact-disclosure withdraw-history';summary.textContent='Withdrawal history';history.append(summary);let node=panel.nextSibling;while(node){const next=node.nextSibling;history.append(node);node=next;}card.append(history);}
+  }
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   if(!host.querySelector('.page-hero')){const hero=el('div',undefined,'page-hero'),copy=el('div'),stat=el('div',undefined,'hero-stat');copy.append(el('div',metadata.eyebrow||'User workspace','eyebrow'),el('h1',metadata.title),el('p',metadata.description));stat.append(el('small','Workspace'),el('strong',account.name||'WPay User'));hero.append(copy,stat);host.prepend(hero);}
   for(const dl of host.querySelectorAll('dl.facts')){
