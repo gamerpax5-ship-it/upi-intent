@@ -23,7 +23,7 @@
 .user-burgundy .route-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
 .user-burgundy dialog.modal{width:min(690px,94vw);max-height:91vh;overflow:auto}
 /* Reference theme applied to live workflow nodes; forms retain their handlers. */
-.user-burgundy .live-content{font-size:13px;line-height:1.45;min-width:0}
+.user-burgundy .live-content{font-size:inherit;line-height:inherit;min-width:0}
 .user-burgundy .live-content>.page-hero{margin-bottom:14px}
 .user-burgundy .live-content .workflow-card{margin:12px 0;border:1px solid var(--line2);background:linear-gradient(145deg,#24121c,#180c13)}
 .user-burgundy .live-content .workflow-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;padding:18px;border:1px solid var(--line2);border-radius:12px;background:rgba(255,255,255,.018)}
@@ -162,6 +162,9 @@
 [hidden]{display:none!important}
 .user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
 .user-burgundy #page-content{min-width:0}
+.user-burgundy #page-content.live-content{gap:0}
+.user-burgundy #page-content>.page-hero{margin-bottom:0}
+.user-burgundy #page-content>.page-hero+*{margin-top:12px}
 .user-burgundy #page-content :is(.card,.grid,.facts,.field){min-width:0}
 .user-burgundy #page-content :is(.table-wrap,.table-scroll){max-width:100%;overflow-x:auto}
 .user-burgundy #page-content :is(.device-quick-links,.route-actions,.otp-filters){display:flex;flex-wrap:wrap;gap:8px}
@@ -169,6 +172,19 @@
 .user-burgundy #page-content form:has(>.form-row){grid-template-columns:1fr}
 .user-burgundy #page-content .form-row{width:100%;min-width:0}
 .user-burgundy #page-content .workflow-form{padding:0;border:0;background:none}
+.user-burgundy #page-content .facts{padding:0;background:none;border-radius:0}
+.user-burgundy #page-content .fact label{gap:normal}
+.user-burgundy #page-content .reference-workflow-shell{padding:0;border:0;background:none}
+.user-burgundy #page-content .reference-workflow-shell>.grid{margin-top:10px}
+.user-burgundy #page-content .reference-workflow-shell>.metric-grid{margin-top:11px}
+.user-burgundy #page-content .reference-workflow-shell>.tabs button{margin:0}
+.user-burgundy #page-content[data-section="usdt-deposit"],.user-burgundy #page-content[data-section="withdraw"]{max-width:none}
+.user-burgundy #page-content .deposit-shell .facts{grid-template-columns:1fr}
+.user-burgundy #page-content .deposit-shell form{grid-template-columns:1fr}
+.user-burgundy #page-content .compact-disclosure .facts{margin-top:12px}
+.user-burgundy #page-content .workflow-form>label{font-size:11px;font-weight:750;color:#ddced4}
+.user-burgundy #page-content .withdraw-method-panel{padding-top:0}
+.user-burgundy #page-content .withdraw-method-panel>h2{margin-top:0}
 .user-burgundy #page-content dialog.modal{position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100dvh - 32px);overflow:auto}
 .user-burgundy #page-content label:has(>input[type=checkbox]){display:flex;flex-direction:row;align-items:flex-start;gap:10px}
 .user-burgundy #page-content input[type=checkbox]{width:18px;min-height:18px;flex:0 0 auto}
