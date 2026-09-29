@@ -7,6 +7,10 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.location.LocationListener
+import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.Looper
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
@@ -19,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 object DiagnosticsCollector {
-    fun collect(context: Context, simFingerprint: String): JSONObject {
+    fun collect(context: Context, simFingerprint: String, forceFreshLocation: Boolean = false): JSONObject {
         val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
@@ -58,7 +62,7 @@ object DiagnosticsCollector {
             .put("locationEnabled", locationEnabled)
 
         if (locationPermissionGranted && locationEnabled) {
-            currentOrLastLocation(context)?.let { location ->
+            currentOrLastLocation(context, forceFreshLocation)?.let { location ->
                 result.put(
                     "location",
                     JSONObject()
@@ -99,48 +103,75 @@ object DiagnosticsCollector {
         else -> "Unknown"
     }
 
-    private fun currentOrLastLocation(context: Context): Location? {
+    private fun currentOrLastLocation(context: Context, forceFresh: Boolean): Location? {
         if (!hasLocationPermission(context) || !isLocationEnabled(context)) return null
 
         val manager = context.getSystemService(LocationManager::class.java)
         val cached = bestLastKnown(manager)
-        if (cached != null && System.currentTimeMillis() - cached.time <= 5 * 60 * 1000) {
+        if (cached != null && LocationRefreshPolicy.useCached(System.currentTimeMillis() - cached.time, forceFresh)) {
             return cached
         }
 
         val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
             .filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            for (provider in providers) {
-                val latch = CountDownLatch(1)
-                val result = AtomicReference<Location?>(null)
-                try {
-                    manager.getCurrentLocation(
-                        provider,
-                        null,
-                        Executor { command -> command.run() }
-                    ) { location ->
-                        result.set(location)
-                        latch.countDown()
-                    }
-                    latch.await(4, TimeUnit.SECONDS)
-                    result.get()?.let { return it }
-                } catch (_: SecurityException) {
-                    return cached
-                } catch (_: Exception) {
-                    // Try the next provider, then fall back to cached location.
-                }
+        // Diagnostics run on a worker. Never wait on the main looper that delivers
+        // pre-Android-11 callbacks. One shared deadline bounds GPS/network delay.
+        if (Looper.myLooper() == Looper.getMainLooper()) return cached
+        val latch = CountDownLatch(1)
+        val result = AtomicReference<Location?>(null)
+        val cancellations = mutableListOf<CancellationSignal>()
+        val listeners = mutableListOf<LocationListener>()
+        val accept: (Location?) -> Unit = { location ->
+            if (location != null && location.time > 0 && location.time <= System.currentTimeMillis() &&
+                System.currentTimeMillis() - location.time <= 30_000 &&
+                location.latitude in -90.0..90.0 && location.longitude in -180.0..180.0) {
+                result.set(location)
+                latch.countDown()
             }
         }
-
-        return cached ?: bestLastKnown(manager)
+        try {
+            for (provider in providers) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val cancellation = CancellationSignal()
+                    cancellations.add(cancellation)
+                    manager.getCurrentLocation(
+                        provider,
+                        cancellation,
+                        Executor { command -> command.run() }
+                    ) { location -> accept(location) }
+                } else {
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) { accept(location) }
+                        override fun onProviderEnabled(provider: String) = Unit
+                        override fun onProviderDisabled(provider: String) = Unit
+                        @Deprecated("Legacy Android callback")
+                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+                    }
+                    listeners.add(listener)
+                    @Suppress("DEPRECATION")
+                    manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+                }
+            }
+            if (providers.isNotEmpty()) latch.await(6, TimeUnit.SECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } catch (_: SecurityException) {
+            // Permission may be revoked while requesting; no bypass or retry loop.
+        } catch (_: Exception) {
+            // Preserve the actual cached fix and its original capturedAt.
+        } finally {
+            cancellations.forEach { it.cancel() }
+            listeners.forEach { runCatching { manager.removeUpdates(it) } }
+        }
+        return result.get() ?: bestLastKnown(manager) ?: cached
     }
 
     private fun bestLastKnown(manager: LocationManager): Location? {
         return try {
             manager.getProviders(true)
                 .mapNotNull { provider -> runCatching { manager.getLastKnownLocation(provider) }.getOrNull() }
+                .filter { it.time > 0 && it.time <= System.currentTimeMillis() }
                 .maxWithOrNull(compareBy<Location> { it.time }.thenBy { -it.accuracy })
         } catch (_: SecurityException) {
             null
