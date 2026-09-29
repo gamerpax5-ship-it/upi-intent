@@ -97,9 +97,11 @@
   }
   if(page==='upi-analytics'){
    const data=await request('onboarding/analytics');card.append(el('p',t('formula'),'notice'));
-   if(!data.banks.length)card.append(el('p','No verified UPI started by you yet. Complete verification and choose Start routing.'));
-   const wrap=el('div',undefined,'table-wrap'),table=el('table'),head=el('thead'),tr=el('tr');for(const label of ['UPI ID',...['total','successful','failed','pending','expired','cancelled','volume','rate'].map(t)])tr.append(el('th',label));head.append(tr);table.append(head);const body=el('tbody');
-   for(const b of data.banks){const row=el('tr'),identity=el('td'),status=el('small','Status: '+(b.routingStatus||b.status),'upi-routing-status');identity.append(el('strong',b.upi_id),el('br'),status);row.append(identity);for(const value of [...['total','successful','failed','pending','expired','cancelled'].map(k=>b[k]),money(b.successful_volume_minor),b.successRate===null?'—':b.successRate+'%'])row.append(el('td',String(value)));body.append(row);}table.append(body);wrap.append(table);card.append(wrap);return;
+   if(!data.banks.length)card.append(el('p','No active-history UPI routes yet. Verified routes started by you and Admin-added routes linked to your account appear here.'));
+   const wrap=el('div',undefined,'table-wrap'),table=el('table'),head=el('thead'),tr=el('tr');for(const label of ['UPI ID','Status','Routing',...['total','successful','failed','pending','expired','cancelled','volume','rate'].map(t)])tr.append(el('th',label));head.append(tr);table.append(head);const body=el('tbody');
+   for(const b of data.banks){const row=el('tr'),identity=el('td'),status=el('td'),controls=el('td');identity.append(el('strong',b.upi_id),el('br'),el('small',b.adminManaged?'Admin-added':'User-verified','muted'));status.append(el('span','Status: '+(b.routingStatus||b.status),'pill '+(b.status==='running'&&b.canStop?'ok':'pending')));row.append(identity,status,controls);
+    if(data.canUpdate&&b.canStop)controls.append(button('stop',async()=>{try{await post('business/banks/transition',{bankId:b.id,version:b.version,action:'stop',reason:'Owner stopped receiving route from UPI Analytics'});}finally{await reload();}}));else controls.append(el('span','—'));
+    for(const value of [...['total','successful','failed','pending','expired','cancelled'].map(k=>b[k]),money(b.successful_volume_minor),b.successRate===null?'—':b.successRate+'%'])row.append(el('td',String(value)));body.append(row);}table.append(body);wrap.append(table);card.append(wrap);return;
   }
   const data=await request('business/banks');if(!data.banks.length)card.append(el('p',t('empty')));
   if(page==='statements')card.append(el('p',t('notice'),'notice'));

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{randomUUID}=require('node:crypto');
-class E{constructor(tag,text=''){this.tag=tag;this.textContent=text;this.children=[];this.style={};this.value='';this.isConnected=true;}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}setAttribute(k,v){this[k]=v;}showModal(){this.open=true;}close(){this.open=false;}remove(){}addEventListener(){}}
+class E{constructor(tag,text=''){this.tag=tag;this.textContent=text;this.children=[];this.style={};this.dataset={};this.value='';this.isConnected=true;}append(...n){this.children.push(...n);}replaceChildren(...n){this.children=n;}setAttribute(k,v){this[k]=v;}showModal(){this.open=true;}close(){this.open=false;}remove(){}addEventListener(){}}
 const el=(tag,text,cls)=>Object.assign(new E(tag,text),{className:cls}),all=n=>[n,...n.children.flatMap(all)];
 test('User verification displays approval blocker, Verify, then one Start/Stop routing action and refreshes stale approval',async()=>{
  const ctx={crypto:{randomUUID},setInterval:()=>1,clearInterval:()=>{}};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/onboarding.js','utf8'),ctx);
@@ -11,10 +11,26 @@ test('User verification displays approval blocker, Verify, then one Start/Stop r
  bank.status='verified';bank.verified_version=3;await render();assert.ok(button('Start routing'));assert.equal(button('Enable'),undefined);await button('Start routing').onclick();assert.equal(calls.at(-1)[1].action,'run');assert.ok(button('Stop routing'));await button('Stop routing').onclick();assert.ok(button('Start routing'));
  bank.status='running';bank.verified_version=null;await render();assert.equal(button('Stop routing'),undefined);assert.ok(all(container).some(n=>n.textContent==='Admin-managed route; not User-verified.'));
 });
-test('User Analytics shows routing status below UPI identity',async()=>{
+test('User Analytics shows an explicit routing status column',async()=>{
  const ctx={};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/onboarding.js','utf8'),ctx);const container=el('main');
  await ctx.WPayOnboardingPage.render({destination:'user.onboarding-upi-analytics',locale:'en',el,container,title:el('h1'),action:f=>f(),request:async()=>({banks:[{upi_id:'test@boi',status:'stopped',routingStatus:'Stopped by Admin',total:0,successful:0,failed:0,pending:0,expired:0,cancelled:0,successful_volume_minor:'0',successRate:null}]})});
  assert.ok(all(container).some(n=>n.textContent==='Status: Stopped by Admin'));
+ assert.ok(all(container).some(n=>n.tag==='th'&&n.textContent==='Status'));
+});
+
+test('User Analytics can stop an owned Admin-added route and hides controls without update permission',async()=>{
+ const ctx={};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/onboarding.js','utf8'),ctx);const container=el('main'),calls=[],bank={id:randomUUID(),version:1,upi_id:'admin@test',adminManaged:true,status:'running',routingStatus:'Running',canStop:true,total:0,successful:0,failed:0,pending:0,expired:0,cancelled:0,successful_volume_minor:'0',successRate:null};let canUpdate=true;
+ const render=()=>ctx.WPayOnboardingPage.render({destination:'user.onboarding-upi-analytics',locale:'en',el,container,title:el('h1'),action:f=>f(),request:async()=>({canUpdate,banks:[bank]}),post:async(route,b)=>{calls.push([route,b]);bank.canStop=false;bank.status='stopped';bank.routingStatus='Stopped by you';}});
+ await render();assert.ok(all(container).some(n=>n.textContent==='Admin-added'));await all(container).find(n=>n.tag==='button'&&n.textContent==='Stop routing').onclick();assert.equal(calls[0][0],'business/banks/transition');assert.equal(calls[0][1].bankId,bank.id);assert.equal(calls[0][1].action,'stop');assert.ok(all(container).some(n=>n.textContent==='Status: Stopped by you'));
+ bank.canStop=true;canUpdate=false;await render();assert.ok(!all(container).some(n=>n.tag==='button'&&n.textContent==='Stop routing'));
+});
+
+test('Bank cards expose confirmed Freeze only for editable unfrozen routes',async()=>{
+ const ctx={};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/user-burgundy-banks.js','utf8'),ctx);const container=el('main'),calls=[],bank={id:randomUUID(),version:1,status:'running',verified_version:null,approved_version:1,frozen:false,details:{upiId:'admin@test',bankName:'Test',accountNumber:'12345678',mobile:'9000000001',bankLimitMinor:'10000'}};let actions=['update'];
+ const render=()=>ctx.WPayUserBurgundyBanks.render({account:{name:'Test'},el,container,title:el('h1'),action:f=>f(),request:async()=>({banks:[bank],actions}),post:async(route,b)=>{calls.push([route,b]);bank.frozen=true;bank.status='frozen';}});
+ const button=s=>all(container).find(n=>n.tag==='button'&&n.textContent===s);
+ await render();await button('Freeze').onclick();assert.equal(calls.length,0);await button('Confirm freeze').onclick();assert.equal(calls[0][1].action,'freeze');assert.equal(calls[0][1].bankId,bank.id);assert.equal(button('Freeze'),undefined);
+ bank.frozen=false;actions=[];await render();assert.equal(button('Freeze'),undefined);
 });
 test('Direct Start from verified retains approval, verification, funding checks and stop eligibility',async()=>{
  const {BusinessCore}=require('../lib/wpay/business/core'),state=require('../lib/wpay/onboarding/state');const prior=state.canStart;let checked=0;state.canStart=async()=>{checked++;};

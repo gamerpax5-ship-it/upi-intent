@@ -1,11 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto'),{Onboarding}=require('../lib/wpay/onboarding/workflow');
-test('User analytics requires current verification and owner start, keeps Admin stops, excludes other owners and Admin-only routes',async t=>{
+test('User analytics includes owned Admin-added routes and verified owner starts, excludes other owners and stale versions',async t=>{
  if(!process.env.TEST_DATABASE_URL){t.skip('Requires isolated PostgreSQL');return;}
  const url=new URL(process.env.TEST_DATABASE_URL);assert.ok(['localhost','127.0.0.1','[::1]'].includes(url.hostname));const {Pool}=require('pg'),server=new Pool({connectionString:url.toString()}),name='user_routes_'+randomUUID().replaceAll('-','');await server.query('CREATE DATABASE '+name);url.pathname='/'+name;const pool=new Pool({connectionString:url.toString()});t.after(async()=>{await pool.end();await server.query('DROP DATABASE '+name);await server.end();});
  await pool.query(`CREATE SCHEMA wpay_auth;
  CREATE TABLE wpay_auth.business_bank_accounts(id text PRIMARY KEY,owner_id text,version int,status text,verified_version int,frozen boolean DEFAULT false,deactivated boolean DEFAULT false,created_at timestamptz DEFAULT now());
  CREATE TABLE wpay_auth.business_bank_versions(bank_id text,version int,details jsonb);
+ CREATE TABLE wpay_auth.admin_bank_approvals(bank_id text,bank_version int);
  CREATE TABLE wpay_auth.business_audit(id text,entity_id text,owner_id text,actor_id text,event text,metadata jsonb,created_at timestamptz DEFAULT now());
  CREATE TABLE wpay_auth.business_reservations(id text,bank_id text,user_id text,state text,expires_at timestamptz);
  CREATE TABLE wpay_auth.gateway_orders(id text,reservation_id text,state text,amount_minor numeric);
@@ -16,7 +17,10 @@ test('User analytics requires current verification and owner start, keeps Admin 
   if(started)await pool.query("INSERT INTO wpay_auth.business_audit(id,entity_id,owner_id,actor_id,event,metadata) VALUES($1,$2,$3,$3,'bank_run',$4)",[id,id,owner,{version:1}]);
  }
  await pool.query("INSERT INTO wpay_auth.business_audit(id,entity_id,owner_id,actor_id,event,metadata) VALUES('stop','stopped','owner','admin','bank_stop','{}')");
- const workflow=new Onboarding(),result=await workflow.userAnalytics(pool,'owner');assert.deepEqual(result.banks.map(b=>b.id).sort(),['running','stopped']);assert.equal(result.banks.find(b=>b.id==='running').routingStatus,'Running');assert.equal(result.banks.find(b=>b.id==='stopped').routingStatus,'Stopped by Admin');
+ await pool.query("INSERT INTO wpay_auth.admin_bank_approvals VALUES('adminonly',1),('other',1),('oldversion',1)");
+ const workflow=new Onboarding(),result=await workflow.userAnalytics(pool,'owner');assert.deepEqual(result.banks.map(b=>b.id).sort(),['adminonly','running','stopped']);assert.equal(result.banks.find(b=>b.id==='running').routingStatus,'Running');assert.equal(result.banks.find(b=>b.id==='stopped').routingStatus,'Stopped by Admin');
+ assert.equal(result.banks.find(b=>b.id==='adminonly').adminManaged,true);assert.equal(result.banks.find(b=>b.id==='adminonly').canStop,true);assert.equal(result.banks.find(b=>b.id==='stopped').canStop,false);
+ await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='frozen',frozen=true WHERE id='adminonly'");const frozen=(await workflow.userAnalytics(pool,'owner')).banks.find(b=>b.id==='adminonly');assert.equal(frozen.routingStatus,'Frozen');assert.equal(frozen.canStop,false);
  assert.equal((await workflow.analytics(pool,'owner')).banks.length,5,'unfiltered analytics contract is unchanged');
  await pool.query("UPDATE wpay_auth.business_audit SET actor_id='owner' WHERE id='stop'");assert.equal((await workflow.userAnalytics(pool,'owner')).banks.find(b=>b.id==='stopped').routingStatus,'Stopped by you');
 });

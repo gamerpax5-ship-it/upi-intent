@@ -38,6 +38,7 @@
     if(['draft','rejected'].includes(bank.status))actions.append(button('Submit for approval',async()=>{await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'submit',reason:'Owner submitted receiving route for approval'});await reload();},'btn sm burg'));
     if(verified&&!bank.frozen)actions.append(button(running?'Disable Route':'Enable Route',async()=>{try{if(bank.status==='verified')await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'enable',reason:'Owner enabled receiving route'});await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:running?'stop':'run',reason:running?'Owner stopped receiving route':'Owner started receiving route'});}finally{await reload();}},'btn sm burg'));
     if(!verified&&approved&&!bank.frozen)actions.append(navigate('Verify UPI','upi-verification'));
+    if(!bank.frozen)actions.append(button('Freeze',()=>{const m=modal('Freeze UPI route','Freezing blocks new payments on this route for all Merchants. Admin review is required to release the freeze.');m.dialog.append(button('Cancel',m.close),button('Confirm freeze',async()=>{try{await post('business/banks/transition',{bankId:bank.id,version:bank.version,action:'freeze',reason:'Owner froze receiving route'});m.close();}finally{await reload();}},'btn sm burg'));}));
    }
    actions.append(navigate('Analytics','upi-analytics'));item.append(actions);grid.append(item);
   }
