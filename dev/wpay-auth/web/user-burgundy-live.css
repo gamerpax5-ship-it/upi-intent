@@ -201,3 +201,9 @@
 .user-burgundy #page-content .card-head{flex-wrap:wrap}
 .user-burgundy #page-content .card-head>div{min-width:0}
 .user-burgundy #page-content .owned-device-card{width:100%;max-width:none}
+/* Use the same reference card surface for live-only device widgets. */
+.user-burgundy #page-content :is(.owned-device-card,.device-setup-intro){border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(35,14,23,.96),rgba(18,9,14,.98))}
+.user-burgundy #page-content .owned-device-card h2{font-size:16px;color:var(--text)}
+.user-burgundy #page-content .owned-device-card .fact{background:rgba(255,255,255,.012);border-radius:9px}
+.user-burgundy #page-content :is(.notice,.hint):empty{display:none}
+.user-burgundy #page-content .reference-workflow-shell>button{margin-block:12px;margin-inline-end:8px}

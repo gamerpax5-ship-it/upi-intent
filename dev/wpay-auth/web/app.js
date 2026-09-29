@@ -163,7 +163,7 @@ async function security() {
   root.append(form,el("h3",tr("sessions"))); for (const session of value.sessions) root.append(el("p",`${session.current ? tr("current") + " · " : ""}${tr("created")}: ${session.createdAt} · ${tr("expires")}: ${session.expiresAt}`));
   if (["user","merchant"].includes(account.accountType)) {
     const P=globalThis.WPayPasswordPolicy,change=el('form');change.append(el('h3',P.text(locale,'change')),el('p',P.text(locale,'changeHelp'),'notice'));
-    const current=field(change,'password','password'),fresh=value.enabled?field(change,'code'):null;P.bind(current,locale,'login');const inputs=[];
+    const current=field(change,'password','password'),fresh=null;P.bind(current,locale,'login');const inputs=[];
     for(const key of ['newPassword','confirmPassword']){const label=el('label',P.text(locale,key)),input=el('input');input.type='password';input.required=true;input.autocomplete='new-password';P.bind(input,locale,'establish');label.append(input);change.append(label);inputs.push(input);}
     change.append(el('p',P.text(locale,'establish'),'hint'));const submit=el('button',P.text(locale,'change'));submit.type='submit';change.append(submit);
     change.onsubmit=e=>{e.preventDefault();action(async()=>{if(inputs[0].value!==inputs[1].value){inputs[1].setCustomValidity(P.text(locale,'mismatch'));inputs[1].reportValidity();return;}if(!change.reportValidity())return;const body={password:current.value,...(fresh?{code:fresh.value}:{}),newPassword:inputs[0].value};current.value='';if(fresh)fresh.value='';inputs.forEach(i=>i.value='');try{await handleStage(await post('security/password',body));}finally{body.password=body.code=body.newPassword='';}});};root.append(change);
