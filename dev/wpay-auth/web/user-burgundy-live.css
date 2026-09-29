@@ -162,9 +162,9 @@
 [hidden]{display:none!important}
 .user-burgundy .content:has(#page-content .page-hero)>.page-head{display:none}
 .user-burgundy #page-content{min-width:0}
-.user-burgundy #page-content.live-content{gap:0}
+.user-burgundy #page-content.live-content{gap:12px}
 .user-burgundy #page-content>.page-hero{margin-bottom:0}
-.user-burgundy #page-content>.page-hero+*{margin-top:12px}
+.user-burgundy #page-content>.page-hero+*{margin-top:0}
 .user-burgundy #page-content :is(.card,.grid,.facts,.field){min-width:0}
 .user-burgundy #page-content :is(.table-wrap,.table-scroll){max-width:100%;overflow-x:auto}
 .user-burgundy #page-content :is(.device-quick-links,.route-actions,.otp-filters){display:flex;flex-wrap:wrap;gap:8px}
@@ -187,6 +187,17 @@
 .user-burgundy #page-content .withdraw-method-panel>h2{margin-top:0}
 .user-burgundy #page-content dialog.modal{position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100dvh - 32px);overflow:auto}
 .user-burgundy #page-content label:has(>input[type=checkbox]){display:flex;flex-direction:row;align-items:flex-start;gap:10px}
-.user-burgundy #page-content input[type=checkbox]{width:18px;min-height:18px;flex:0 0 auto}
+.user-burgundy #page-content input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;flex:0 0 18px;order:-1;accent-color:var(--burg2)}
 .user-burgundy #page-content :is(.dash-kpi,.mini-stat)>div{min-width:0}
 .user-burgundy #page-content :is(.dash-kpi,.mini-stat) strong{overflow-wrap:anywhere}
+/* Live workflows can have fewer facts and longer values than the demo. */
+.user-burgundy #page-content .reference-workflow-shell>.grid{align-items:start}
+.user-burgundy #page-content .reference-workflow-shell .card>h2:first-child{margin-top:0;margin-bottom:13px}
+.user-burgundy #page-content .reference-workflow-shell .grid>.card>.facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))}
+.user-burgundy #page-content .reference-workflow-shell .fact strong{overflow-wrap:anywhere}
+.user-burgundy #page-content .reference-workflow-shell .tabs{max-width:100%;flex-wrap:wrap}
+.user-burgundy #page-content .workflow-form>label>.control{font-weight:400}
+.user-burgundy #page-content .business-card>:is(.card,.table-wrap)+:is(.card,.table-wrap){margin-top:12px}
+.user-burgundy #page-content .card-head{flex-wrap:wrap}
+.user-burgundy #page-content .card-head>div{min-width:0}
+.user-burgundy #page-content .owned-device-card{width:100%;max-width:none}
