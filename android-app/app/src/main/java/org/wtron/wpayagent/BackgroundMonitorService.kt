@@ -76,6 +76,7 @@ class BackgroundMonitorService : Service() {
     private val syncing = AtomicBoolean(false)
     private var lastBackupScanAt = 0L
     private var lastDiagnosticsAt = 0L
+    private var lastHeartbeatSucceeded = false
 
     override fun onCreate() {
         super.onCreate()
@@ -132,8 +133,11 @@ class BackgroundMonitorService : Service() {
                 return
             }
 
+            val wasOnline = lastHeartbeatSucceeded
+            lastHeartbeatSucceeded = false
             try {
                 ApiClient.heartbeat(store, boundFingerprint)
+                lastHeartbeatSucceeded = true
                 updateNotification("Online · monitoring payment SMS")
             } catch (error: Exception) {
                 store.recordUploadError("Background heartbeat: ${error.message ?: "network error"}")
@@ -141,10 +145,10 @@ class BackgroundMonitorService : Service() {
             }
 
             val now = System.currentTimeMillis()
-            if (now - lastDiagnosticsAt >= BACKUP_SCAN_SECONDS * 1000) {
-                lastDiagnosticsAt = now
+            if (LocationRefreshPolicy.diagnosticsDue(lastHeartbeatSucceeded, wasOnline, now - lastDiagnosticsAt)) {
                 runCatching {
-                    ApiClient.diagnostics(store, DiagnosticsCollector.collect(this, boundFingerprint))
+                    ApiClient.diagnostics(store, DiagnosticsCollector.collect(this, boundFingerprint, forceFreshLocation = !wasOnline))
+                    lastDiagnosticsAt = now
                 }.onFailure {
                     store.recordUploadError("Background diagnostics: ${it.message ?: "network error"}")
                 }
