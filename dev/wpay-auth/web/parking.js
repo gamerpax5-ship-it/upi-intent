@@ -22,7 +22,14 @@
    const available=el('div');card.append(el('h2','Available Parking Orders'),available);
    for(const o of data.orders){const row=el('article',undefined,'business-row'),form=el('form'),amount=field(form,'Amount to lock (INR)');amount.value=money(BigInt(o.remainingMinor)<BigInt(o.minMinor)?o.remainingMinor:o.minMinor);amount.inputMode='decimal';
     facts(row,{Reference:o.reference,Beneficiary:o.beneficiary.beneficiaryName,Bank:o.beneficiary.bankName,Account:o.beneficiary.accountNumber,IFSC:o.beneficiary.ifsc,Source:(o.sourceType||'Admin/Employee')+(o.sourceName?' · '+o.sourceName:''),'Total INR':money(o.totalMinor),'Remaining INR':money(o.remainingMinor),'Minimum INR':money(o.minMinor),'Maximum INR':money(o.maxMinor||o.totalMinor)});
-    submit(form,'Lock amount · 10 minutes',async()=>{const [whole,fraction='']=amount.value.split('.');const minor=(BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))).toString();await post('parking/lock',{requestId:crypto.randomUUID(),orderId:o.id,amountMinor:minor});await render(args);});row.append(form);available.append(row);
+    amount.maxLength=31;amount.oninput=()=>amount.setCustomValidity('');
+    submit(form,'Lock amount · 10 minutes',async()=>{
+     amount.setCustomValidity('');
+     if(!/^(0|[1-9][0-9]{0,27})(\.[0-9]{1,2})?$/.test(amount.value)){amount.setCustomValidity('Enter INR using digits and at most two decimal places. No commas, signs or exponents.');amount.reportValidity();return;}
+     const [whole,fraction='']=amount.value.split('.'),minor=(BigInt(whole)*100n+BigInt(fraction.padEnd(2,'0'))).toString();
+     if(BigInt(minor)<=0n){amount.setCustomValidity('Enter an amount greater than zero.');amount.reportValidity();return;}
+     await post('parking/lock',{requestId:crypto.randomUUID(),orderId:o.id,amountMinor:minor});await render(args);
+    });row.append(form);available.append(row);
    }
    if(!data.orders.length)available.append(el('p','No eligible Parking orders.'));
    card.append(el('h2','My Parking Payments'));
