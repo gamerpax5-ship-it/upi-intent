@@ -360,7 +360,7 @@ th,td{padding:10px 11px}
 .wpay-admin .admin-state.pending,.wpay-admin .admin-state.review,.wpay-admin .admin-state.debit{background:rgba(255,191,105,.12);color:#ffd08b}
 .wpay-admin .admin-state.suspended,.wpay-admin .admin-state.rejected,.wpay-admin .admin-state.failed,.wpay-admin .admin-state.disabled{background:rgba(255,111,145,.12);color:#ffafc0}
 .wpay-admin .facts,.wpay-admin .admin-details{display:grid;grid-template-columns:minmax(140px,1fr) minmax(200px,2fr);gap:10px 20px}
-.wpay-admin .facts dt,.wpay-admin .admin-details dt{color:var(--muted2)}.wpay-admin .facts dd,.wpay-admin .admin-details dd{margin:0}
+.wpay-admin .facts dt,.wpay-admin .admin-details dt{color:var(--muted2)}.wpay-admin .facts dd,.wpay-admin .admin-details dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .wpay-admin .admin-filters,.wpay-admin .admin-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .wpay-admin .admin-row-actions{display:flex;gap:6px;flex-wrap:wrap}
 .wpay-admin .admin-record-detail{margin-top:14px}
