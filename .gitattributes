@@ -1,3 +1,5 @@
 # Public-site integrity checks hash exact bytes; preserve reviewed LF text.
 dev/wpay-public-site/index.html text eol=lf
 dev/wpay-public-site/assets/*.svg text eol=lf
+# Migration history hashes exact bytes; Windows archives must match Linux/DB.
+migrations/wpay-auth/*.sql text eol=lf
