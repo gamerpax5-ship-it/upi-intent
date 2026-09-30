@@ -564,10 +564,10 @@
       metric(el,"Revoked",revoked.length,"Explicitly cancelled"),
       metric(el,"Linked devices",setup.devices.length,"Scoped ownership links")
     );
-    container.append(metrics,el("p","Pairing code is account-owned by the current logged-in actor and is separate from sensitive OTP-event access. A secret code is shown only when issued. History never re-exposes it. Source readiness is required before a new code can be issued.","notice"));
+    container.append(metrics,el("p","Activation codes remain visible with their current status and linked device so Admin can audit which code paired which device. Source readiness is required before a new code can be issued.","notice"));
     if(!setup.canCreate)container.append(el("p",setup.pairingStatus==="not_configured"?"Pairing source or bridge is not configured.":setup.pairingStatus==="source_unavailable"?"Pairing source is currently unavailable.":"Your current account is not permitted to generate a pairing code.","notice warn"));
     const rows=requests.map(r=>[
-      el("span","Hidden after issue · "+r.id,"mono"),
+      el("span",r.pairingCode||"Unavailable","mono"),
       (r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),
       new Date(r.created_at).toLocaleString("en-IN"),
       new Date(r.expires_at).toLocaleString("en-IN"),
@@ -578,7 +578,7 @@
     container.append(panelTable(el,["Code","Owning actor","Created","Expires","State","Device","Action"],rows,"Pairing code history",requests.length+" records"+(history.hasMore?" · more available":"")));
     function check(r){action(async()=>{const result=await post("operations/device-setup/poll",{requestId:r.id});if(result.state==="linked"){const d=document.createElement("dialog");d.append(el("h2","Device linked"),el("p","Device: "+result.device,"notice"),button(el,"Open Devices",()=>{d.close();o.navigate?.("v5.devices");}),button(el,"Close",()=>d.close()));container.append(d);d.showModal();}await activationPage(o);});}
     function revoke(r){dialog(el,container,"Revoke pairing code",(body,d)=>{body.append(el("p","This cancels the unclaimed code. A code already used to create a device link cannot be revoked from this screen.","notice"),button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});d.close();await activationPage(o);}),"danger"));});}
-    function issue(){action(async()=>{const result=await post("operations/device-setup/create",{requestId:crypto.randomUUID()}),d=document.createElement("dialog"),code=el("code",result.pairingCode,"code-secret");d.append(el("h2","Enter this code in WPay Agent"),el("p","This account-owned 8-character code is displayed only now. Do not close this dialog until you have copied it.","notice"),code,el("p","Expires "+new Date(result.expiresAt).toLocaleString("en-IN")),button(el,"Copy code",()=>navigator.clipboard?.writeText(result.pairingCode),"primary"),button(el,"Close",()=>{code.textContent="Hidden";d.close();activationPage(o);}));container.append(d);d.showModal();});}
+    function issue(){action(async()=>{const result=await post("operations/device-setup/create",{requestId:crypto.randomUUID()}),d=document.createElement("dialog"),code=el("code",result.pairingCode,"code-secret");d.append(el("h2","Enter this code in WPay Agent"),el("p","This activation code stays visible in Activation Codes and Pairing History with its status and linked device.","notice"),code,el("p","Expires "+new Date(result.expiresAt).toLocaleString("en-IN")),button(el,"Copy code",()=>navigator.clipboard?.writeText(result.pairingCode),"primary"),button(el,"Close",()=>{d.close();activationPage(o);}));container.append(d);d.showModal();});}
   }
 
   async function utrCapture(o){
@@ -1290,8 +1290,8 @@
       metric(el,"Linked devices",setup.devices.length,"Scoped active links"),
       metric(el,"Pairing source",setup.pairingStatus||"unknown",setup.pairingAvailable?"Ready":"Unavailable")
     );
-    container.append(metrics,el("p","Pairing history stores request state and device-link association, but never re-exposes the secret pairing code. Only pending codes owned by the current actor can be polled; revocation remains permission-scoped.","notice"));
-    const rows=requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check pairing",()=>action(async()=>{await post("operations/device-setup/poll",{requestId:r.id});await pairingHistory(o);})));if(r.canRevoke)actions.append(button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await pairingHistory(o);}),"danger"));return ["Hidden · "+r.id,(r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),new Date(r.created_at).toLocaleString("en-IN"),new Date(r.expires_at).toLocaleString("en-IN"),pill(el,r.state),r.device_ref||"—",actions];});
+    container.append(metrics,el("p","Pairing history shows the activation code, request state and linked device so the pairing can be audited end to end. Only pending codes owned by the current actor can be polled; revocation remains permission-scoped.","notice"));
+    const rows=requests.map(r=>{const actions=el("div",undefined,"admin-row-actions");if(r.canCheck)actions.append(button(el,"Check pairing",()=>action(async()=>{await post("operations/device-setup/poll",{requestId:r.id});await pairingHistory(o);})));if(r.canRevoke)actions.append(button(el,"Revoke code",()=>action(async()=>{await post("operations/device-setup/revokeCode",{requestId:r.id});await pairingHistory(o);}),"danger"));return [r.pairingCode||"Unavailable",(r.owner_name||r.owner_id)+" · "+(r.owner_type||"account"),new Date(r.created_at).toLocaleString("en-IN"),new Date(r.expires_at).toLocaleString("en-IN"),pill(el,r.state),r.device_ref||"—",actions];});
     container.append(panelTable(el,["Code / request","Owner / actor","Created","Expires","State","Device","Action"],rows,"Pairing audit history",requests.length+" records"+(history.hasMore?" · more available":"")));
     const offset=history.offset||0,pager=el("div",undefined,"admin-pagination");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>pairingHistory({...o,state:{offset:Math.max(0,offset-50)}}))));if(history.hasMore)pager.append(button(el,"Next",()=>action(()=>pairingHistory({...o,state:{offset:offset+50}})),"primary"));if(pager.children.length)container.append(pager);
   }
