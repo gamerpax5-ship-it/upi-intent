@@ -37,7 +37,7 @@
    const key=data.status==='success'&&data.verified!==true&&data.approved!==true?'pending':data.status;
    const state=states[key];if(!state)throw Error('Status unavailable');
    legacy.hidden=true;
-   panel.textContent=state[0]+' — '+state[1];panel.className='warn '+(key==='success'?'ok':['failed','expired','cancelled'].includes(key)?'err':'pending');
+   panel.textContent=state[0]+' — '+(key==='success'&&data.approvalMethod==='user_manual'?'Payment confirmed by receiving User.':state[1]);panel.className='warn '+(key==='success'?'ok':['failed','expired','cancelled'].includes(key)?'err':'pending');
    if(['failed','expired','success','cancelled'].includes(key)){
     terminal=true;renderOutcome(key,data);finalScreen.textContent=key==='cancelled'?'Failed':state[0];finalScreen.dataset.status=key==='cancelled'?'failed':key;finalScreen.hidden=false;document.body.classList.add('gateway-terminal');document.title=finalScreen.textContent+' · WPay';
    }

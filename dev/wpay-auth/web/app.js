@@ -251,6 +251,18 @@ async function load(selected = destination, reuseSession = false) {
     load.session={navigation,until:Date.now()+15000};
   }
   locale = L.choose(explicitLocale,account.accountType === "merchant" ? account.locale : null,navigator.language);
+  // Notification links only select an existing, authorized review screen.
+  let notificationState;
+  if(globalThis.WPayAdminUi && ['admin','super_admin','employee'].includes(account.accountType)){
+    const match=location.hash.match(/^#notification=(users|merchants|bank-upi)&target=([0-9a-f-]{36})$/i);
+    if(match){
+      const permission={users:'users.view',merchants:'merchants.view','bank-upi':'bank_upi.view'}[match[1]];
+      if(navigation.groups.flatMap(g=>g.children).some(p=>p.permissionId===permission)){
+        selected='v5.'+match[1];notificationState={search:match[2],reviewId:match[2]};
+        history.replaceState(null,'',location.pathname+location.search);
+      }
+    }
+  }
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
   applyLocale();
   stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status);
@@ -261,7 +273,7 @@ async function load(selected = destination, reuseSession = false) {
   }
   globalThis.WPayAdminUi?.sync(account,navigation,selected);
   if(globalThis.WPayAdminUi&&["admin","super_admin","employee"].includes(account.accountType))pageContent.replaceChildren(el("section","Loading module…","card admin-empty admin-module-loading"));
-  if(typeof selected==='string'&&selected.startsWith('v5.')){destination=selected;return globalThis.WPayAdminV5Pages.render(selected,{account,locale,request,post,action,handleStage,el,container:$('page-content'),title:$('page-title'),navigate,state:globalThis.WPayAdminUi?.takeSearch?.(selected)||{}});}
+  if(typeof selected==='string'&&selected.startsWith('v5.')){destination=selected;return globalThis.WPayAdminV5Pages.render(selected,{account,locale,request,post,action,handleStage,el,container:$('page-content'),title:$('page-title'),navigate,state:notificationState||globalThis.WPayAdminUi?.takeSearch?.(selected)||{}});}
   if(globalThis.WPayAdminUi && (!selected || navigation.groups.flatMap(g=>g.children).find(p=>p.destinationId===selected)?.permissionId==='overview.view')){destination=selected;return globalThis.WPayAdminUi.overview({account,request,post,action,el,container:$('page-content'),title:$('page-title'),navigate});}
   if(globalThis.WPayReferenceUi) selected=globalThis.WPayReferenceUi.sync(account,navigation,selected);
   destination = globalThis.WPayReferenceUi ? "ui:"+globalThis.WPayReferenceUi.section : selected; const page = navigation.groups.flatMap(group => group.children).find(page => page.destinationId === selected);

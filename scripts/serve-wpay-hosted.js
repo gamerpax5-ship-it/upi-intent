@@ -33,14 +33,18 @@ async function main(){
     for(const factor of factors.rows)mfaCrypto.open(factor.encrypted_secret,`wpay-factor:${factor.account_id}:${factor.factor_version}`);
     stage="source_adapters";source=openLegacySource();operational=openOperationalSource();const pairingService=configuredPairingService();const pairingBridge=pairingService||configuredPairingBridge();
     let telegram;try{telegram=require('../lib/wpay/telegram/runtime').create({pool,crypto:mfaCrypto,pairing:pairingService||operational.source,operational:operational.source,legacy:source.reader,onError:code=>console.error(code)});}catch{console.error('TELEGRAM_CONFIG_INVALID');}
-    stage="server_start";const service=new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY});const server=await startAuthServer({service,
-      port:Number(process.env.PORT),hostedOrigin:policy.origin,webhook:telegram?.webhook,readiness:async()=>{
+    stage="server_start";const service=new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY});
+    let notification;try{const {Source}=require('../lib/wpay/notification-bot/source'),{Worker}=require('../lib/wpay/notification-bot/worker');const notifications=new Source({pool,pairing:pairingService,origin:policy.origin});notification=require('../lib/wpay/notification-bot/runtime').create({pool,gateway:service.gateway,crypto:mfaCrypto,source:notifications,worker:new Worker(notifications),onError:code=>console.error(code)});}catch{console.error('NOTIFICATION_CONFIG_INVALID');}
+    const webhook=async(req,res,helpers)=>{if(notification&&await notification.webhook(req,res,helpers))return true;return telegram?telegram.webhook(req,res,helpers):false;};
+    const server=await startAuthServer({service,
+      port:Number(process.env.PORT),hostedOrigin:policy.origin,webhook,readiness:async()=>{
         if(stopping)return false;
         try {await pool.query("SELECT 1");return true;}catch{return false;}
       }});
     if(telegram)telegram.start().catch(()=>console.error('TELEGRAM_START_FAILED'));
+    if(notification)notification.start().catch(()=>console.error('NOTIFICATION_START_FAILED'));
     const deadlines=require("../lib/wpay/workers/deadlines").startDeadlines({pool,payouts:service.payouts,parking:service.parking,onError:code=>console.error(code)});
-    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();await telegram?.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
+    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();await notification?.stop();await telegram?.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
     return server;

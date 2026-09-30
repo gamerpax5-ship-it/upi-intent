@@ -1,0 +1,65 @@
+WPAY NOTIFICATION BOT — OPERATIONS
+
+Separate token: WPAY_NOTIFICATION_BOT_TOKEN. Never reuse TELEGRAM_BOT_TOKEN.
+Webhook: /integrations/notification-bot/webhook
+Readiness: /integrations/notification-bot/webhook/health
+The existing Telegram bot, commands and OTP modules are unchanged.
+
+GROUP SETUP
+Add the new bot as group administrator. One of the six approved controllers:
+8248339578, 8431990409, 7925279541, 8403294379, 7668086423, 6749918659
+may configure groups. Private chat and anonymous commands are not supported.
+
+/setuser email Telegram-ID     Add an existing WPay User and group member.
+                             Repeat for multiple Users or multiple IDs.
+/removeuser email Telegram-ID  Remove that mapping only.
+/resetuser email old-ID new-ID Replace one mapping; invalidate old buttons.
+/resetgroup                   Confirm within 2 minutes to remove all mappings.
+/mappings [page]              View current group mappings.
+/setmerchant email            Configure a Merchant group (one Merchant).
+/setadmin                     Configure an Admin notification group.
+/users [page]                 Admin group only.
+/merchants [page]             Admin group only.
+/status upi                   Current group-scoped UPI status.
+Changing group role requires a confirmed reset. No command creates or approves
+a WPay account. Review links open existing authenticated Admin screens.
+
+PAYMENTS
+Only the currently mapped receiving User can press Received. The six controller
+IDs cannot receive. The button directly confirms the order without another panel.
+User confirmation makes the payment Successful using existing accounting terms
+and callback delivery. It is explicitly user_manual / bankVerified=false, not
+independent bank verification. Duplicate clicks cannot double-credit a payment.
+Expired reservation recovery retains the existing zero-commission rule.
+Callback Sent means an actual successful HTTP response, not simply queueing.
+
+ROUTING
+Offline reminder: 1 minute. Stop: 5 minutes of actual heartbeat age.
+Source outage/unknown telemetry is not treated as device offline.
+Pending threshold: 3 distinct unresolved orders/UTRs, each at least 5 minutes old.
+Statement reminder: 5 minutes. Only the affected UPI stops across merchants.
+The bot only resumes its own stop after recovery and existing eligibility checks.
+Explicit Admin Start overrides the current incident. Protection rearms once the
+device is online and all pending claims clear. Independent restrictions remain.
+Optional settings: WPAY_PENDING_UTR_DISABLE_THRESHOLD (3..7),
+WPAY_DEVICE_OFFLINE_STOP_MINUTES, WPAY_DEVICE_OFFLINE_REMINDER_MINUTES,
+WPAY_STATEMENT_REMINDER_MINUTES. Defaults above apply without extra variables.
+For multiple active tenants, explicitly configure WPAY_NOTIFICATION_TENANT_IDS;
+ambiguous scope fails closed rather than widening access automatically.
+
+SAFETY AND VERIFICATION
+New tables have RLS and backend-only permissions. Telegram messages project only
+approved fields; no bank notes, banking credentials, SMS bodies or OTP content.
+Durable updates, event outbox and mapping generations survive process restarts.
+Telegram delivery is not exactly-once across a send/commit crash; financial
+posting is idempotent. Group membership and ownership are rechecked on Received.
+No production financial action is exercised by automated tests.
+
+Local full regression (UTC): 820 tests, 813 pass, 7 fail, zero skipped.
+Unchanged failures: three bank-note credential expectations from user-preserved
+edits; one activation-code visibility expectation; two old migration counts;
+one old exact UI stylesheet snapshot. No existing tests or protection baseline
+were modified to hide these failures. Focused tests use a disposable PostgreSQL
+instance and production-like restricted role. Final counts reported separately.
+Real Telegram group membership/delivery needs an actual configured group; bot
+readiness alone is not proof of end-to-end delivery to a particular group.

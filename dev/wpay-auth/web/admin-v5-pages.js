@@ -143,9 +143,12 @@
   }
 
   async function bankUpi(o){
-    const {post,request,action,el,container,title}=o,search=String(o.state?.search||"");
+    const {post,request,action,el,container,title}=o;let search=String(o.state?.search||"");
     title.textContent="Bank & UPI";container.replaceChildren();
-    const [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search}),request("business/banks")]),genericById=new Map(generic.banks.map(x=>[x.id,x]));
+    let directory,generic;
+    if(o.state?.reviewId){generic=await request('business/banks');const target=generic.banks.find(b=>b.id===o.state.reviewId);search=target?.details?.upiId||search;directory=await post('business/admin-upi',{offset:0,search});}
+    else [directory,generic]=await Promise.all([post("business/admin-upi",{offset:0,search}),request("business/banks")]);
+    const genericById=new Map(generic.banks.map(x=>[x.id,x]));
     const tools=document.getElementById("page-tools");
     if(tools){
       tools.replaceChildren();
@@ -1331,6 +1334,7 @@
     }
     if(!data.rows.length)grid.append(el("div","No matching accounts.","empty card"));const pager=el("div",undefined,"admin-pagination");if(offset>0)pager.append(button(el,"Previous",()=>action(()=>directory({...o,state:{search,status,offset:Math.max(0,offset-25)}},type))));if(data.nextOffset!==null&&data.nextOffset!==undefined)pager.append(button(el,"Next",()=>action(()=>directory({...o,state:{search,status,offset:data.nextOffset}},type)),"primary"));if(pager.children.length)container.append(pager);
 
+    if(state.reviewId){const target=data.rows.find(a=>a.id===state.reviewId);delete state.reviewId;if(target?.approvalStatus==='pending'&&data.actions.includes('approve'))await approve(target,true);}
     async function createAccount(){
       const opts=await request("approval-options");
       dialog(el,container,"Create "+(isUser?"User":"Merchant"),(body,d)=>{
