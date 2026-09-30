@@ -6,14 +6,15 @@ Readiness: /integrations/notification-bot/webhook/health
 The existing Telegram bot, commands and OTP modules are unchanged.
 
 GROUP SETUP
-Add the new bot as group administrator. One of the six approved controllers:
+Add the new bot as a group member with permission to send messages. Being an
+administrator is no longer mandatory. One of the six approved controllers:
 8248339578, 8431990409, 7925279541, 8403294379, 7668086423, 6749918659
 may configure groups. Private chat and anonymous commands are not supported.
 
-/setuser email Telegram-ID     Add an existing WPay User and group member.
-                             Repeat for multiple Users or multiple IDs.
-/removeuser email Telegram-ID  Remove that mapping only.
-/resetuser email old-ID new-ID Replace one mapping; invalidate old buttons.
+/setuser email @name1 @name2   Add up to 10 Telegram usernames at once.
+                             Repeat for additional WPay accounts.
+/removeuser email @name       Remove that mapping only.
+/resetuser email @old @new     Replace one mapping; invalidate old buttons.
 /resetgroup                   Confirm within 2 minutes to remove all mappings.
 /mappings [page]              View current group mappings.
 /setmerchant email            Configure a Merchant group (one Merchant).
@@ -23,6 +24,21 @@ may configure groups. Private chat and anonymous commands are not supported.
 /status upi                   Current group-scoped UPI status.
 Changing group role requires a confirmed reset. No command creates or approves
 a WPay account. Review links open existing authenticated Admin screens.
+
+Each invited username receives a Connect button. That person must click within
+24 hours to bind their actual Telegram account. No financial action occurs when
+connecting. Numerical ID is stored internally, never inferred from a display
+name, and never automatically rebound if the username changes owners. Existing
+numerical mappings and their commands remain compatible. Six controller IDs
+still cannot connect as receivers. /mappings shows Connected or Awaiting connection.
+If an invitation expires, repeat /setuser to obtain fresh connection buttons.
+
+When multiple bots or Telegram privacy mode prevent delivery of a plain command,
+address this bot explicitly: /setuser@notifier_wpaybot email @name1 @name2
+Membership is still checked: Telegram only guarantees other-member lookups for
+Admin bots. If a lookup fails, this bot fails closed instead of approving a
+payment or disclosing data without verification. A normal non-muted group member
+is accepted when Telegram supplies the member information.
 
 PAYMENTS
 Only the currently mapped receiving User can press Received. The six controller
@@ -55,11 +71,11 @@ Telegram delivery is not exactly-once across a send/commit crash; financial
 posting is idempotent. Group membership and ownership are rechecked on Received.
 No production financial action is exercised by automated tests.
 
-Local full regression (UTC): 820 tests, 813 pass, 7 fail, zero skipped.
+Local full regression (UTC), username update: 828 tests, 821 pass, 7 fail, zero skipped.
 Unchanged failures: three bank-note credential expectations from user-preserved
 edits; one activation-code visibility expectation; two old migration counts;
 one old exact UI stylesheet snapshot. No existing tests or protection baseline
 were modified to hide these failures. Focused tests use a disposable PostgreSQL
-instance and production-like restricted role. Final counts reported separately.
+instance and production-like restricted role: 33/33 pass, zero skipped.
 Real Telegram group membership/delivery needs an actual configured group; bot
 readiness alone is not proof of end-to-end delivery to a particular group.

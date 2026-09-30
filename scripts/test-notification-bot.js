@@ -12,7 +12,7 @@ async function main(){
   env.TEST_DATABASE_URL=`postgresql://postgres:${password}@127.0.0.1:${port}/postgres`;env.TZ='UTC';env.PGTZ='UTC';env.NODE_ENV='test';
   const {Pool}=require('pg'),setup=new Pool({connectionString:env.TEST_DATABASE_URL});
   try{await setup.query('CREATE ROLE wpay_runtime NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE');}finally{await setup.end();}
-  const child=spawn(process.execPath,['--test','--test-concurrency=1','test/wpay-notification-bot.test.js','test/wpay-notification-bot-postgres.test.js','test/wpay-notification-received-postgres.test.js','test/wpay-utr-approval.test.js','test/wpay-gateway.test.js'],{env,stdio:'inherit',windowsHide:true});
+  const child=spawn(process.execPath,['--test','--test-concurrency=1','test/wpay-notification-bot.test.js','test/wpay-notification-bot-postgres.test.js','test/wpay-notification-received-postgres.test.js','test/wpay-notification-usernames.test.js','test/wpay-utr-approval.test.js','test/wpay-gateway.test.js'],{env,stdio:'inherit',windowsHide:true});
   process.exitCode=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve);});
  }finally{
   await database.stop();const resolved=path.resolve(directory);
