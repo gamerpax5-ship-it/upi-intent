@@ -4,7 +4,7 @@ const {CONTROLLER_IDS,UTR_CONTROLLER_IDS,GroupAccess,verifySecret}=require('../l
 const {parse,subscription,watchesPhone}=require('../lib/wpay/telegram/commands');
 const chat={id:-1001234567890,type:'supergroup'};
 function access(members={},botStatus='administrator'){return new GroupAccess({botId:'123456789',telegram:{call:async(method,b)=>{if(b.user_id==='123456789')return {status:botStatus};if(members[b.user_id] instanceof Error)throw members[b.user_id];return {user:{id:Number(b.user_id)},status:members[b.user_id]||'left'};}}});}
-test('any one of the five exact controllers enables a group',async()=>{for(const id of CONTROLLER_IDS)assert.equal(await access({[id]:'member'}).allowed(chat),true);});
+test('any one of the six exact controllers enables a group',async()=>{for(const id of CONTROLLER_IDS)assert.equal(await access({[id]:'member'}).allowed(chat),true);});
 test('activationcode is restricted to the six exact authorized IDs',async()=>{for(const id of UTR_CONTROLLER_IDS)assert.equal(await access({[id]:'member'}).allowedActivation(chat,Number(id)),true);assert.equal(await access({'9999999999':'member'}).allowedActivation(chat,9999999999),false);});
 test('controller leaving stops subsequent delivery authorization',async()=>{const m={[CONTROLLER_IDS[0]]:'member'},a=access(m);assert.equal(await a.allowed(chat),true);m[CONTROLLER_IDS[0]]='left';assert.equal(await a.allowed(chat),false);});
 test('API failure, no controller and missing bot Admin rights fail closed',async()=>{assert.equal(await access().allowed(chat),false);assert.equal(await access({[CONTROLLER_IDS[0]]:Error()}).allowed(chat),false);assert.equal(await access({[CONTROLLER_IDS[0]]:'member'},'member').allowed(chat),false);});

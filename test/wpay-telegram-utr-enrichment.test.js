@@ -2,11 +2,11 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {GroupAccess,CONTROLLER_IDS,UTR_CONTROLLER_IDS}=require('../lib/wpay/telegram/access');
 const {redact,readMessages}=require('../lib/wpay/telegram/transaction-message'),{Source}=require('../lib/wpay/telegram/source'),{utr}=require('../lib/wpay/telegram/format');
-test('sixth ID is UTR-only and still needs another listed current group member',async()=>{
- assert.equal(CONTROLLER_IDS.length,5);assert.equal(UTR_CONTROLLER_IDS.length,6);assert.ok(UTR_CONTROLLER_IDS.includes('6749918659'));
+test('all six IDs share normal and UTR group access and still need another listed current group member for UTR',async()=>{
+ assert.equal(CONTROLLER_IDS.length,6);assert.equal(UTR_CONTROLLER_IDS.length,6);assert.ok(UTR_CONTROLLER_IDS.includes('6749918659'));
  const members=new Set(['6749918659',CONTROLLER_IDS[0]]),chat={id:-123,type:'supergroup'};
  const access=new GroupAccess({botId:'123',requireAdmin:false,telegram:{call:async(m,a)=>a.user_id==='123'?{status:'member'}:{user:{id:Number(a.user_id)},status:members.has(a.user_id)?'member':'left'}}});
- assert.equal(await access.allowedUtr(chat,'6749918659'),true);assert.equal(await access.allowed(chat,'6749918659'),false);
+ assert.equal(await access.allowedUtr(chat,'6749918659'),true);assert.equal(await access.allowed(chat,'6749918659'),true);
  members.delete(CONTROLLER_IDS[0]);assert.equal(await access.allowedUtr(chat,'6749918659'),false);
 });
 test('transaction messages require exact UTR, mask numeric tokens/links and hide credential text',()=>{
