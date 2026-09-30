@@ -28,11 +28,11 @@
      generate.disabled=true;feedback.textContent='Generating activation code…';
      try{
      const result=await post('operations/device-setup/create',{requestId});requestId=crypto.randomUUID();
-     const box=el('section',undefined,'card pad'),code=el('code',result.pairingCode),status=el('p','Waiting for your APK to pair');code.dataset.secret='true';
+     const box=el('section',undefined,'card pad'),code=el('code',result.pairingCode),status=el('p','Waiting for your APK to pair');
      const check=async()=>{const r=await post('operations/device-setup/poll',{requestId:result.id});status.textContent=r.state;if(r.state==='linked'){clearInterval(timer);await reload();}else if(r.state!=='pending')clearInterval(timer);};
-     box.append(el('h2','Enter this code in WPay Agent'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),status,button('Check pairing',check),button('Copy code',async()=>{await navigator.clipboard.writeText(result.pairingCode);status.textContent='Code copied';}),button('Hide code',()=>{code.textContent='Hidden';}));resultSlot.replaceChildren(box);
+     box.append(el('h2','Enter this code in WPay Agent'),code,el('p','Expires '+new Date(result.expiresAt).toLocaleString()),status,button('Check pairing',check),button('Copy code',async()=>{await navigator.clipboard.writeText(result.pairingCode);status.textContent='Code copied';}));resultSlot.replaceChildren(box);
      let checking=false;const timer=setInterval(async()=>{if(!box.isConnected||Date.now()>=+new Date(result.expiresAt)){clearInterval(timer);return;}if(checking)return;checking=true;try{await check();}catch{status.textContent='Automatic check paused. Use Check pairing to retry.';clearInterval(timer);}finally{checking=false;}},5000);
-     setTimeout(()=>{code.textContent='Hidden';},Math.min(60000,Math.max(0,+new Date(result.expiresAt)-Date.now())));
+
      feedback.textContent='Activation code is ready below. Enter it in WPay Agent.';
      // Scroll after the action's presentation pass and browser scroll anchoring.
      const reveal=()=>{if(box.isConnected)code.scrollIntoView?.({block:'center'});};
@@ -44,8 +44,8 @@
     if(!data.canCreate)card.append(el('p',data.setupAllowed===false?'Activation needs available collection capacity. Complete an approved payout or Parking payment, confirm a deposit, or ask Admin for free setup access.':'Your account does not have permission to issue pairing codes.','notice'));
     card.append(button('Refresh activation status',()=>reload()));
     card.append(el('h2','Activation code history'));
-    const table=el('table'),head=el('thead'),heading=el('tr');for(const label of ['Created','Owner','Status','Device','Expires','Action'])heading.append(el('th',label));head.append(heading);table.append(head);const body=el('tbody');
-    for(const r of history.requests){const tr=el('tr');for(const value of [new Date(r.created_at).toLocaleString(),r.owner_name,r.state+(r.revoked_at?' · device unlinked':''),r.device_ref||'—',new Date(r.expires_at).toLocaleString()])tr.append(el('td',value));const actions=el('td');if(r.canCheck)actions.append(button('Check pairing',async()=>{await post('operations/device-setup/poll',{requestId:r.id});await reload();}));if(r.canRevoke)actions.append(button('Revoke code',async()=>{await post('operations/device-setup/revokeCode',{requestId:r.id});await reload();}));tr.append(actions);body.append(tr);}table.append(body);const scroll=el('div',undefined,'table-wrap');scroll.append(table);card.append(scroll);if(!history.requests.length)card.append(el('p','No activation codes issued yet.'));
+    const table=el('table'),head=el('thead'),heading=el('tr');for(const label of ['Activation code','Created','Owner','Status','Device','Expires','Action'])heading.append(el('th',label));head.append(heading);table.append(head);const body=el('tbody');
+    for(const r of history.requests){const tr=el('tr');for(const value of [r.pairingCode||'Unavailable',new Date(r.created_at).toLocaleString(),r.owner_name,r.state+(r.revoked_at?' · device unlinked':''),r.device_ref||'—',new Date(r.expires_at).toLocaleString()])tr.append(el('td',value));const actions=el('td');if(r.canCheck)actions.append(button('Check pairing',async()=>{await post('operations/device-setup/poll',{requestId:r.id});await reload();}));if(r.canRevoke)actions.append(button('Revoke code',async()=>{await post('operations/device-setup/revokeCode',{requestId:r.id});await reload();}));tr.append(actions);body.append(tr);}table.append(body);const scroll=el('div',undefined,'table-wrap');scroll.append(table);card.append(scroll);if(!history.requests.length)card.append(el('p','No activation codes issued yet.'));
     if(history.offset)card.append(button('Previous codes',()=>reload({historyOffset:Math.max(0,history.offset-50)})));if(history.hasMore)card.append(button('Next codes',()=>reload({historyOffset:history.offset+50})));return;
    }
    card.append(button('Refresh devices',()=>reload(state)));
