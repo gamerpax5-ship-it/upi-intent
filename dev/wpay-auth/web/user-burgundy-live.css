@@ -293,11 +293,6 @@
 .user-burgundy #workspace .user-mini{padding:12px 8px;background:var(--panel);border-radius:8px}
 .user-burgundy #workspace :is(.user-mini,.top-user) strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}
 .user-burgundy #workspace :is(.user-mini,.top-user) small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
-/* Override only the old reference's tiny !important identity sizes. */
-.user-burgundy #workspace :is(.user-mini,.top-user) strong{font-size:13px!important}
-.user-burgundy #workspace :is(.user-mini,.top-user) small{font-size:11px!important}
-.user-burgundy #workspace .search input{font-size:13px!important}
-.user-burgundy #workspace .nav-item{font-size:13px!important}
 .user-burgundy #workspace .avatar{border-radius:9px;background:var(--user-active);color:var(--text);font-weight:600;flex-shrink:0}
 .user-burgundy #workspace .topbar{min-height:70px;height:auto;padding:12px 28px;background:var(--bg);backdrop-filter:none;gap:12px}
 .user-burgundy #workspace .top-user{display:flex;background:var(--panel);text-align:left;max-width:230px}

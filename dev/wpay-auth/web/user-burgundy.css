@@ -231,17 +231,17 @@ td{font-size:11px!important;padding:11px 12px!important}
 
 /* ===== Final readability audit ===== */
 small{font-size:10px}
-.sidebar-foot small{font-size:9px!important}
-.user-mini strong{font-size:11px!important}
-.top-user strong{font-size:11px!important}.top-user small{font-size:9px!important}
-.search input{font-size:12px!important}
+.sidebar-foot small{font-size:9px}
+.user-mini strong{font-size:11px}
+.top-user strong{font-size:11px}.top-user small{font-size:9px}
+.search input{font-size:12px}
 .tabs button{font-size:11px!important}
 .codebox{font-size:12px!important}
 .deposit-address code{font-size:11px!important}
 .qr-caption{font-size:10px!important}
 .rate-strip span,.rate-equivalent span{font-size:10px!important}
 .login-card h1{line-height:1.05}
-@media(max-width:600px){body{font-size:13px}.nav-item{font-size:12px!important}}
+@media(max-width:600px){body{font-size:13px}.nav-item{font-size:12px}}
 
 
 /* ===== Dashboard command center ===== */
