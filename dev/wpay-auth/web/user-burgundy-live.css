@@ -431,3 +431,62 @@
  .user-burgundy #workspace #page-content :is(dialog,dialog.modal,dialog.upi-reference-popup){padding:18px;max-width:calc(100vw - 24px)}
 }
 @media(prefers-reduced-motion:reduce){.user-burgundy #workspace *{animation:none;transition:none;scroll-behavior:auto}}
+/* Compact operations correction: preserve content, reduce visual containers. */
+.user-burgundy #workspace{--bg:#090609;--panel:#130c11;--panel2:#1b1017;--text:#f6edf1;--muted:#c5b1bc;--line:#382330;--line2:#634252;--user-field:#0e080c;--user-active:#28121e;background:var(--bg);color:var(--text)}
+.light .user-burgundy #workspace,.user-burgundy.light #workspace{--bg:#f5f0f2;--panel:#fffafb;--panel2:#f0e6eb;--text:#2b1821;--muted:#705560;--line:#d6c2cc;--line2:#ac869a;--user-field:#fffafb;--user-active:#f2dce5}
+.user-burgundy #workspace #page-content :is(.pad,.workflow-card,.device-workspace){padding:14px}
+.user-burgundy #workspace #page-content .page-hero{padding:0 0 14px;margin-bottom:16px;min-height:0}
+.user-burgundy #workspace #page-content .page-hero h1{font-size:26px}
+.user-burgundy #workspace #page-content .page-hero p{font-size:13px;line-height:1.6}
+.user-burgundy #workspace #page-content :is(.grid,.metric-grid,.deposit-shell,.facts,.owned-device-stats){gap:12px}
+.user-burgundy #workspace #page-content .fact{padding:9px 11px}
+.user-burgundy #workspace #page-content .facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+.user-burgundy #workspace #page-content .dash-kpi{min-height:120px;padding:16px}
+.user-burgundy #workspace #page-content .dash-kpi strong{font-size:26px;margin-top:12px}
+.user-burgundy #workspace #page-content :is(.mini-stat,.metric){padding:12px}
+.user-burgundy #workspace #page-content .owned-device-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px;align-items:start}
+.user-burgundy #workspace #page-content .owned-device-card{max-width:520px;padding:14px}
+.user-burgundy #workspace #page-content .owned-device-header{gap:10px;margin-bottom:10px;padding-bottom:10px}
+.user-burgundy #workspace #page-content .owned-device-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin:12px 0;gap:8px}
+.user-burgundy #workspace #page-content .owned-device-stat{padding:8px 10px}
+.user-burgundy #workspace #page-content .owned-device-stat small{font-size:11px;margin-bottom:3px}
+.user-burgundy #workspace #page-content .owned-device-stat strong{font-size:13px;line-height:1.5}
+.user-burgundy #workspace #page-content :is(.owned-device-detail,.compact-disclosure){padding:12px;margin-top:12px}
+.user-burgundy #workspace #page-content .workflow-form{padding:12px;gap:12px;margin:12px 0}
+.user-burgundy #workspace #page-content :is(.hint,.muted,.device-reference){color:var(--muted);opacity:1}
+.user-burgundy #workspace #page-content :is(button:disabled,input:disabled,select:disabled){opacity:.65}
+.user-burgundy #workspace #page-content .deposit-shell{display:grid;grid-template-columns:minmax(240px,.85fr) minmax(300px,1.15fr);align-items:start}
+.user-burgundy #workspace #page-content .deposit-request-card form{display:grid;grid-template-columns:minmax(0,1fr);padding:0;border:0;background:none}
+.user-burgundy #workspace #page-content .deposit-request-card label:has(input[type=checkbox]){display:flex;align-items:flex-start;gap:10px}
+.user-burgundy #workspace #page-content .deposit-request-card input[type=checkbox]{order:-1;flex-shrink:0}
+.user-burgundy #workspace #page-content .deposit-active-card .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+.user-burgundy #workspace #page-content .deposit-active-card:has(.deposit-qr-visual){display:grid;grid-template-columns:minmax(0,1fr) 176px;gap:16px;align-items:start;background:var(--panel)}
+.user-burgundy #workspace #page-content .deposit-qr-visual p{font-size:11px;line-height:1.6;color:var(--muted)}
+.user-burgundy #workspace #page-content .deposit-destination-info{min-width:0}
+.user-burgundy #workspace #page-content .deposit-active-card .fact:nth-child(2){grid-column:1/-1;order:3}
+.user-burgundy #workspace #page-content .deposit-address-qr{width:176px;height:176px;max-width:100%;margin-top:12px;border:6px solid white;border-radius:6px;background:white}
+.user-burgundy #workspace #page-content .deposit-amount-preview{font-size:18px;font-weight:600;line-height:1.5;color:var(--text);margin:0 0 12px}
+.user-burgundy #workspace #page-content .deposit-history{margin-top:16px}
+.user-burgundy #workspace #page-content .deposit-history>summary{font-size:16px;margin-bottom:12px}
+.user-burgundy #workspace #page-content .deposit-history .business-row{margin-top:12px}
+.user-burgundy #workspace #page-content .user-payout-workspace{padding:0;background:none;border:0}
+.user-burgundy #workspace #page-content :is(.payout-orders-section,.payout-history-section){padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:14px}
+.user-burgundy #workspace #page-content .user-payout-workspace .business-row{padding:12px;margin:10px 0;background:var(--panel2)}
+.user-burgundy #workspace #page-content .user-payout-workspace .business-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px}
+.user-burgundy #workspace #page-content .user-payout-workspace .business-row :is(h3,p){margin:0;flex:1 1 150px;font-size:13px}
+.user-burgundy #workspace #page-content .user-payout-workspace .business-row button{margin:0}
+.user-burgundy #workspace #page-content .payout-review-section{margin-top:14px}
+.user-burgundy #workspace #page-content .user-guide-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:14px;align-items:start;margin-top:16px}
+.user-burgundy #workspace #page-content .user-guide-topics{display:grid;gap:6px;max-height:600px;overflow:auto;padding:4px}
+.user-burgundy #workspace #page-content .user-guide-topics button{margin:0;text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--text)}
+.user-burgundy #workspace #page-content .user-guide-topics button[aria-pressed=true]{background:var(--user-active);border-color:var(--gold);color:var(--text)}
+.user-burgundy #workspace #page-content .user-guide-detail{position:sticky;top:16px;min-width:0}
+.user-burgundy #workspace #page-content .user-guide-detail li{padding:5px 0;line-height:1.7;color:var(--text)}
+.user-burgundy #workspace #page-content .user-guide-detail ol{padding-left:24px}
+@media(max-width:700px){
+ .user-burgundy #workspace #page-content .deposit-active-card:has(.deposit-qr-visual){grid-template-columns:minmax(0,1fr)}
+ .user-burgundy #workspace #page-content :is(.deposit-shell,.user-guide-layout){grid-template-columns:minmax(0,1fr)}
+ .user-burgundy #workspace #page-content .user-guide-topics{max-height:180px;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .user-burgundy #workspace #page-content .user-guide-detail{position:static}
+ .user-burgundy #workspace #page-content .owned-device-card{max-width:100%}
+}
