@@ -35,8 +35,9 @@ async function main(){
     let telegram;try{telegram=require('../lib/wpay/telegram/runtime').create({pool,crypto:mfaCrypto,pairing:pairingService||operational.source,operational:operational.source,legacy:source.reader,onError:code=>console.error(code)});}catch{console.error('TELEGRAM_CONFIG_INVALID');}
     let ledgerBot;try{ledgerBot=require('../lib/wpay/ledger-bot/runtime').create({pool,crypto:mfaCrypto,onError:code=>console.error(code)});}catch{console.error('LEDGER_BOT_CONFIG_INVALID');}
     stage="server_start";const service=new AuthService(new SecurityRepository(pool,{throttleMode:"hosted"}),{mfaCrypto,legacyReader:source.reader,operationalSource:operational.source,pairingSource:pairingService,pairingBridge,fundingProvider:fromEnvironment(),fixedCurrency:process.env.WPAY_HOSTED_FIXED_FEE_CURRENCY});
+    let statementBot;try{statementBot=require('../lib/wpay/statement-bot/runtime').create({pool,gateway:service.gateway,operational:operational.source,legacy:source.reader,onError:code=>console.error(code)});}catch{console.error('STATEMENT_BOT_CONFIG_INVALID');}
     let notification;try{const {Source}=require('../lib/wpay/notification-bot/source'),{Worker}=require('../lib/wpay/notification-bot/worker');const notifications=new Source({pool,pairing:pairingService,origin:policy.origin});notification=require('../lib/wpay/notification-bot/runtime').create({pool,gateway:service.gateway,crypto:mfaCrypto,source:notifications,worker:new Worker(notifications),onError:code=>console.error(code)});}catch{console.error('NOTIFICATION_CONFIG_INVALID');}
-    const webhook=async(req,res,helpers)=>{if(notification&&await notification.webhook(req,res,helpers))return true;if(ledgerBot&&await ledgerBot.webhook(req,res,helpers))return true;return telegram?telegram.webhook(req,res,helpers):false;};
+    const webhook=async(req,res,helpers)=>{if(notification&&await notification.webhook(req,res,helpers))return true;if(statementBot&&await statementBot.webhook(req,res,helpers))return true;if(ledgerBot&&await ledgerBot.webhook(req,res,helpers))return true;return telegram?telegram.webhook(req,res,helpers):false;};
     const server=await startAuthServer({service,
       port:Number(process.env.PORT),hostedOrigin:policy.origin,webhook,readiness:async()=>{
         if(stopping)return false;
@@ -44,9 +45,10 @@ async function main(){
       }});
     if(telegram)telegram.start().catch(()=>console.error('TELEGRAM_START_FAILED'));
     if(notification)notification.start().catch(()=>console.error('NOTIFICATION_START_FAILED'));
+    if(statementBot)statementBot.start().catch(()=>console.error('STATEMENT_BOT_START_FAILED'));
     if(ledgerBot)ledgerBot.start().catch(()=>console.error('LEDGER_BOT_START_FAILED'));
     const deadlines=require("../lib/wpay/workers/deadlines").startDeadlines({pool,payouts:service.payouts,parking:service.parking,onError:code=>console.error(code)});
-    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();await ledgerBot?.stop();await notification?.stop();await telegram?.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
+    const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();await statementBot?.stop();await ledgerBot?.stop();await notification?.stop();await telegram?.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
     return server;
