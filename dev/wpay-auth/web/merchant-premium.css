@@ -1046,3 +1046,6 @@ td small{font-size:13px!important;color:#bdcdc2!important}
 #workspace .grid>*{min-width:0}
 #workspace .table-scroll{max-width:100%;overflow-x:auto}
 #workspace .card{border-radius:14px}
+
+/* Prevent login/workspace flash while /me determines the current session. */
+body.auth-pending #loginView,body.auth-pending #workspace{visibility:hidden!important}
