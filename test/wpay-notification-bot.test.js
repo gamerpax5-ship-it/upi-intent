@@ -14,6 +14,8 @@ test('commands validate email, IDs, argument count, paging and bot mentions',()=
  assert.equal(parse('/setuser@oldbot a@example.com 1234567','testbot'),null);
  for(const text of ['/setuser a@example.com','/setuser bad 1234','/setuser a@example.com -123','/resetuser a@example.com 123','/resetgroup extra','/users 0','/merchants 1.2','/mappings 10000','/status x'])assert.throws(()=>parse(text,'testbot'));
  assert.deepEqual(parse('/resetuser a@example.com 1234567 7654321','testbot'),{command:'resetuser',email:'a@example.com',oldId:'1234567',telegramId:'7654321'});
+ assert.deepEqual(parse('/setadmin','testbot'),{command:'setadmin'});
+ assert.deepEqual(parse('/setadmin Admin@example.com','testbot'),{command:'setadmin',email:'admin@example.com'});
 });
 test('multiple users and multiple IDs coexist without overwriting',()=>{
  const first=add(),second=add(first,set('b@example.com','7654321'),{...account,id:'b',email:'b@example.com'}),third=add(second,set('a@example.com','2345678'));
@@ -37,6 +39,8 @@ test('disabled account can be removed but cannot gain a new mapping',()=>{
  assert.throws(()=>change(empty(),set(),disabled,actor));
 });
 test('group role conflicts and non-controller changes fail closed',()=>{
+ const admin={...account,id:'admin-account',email:'admin@example.com',account_type:'super_admin'};
+ const adminState=change(empty(),{command:'setadmin',email:admin.email},admin,actor).state;assert.equal(adminState.role,'admin');assert.equal(adminState.adminAccountId,admin.id);
  assert.throws(()=>change(add(),{command:'setadmin'},null,actor),/RESET_GROUP_FIRST/);
  assert.throws(()=>change(empty(),set(),account,'999999'),/CONTROLLER_REQUIRED/);
  for(const id of CONTROLLERS)assert.throws(()=>add(empty(),set(account.email,id)),/CONTROLLER_CANNOT_RECEIVE/);
@@ -102,6 +106,13 @@ test('only successful endpoint delivery can render Callback Sent',()=>{
  for(const state of ['pending','leased','failed','unconfigured',undefined])assert.doesNotMatch(callbackResult({...input,callbackStatus:state}),/Callback Sent/);
  assert.doesNotMatch(callbackResult({...input,paymentStatus:'verification_pending',callbackStatus:'delivered'}),/Callback Sent/);
 });
+
+test('Telegram Merchant approval form uses canonical commercial validation',()=>{
+ const review=require('../lib/wpay/notification-bot/account-review'),merchant={state:'editing_approve',account_type:'merchant'};
+ const parsed=review.parseReply(merchant,'1.2 | 0.8 | 6 | 300 | 107','INR');assert.equal(parsed.mode,'approve');assert.equal(parsed.draft.paymentLinkTtlSeconds,'300');
+ assert.throws(()=>review.parseReply(merchant,'1.2 | 0.8 | 6 | 10 | 107','INR'));
+ const user={state:'editing_approve',account_type:'user'};assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | TRON-TRC20 | invalid | no | no','INR'));
+});
 test('non-controller command never reads mappings, account data or sends a reply',async()=>{
  const {Bot}=require('../lib/wpay/notification-bot/engine');let touched=false;
  const bot=new Bot({access:{controller:async()=>false},store:{group:async()=>{touched=true;}},tenants:async()=>{touched=true;},telegram:{text:async()=>{touched=true;}}});
@@ -111,6 +122,9 @@ test('webhook isolation rejects old tokens, unrelated chat content and forged ca
  const {create,clean,PATH}=require('../lib/wpay/notification-bot/runtime');
  assert.throws(()=>create({env:{WPAY_NOTIFICATION_BOT_TOKEN:'same',TELEGRAM_BOT_TOKEN:'same'}}),/SEPARATE/);
  assert.equal(clean({update_id:1,message:{chat,from:{id:1234567},text:'private message'}}),null);
+ assert.equal(clean({update_id:2,message:{chat,from:{id:Number(actor)},text:'0.45 | 0.30 | 107',reply_to_message:{message_id:77}}}).message.reply_to_message.message_id,77);
+ assert.equal(clean({update_id:3,message:{chat,from:{id:Number(actor)},text:'ordinary group chatter'}}),null);
+ assert.ok(clean({update_id:4,callback_query:{id:'review',data:'nb:review:'+'a'.repeat(32)+':approve',from:{id:Number(actor)},message:{chat,message_id:9}}}));
  assert.equal(clean({update_id:1,callback_query:{id:'query',data:'nb:received:bad',from:{id:1234567},message:{chat,message_id:1}}}),null);
  const service=create({pool:{},env:{WPAY_NOTIFICATION_BOT_TOKEN:'123456:abcdefghijklmnopqrstuvwxyz',WPAY_HOSTED_ORIGIN:'https://fixture.invalid'}}),sent=[];
  const helpers={send:(_,status,body)=>sent.push({status,body}),readBody:async()=>{throw Error('must not read');}};
