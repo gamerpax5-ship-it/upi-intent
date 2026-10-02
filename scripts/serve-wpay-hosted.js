@@ -47,7 +47,7 @@ async function main(){
     if(notification)notification.start().catch(()=>console.error('NOTIFICATION_START_FAILED'));
     if(statementBot)statementBot.start().catch(()=>console.error('STATEMENT_BOT_START_FAILED'));
     if(ledgerBot)ledgerBot.start().catch(()=>console.error('LEDGER_BOT_START_FAILED'));
-    const deadlines=require("../lib/wpay/workers/deadlines").startDeadlines({pool,payouts:service.payouts,parking:service.parking,onError:code=>console.error(code)});
+    const deadlines=require("../lib/wpay/workers/deadlines").startDeadlines({pool,payouts:service.payouts,parking:service.parking,funding:service.funding.workflow,onError:code=>console.error(code)});
     const stop=()=>{if(stopping)return;stopping=true;const deadline=setTimeout(()=>server.closeAllConnections(),10000);deadline.unref();server.close(async()=>{clearTimeout(deadline);await deadlines.stop();await statementBot?.stop();await ledgerBot?.stop();await notification?.stop();await telegram?.stop();pool.end().catch(()=>{});source.close().catch(()=>{});operational.close().catch(()=>{});});server.closeIdleConnections();};
     process.once("SIGTERM",stop);process.once("SIGINT",stop);
     console.log("WPay hosted authentication listening; legacy observations require an independently verified owner mapping and an available read-only source.");
