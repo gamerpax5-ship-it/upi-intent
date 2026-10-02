@@ -25,7 +25,7 @@ function message(key = "") {
   if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
 }
 function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
-function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
+function showLogin() { document.body.classList.remove("auth-pending"); globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
 async function request(route,method = "GET",body,csrf) {
   let response,value;
   const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 20000);
@@ -265,7 +265,7 @@ async function load(selected = destination, reuseSession = false) {
   }
   if (account.accountType === "merchant" && L.supported.includes(explicitLocale) && account.locale !== explicitLocale) { await post("locale",{locale:explicitLocale}); account.locale = explicitLocale; }
   applyLocale();
-  stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status);
+  stage = null; $("access-card").replaceChildren(); $("auth").hidden = true; $("workspace").hidden = false; document.body.classList.remove("auth-pending"); $("account-type").textContent = tr(account.accountType); $("approval-badge").textContent = tr(["user","merchant"].includes(account.accountType) ? account.approvalStatus : account.status);
   $("navigation").replaceChildren(); const pageContent=$("page-content");pageContent.replaceChildren(); $("page-tools")?.replaceChildren();
   if($("page-title"))$("page-title").textContent=""; if($("page-subtitle"))$("page-subtitle").textContent="";
   if(!globalThis.WPayAdminUi){
