@@ -499,3 +499,22 @@ body.auth-pending #auth,body.auth-pending #workspace{visibility:hidden!important
 .user-burgundy #workspace #page-content .deposit-rate-only small{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
 .user-burgundy #workspace #page-content .deposit-rate-only strong{display:block;font-size:18px;font-weight:600;color:var(--text)}
 
+
+/* Safe User-panel UI corrections: responsive-only, no workflow/layout rewrites. */
+.user-burgundy #workspace #page-content .user-guide-detail{top:80px}
+
+@media(max-width:900px){
+ .user-burgundy #workspace #page-content .deposit-shell{grid-template-columns:minmax(0,1fr)}
+}
+
+@media(max-width:600px){
+ .user-burgundy #workspace #page-content .owned-device-stats{grid-template-columns:minmax(0,1fr)}
+ .user-burgundy #workspace #language{max-width:104px}
+}
+
+/* Keep application geometry LTR for Urdu so sidebar/mobile positioning does not invert.
+   Only long content copy uses RTL text flow. */
+.user-lang-ur #workspace #page-content :is(h1,h2,h3,p,label,dt,dd,summary,li,.notice,.reference-description,.fact,.item-main),
+.user-lang-ur #auth #access-card :is(h1,h2,h3,p,label){direction:rtl;text-align:right}
+.user-lang-ur #workspace #page-content :is(input,textarea){direction:rtl;text-align:right}
+.user-lang-ur #workspace #page-content :is(.mono,code,[data-secret]){direction:ltr;text-align:left}
