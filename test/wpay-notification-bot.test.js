@@ -115,6 +115,7 @@ test('Telegram approval forms expose only four role-specific values',()=>{
  assert.throws(()=>review.parseReply(merchant,'1.2% | 0.8% | 6 | 300 | 107','INR'),/REVIEW_FORM_INVALID/);
  const fmt=require('../lib/wpay/notification-bot/format');assert.match(fmt.approvalPrompt({account_type:'user'}),/4% \| 3% \| 107/);
  const user={state:'editing_approve',account_type:'user',draft:{depositNetwork:'TRON-TRC20'}};
+ const exact=review.parseReply(user,'4% | 3% | 107 | TVvSJ9TubYsFucUqDCmZKHJnPRf3XGvEDA','INR');assert.equal(exact.draft.payinCommission,'4');assert.equal(exact.draft.payoutCommission,'3');assert.equal(exact.draft.inrPerUsdt,'107');assert.equal(exact.draft.depositAddress,'TVvSJ9TubYsFucUqDCmZKHJnPRf3XGvEDA');
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | invalid','INR'),/REVIEW_FORM_INVALID/);
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | nope | T111111111111111111111111111111111','INR'),/REVIEW_FORM_INVALID/);
 });
