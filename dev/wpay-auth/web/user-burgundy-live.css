@@ -490,3 +490,6 @@
  .user-burgundy #workspace #page-content .user-guide-detail{position:static}
  .user-burgundy #workspace #page-content .owned-device-card{max-width:100%}
 }
+
+/* Prevent live User login-card flash before the initial session probe resolves. */
+body.auth-pending #auth,body.auth-pending #workspace{visibility:hidden!important}
