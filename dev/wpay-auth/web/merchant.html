@@ -306,6 +306,14 @@
       <section class="page" id="page-api">
         <div class="page-head"><div><div class="eyebrow">Developer</div><h1>API Credentials</h1><p>Create scoped server credentials. Secrets are shown once and never displayed again.</p></div><div class="actions"><button class="btn primary" id="createApiKey" type="button">＋ Create API Key</button></div></div>
         <div class="notice">Never expose Merchant API keys in a browser, mobile app, URL or client-side JavaScript. Use them from your server.</div>
+        <div class="card pad" id="apiKeySecretCard" hidden style="margin-top:14px">
+          <div class="card-head" style="margin-bottom:10px"><div><h2 style="margin:0">New API key</h2><p>Shown once. Copy and store this full key now.</p></div><span class="pill info">one-time</span></div>
+          <div class="field" style="margin-top:0"><label for="apiKeySecretValue">Full API key</label><div style="display:flex;align-items:center;gap:8px">
+            <input class="control mono" id="apiKeySecretValue" type="text" readonly autocomplete="off" style="flex:1;min-width:0">
+            <button class="icon-btn" id="apiKeySecretValueCopy" type="button" aria-label="Copy API key" title="Copy API key" style="width:38px;height:38px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="10" height="10" rx="2"/><rect x="5" y="5" width="10" height="10" rx="2"/></svg></button>
+            <button class="icon-btn" id="apiKeySecretValueToggle" type="button" aria-label="Hide API key" title="Hide API key" style="width:38px;height:38px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 6.2A11.8 11.8 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.1 3.8M6.2 6.2C3.5 8.2 2 12 2 12s3.5 6 10 6a11 11 0 0 0 4.1-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+          </div></div>
+        </div>
         <div class="card table-card" style="margin-top:14px"><div class="table-scroll"><table><thead><tr><th>Label</th><th>Prefix</th><th>Scopes</th><th>Created</th><th>Last used</th><th>Status</th><th>Action</th></tr></thead><tbody id="apiKeyRows"><tr><td colspan="12"><div class="empty">Loading…</div></td></tr></tbody></table></div></div>
       </section>
 
