@@ -3,6 +3,11 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),{randomUU
 const adminUpi=require('../lib/wpay/business/admin-upi'),{BusinessCore}=require('../lib/wpay/business/core'),ledger=require('../lib/wpay/business/ledger'),{migrate,transaction}=require('../lib/wpay/db/migrations');
 const grants=['bank_upi.view','bank_upi.approve','assignments.view','assignments.update'];
 const ctx=id=>({principal:{id,tenantId:'tenant-a',type:'super_admin',status:'active',permissionVersion:1},currentPermissionVersion:1,grants,adminScope:{tenantIds:['tenant-a'],platform:true}});
+test('Admin route picker exposes only currently running approved UPI versions',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.ok(ui.includes('b.status==="running"&&b.approved_version===b.version&&(b.verified_version===b.version||!!b.admin_approved_by)'));
+ assert.equal(ui.includes('["running","approved","verified","stopped"].includes(b.status)'),false);
+});
 test('Admin UPI endpoints reject customer/employee roles before querying',async()=>{
  for(const account_type of ['user','merchant','employee'])await assert.rejects(adminUpi.run({}, {query(){throw Error('unexpected query');}}, {account_type}, {}, 'business/admin-upi',{}),e=>e.code==='FORBIDDEN');
 });
@@ -63,7 +68,10 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
  });
  await t.test('global stop applies to every merchant, and identity edit invalidates Admin approval',async()=>{
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'stop',reason:'Maintenance requested'});for(const m of [ids.m1,ids.m2])assert.equal((await transaction(pool,c=>core.candidates(c,m))).find(r=>r.bankId===bank.id).bankStatus,'stopped');
+  await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:false}));
+  await assert.rejects(call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true})),e=>e.code==='CONFLICT');
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Maintenance completed'});
+  await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true}));
   await transaction(pool,c=>core.saveBank(c,ids.user,{bankId:bank.id,version:1,details:{...details,upiId:'updated@bank'}}));
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).bankAdminApproved,false);
   await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:2,action:'start',reason:'Stale approval denied'}),e=>e.code==='CONFLICT');
