@@ -107,11 +107,11 @@ test('only successful endpoint delivery can render Callback Sent',()=>{
  assert.doesNotMatch(callbackResult({...input,paymentStatus:'verification_pending',callbackStatus:'delivered'}),/Callback Sent/);
 });
 
-test('Telegram Merchant approval form uses canonical commercial validation',()=>{
- const review=require('../lib/wpay/notification-bot/account-review'),merchant={state:'editing_approve',account_type:'merchant'};
- const parsed=review.parseReply(merchant,'1.2 | 0.8 | 6 | 300 | 107','INR');assert.equal(parsed.mode,'approve');assert.equal(parsed.draft.paymentLinkTtlSeconds,'300');
- assert.throws(()=>review.parseReply(merchant,'1.2 | 0.8 | 6 | 10 | 107','INR'));
- const user={state:'editing_approve',account_type:'user'};assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | TRON-TRC20 | invalid | no | no','INR'));
+test('Telegram approval forms expose only four role-specific values',()=>{
+ const review=require('../lib/wpay/notification-bot/account-review'),merchant={state:'editing_approve',account_type:'merchant',draft:{fixedFeeCurrency:'INR',paymentLinkTtlSeconds:'300'}};
+ const parsed=review.parseReply(merchant,'1.2 | 0.8 | 6 | 107','INR');assert.equal(parsed.mode,'approve');assert.equal(parsed.draft.paymentLinkTtlSeconds,'300');assert.equal(parsed.draft.inrPerUsdt,'107');
+ assert.throws(()=>review.parseReply(merchant,'1.2 | 0.8 | 6 | 300 | 107','INR'));
+ const user={state:'editing_approve',account_type:'user',draft:{depositNetwork:'TRON-TRC20'}};assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | invalid','INR'));
 });
 test('non-controller command never reads mappings, account data or sends a reply',async()=>{
  const {Bot}=require('../lib/wpay/notification-bot/engine');let touched=false;
