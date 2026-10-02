@@ -19,8 +19,8 @@ test('User analytics includes owned Admin-added routes and verified owner starts
  await pool.query("INSERT INTO wpay_auth.business_audit(id,entity_id,owner_id,actor_id,event,metadata) VALUES('stop','stopped','owner','admin','bank_stop','{}')");
  await pool.query("INSERT INTO wpay_auth.admin_bank_approvals VALUES('adminonly',1),('other',1),('oldversion',1)");
  const workflow=new Onboarding(),result=await workflow.userAnalytics(pool,'owner');assert.deepEqual(result.banks.map(b=>b.id).sort(),['adminonly','running','stopped']);assert.equal(result.banks.find(b=>b.id==='running').routingStatus,'Running');assert.equal(result.banks.find(b=>b.id==='stopped').routingStatus,'Stopped by Admin');
- assert.equal(result.banks.find(b=>b.id==='adminonly').adminManaged,true);assert.equal(result.banks.find(b=>b.id==='adminonly').canStop,true);assert.equal(result.banks.find(b=>b.id==='stopped').canStop,false);
+ assert.equal(result.banks.find(b=>b.id==='adminonly').adminManaged,true);assert.equal(result.banks.find(b=>b.id==='adminonly').canStop,true);assert.equal(result.banks.find(b=>b.id==='stopped').canStop,false);assert.equal(result.banks.find(b=>b.id==='stopped').canStart,false);
  await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='frozen',frozen=true WHERE id='adminonly'");const frozen=(await workflow.userAnalytics(pool,'owner')).banks.find(b=>b.id==='adminonly');assert.equal(frozen.routingStatus,'Frozen');assert.equal(frozen.canStop,false);
  assert.equal((await workflow.analytics(pool,'owner')).banks.length,5,'unfiltered analytics contract is unchanged');
- await pool.query("UPDATE wpay_auth.business_audit SET actor_id='owner' WHERE id='stop'");assert.equal((await workflow.userAnalytics(pool,'owner')).banks.find(b=>b.id==='stopped').routingStatus,'Stopped by you');
+ await pool.query("UPDATE wpay_auth.business_audit SET actor_id='owner' WHERE id='stop'");const selfStopped=(await workflow.userAnalytics(pool,'owner')).banks.find(b=>b.id==='stopped');assert.equal(selfStopped.routingStatus,'Stopped by you');assert.equal(selfStopped.canStart,true);
 });
