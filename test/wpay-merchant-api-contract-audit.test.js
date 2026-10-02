@@ -53,9 +53,9 @@ test('Merchant Developer API pages use dedicated permissions with legacy compati
  const created=await api.run(gateway,c,row,createContext,'gateway/keys/create',{label:'Read only',scopes:['orders:read']});
  assert.deepEqual(created.scopes,['orders:read']);
  await assert.rejects(api.run(gateway,c,row,{...base,grants:['merchant.api_credentials.view']},'gateway/keys/create',{label:'Denied',scopes:['orders:read']}),{code:'FORBIDDEN'});
- assert.ok(DEFAULT_GRANTS.merchant.includes('merchant.api_credentials.create'));
- assert.ok(DEFAULT_GRANTS.merchant.includes('merchant.webhooks.update'));
- assert.ok(DEFAULT_GRANTS.merchant.includes('merchant.api_logs.view'));
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.api_credentials.create'),false);
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.webhooks.update'),false);
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.api_logs.view'),false);
 });
 
 test('current Merchant gateway UI exposes least-privilege keys, truthful status and complete API contract',()=>{
