@@ -189,7 +189,8 @@
  function apply(lang){
   if(!codes.includes(lang))lang='en';
   document.documentElement.lang=lang==='nag'?'en':lang;
-  document.documentElement.dir=lang==='ur'?'rtl':'ltr';
+  document.documentElement.dir='ltr';
+  document.body.classList.toggle('user-lang-ur',lang==='ur');
   const root=document.getElementById('workspace')||document.body;translateNode(root,lang);
   translateNode(document.getElementById('auth'),lang);
   const select=document.getElementById('language');if(select&&select.value!==lang)select.value=lang;
