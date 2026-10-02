@@ -27,7 +27,10 @@ const ICONS={
  check:'<path d="m5 12 4 4L19 6"/>',
  coins:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 11v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>',
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
- device:'<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M9 20h6m-3-4v4"/>'
+ device:'<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M9 20h6m-3-4v4"/>',
+ copy:'<rect x="9" y="9" width="10" height="10" rx="2"/><rect x="5" y="5" width="10" height="10" rx="2"/>',
+ eye:'<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
+ 'eye-off':'<path d="M3 3l18 18M10.6 6.2A11.8 11.8 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.1 3.8M6.2 6.2C3.5 8.2 2 12 2 12s3.5 6 10 6a11 11 0 0 0 4.1-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'
 };
 const NAV={dashboard:'dashboard',analytics:'chart',links:'link',orders:'orders',transactions:'transactions',payouts:'payout','payout-review':'review',api:'api',webhooks:'webhook',logs:'logs',docs:'docs',fees:'fees',ledger:'ledger',holds:'lock',settlement:'settlement',reports:'reports',notifications:'bell',support:'support',security:'shield',profile:'user'};
 function icon(n){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||ICONS.dashboard}</svg>`}
