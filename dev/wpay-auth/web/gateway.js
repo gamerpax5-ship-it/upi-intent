@@ -37,8 +37,8 @@
   if(!merchant){try{const diagnostics=await request('gateway/diagnostics');card.append(el('h2',t('webhooks')));for(const event of diagnostics.events)card.append(el('p',event.event_type+' · '+event.state+' · '+event.attempts+' · '+event.created_at));}catch(error){if(error.message!=='FORBIDDEN')throw error;}return;}
   if(!split||view==='api'){
   const keys=await request('gateway/keys'),keyForm=el('form'),keyLabel=field(keyForm,'label');keyLabel.maxLength=60;keyLabel.required=true;
-  const readLabel=el('label'),read=el('input');read.type='checkbox';read.checked=true;readLabel.append(read,document.createTextNode(' '+t('readScope')));
-  const writeLabel=el('label'),write=el('input');write.type='checkbox';writeLabel.append(write,document.createTextNode(' '+t('writeScope')));
+  const readLabel=el('label'),read=el('input');read.type='checkbox';read.checked=true;readLabel.append(read,el('span',' '+t('readScope')));
+  const writeLabel=el('label'),write=el('input');write.type='checkbox';writeLabel.append(write,el('span',' '+t('writeScope')));
   const create=button('keyCreate',async()=>{if(!keyForm.reportValidity())return;const scopes=[read.checked?'orders:read':null,write.checked?'orders:write':null].filter(Boolean);if(!scopes.length)throw Error('error.INVALID_INPUT');const result=await post('gateway/keys/create',{label:keyLabel.value.trim(),scopes});await render(args);showSecret(result);});
   keyForm.append(readLabel,writeLabel,create);card.append(el('h2',t('keys')),el('p','Create the minimum scopes your server needs. Read-only keys cannot create orders.','hint'),keyForm);
   for(const key of keys.keys){const status=key.status||(key.revoked_at?'revoked':'active'),item=el('article',undefined,'card');item.append(el('strong',key.label||'—'),el('p',key.prefix+' · '+key.scopes.join(', ')),el('p',t(status)+(key.last_used_at?' · Last used '+new Date(key.last_used_at).toLocaleString():'')));if(status!=='revoked')item.append(button('revoke',async()=>{await post('gateway/keys/revoke',{id:key.id});await render(args);}));card.append(item);}
