@@ -32,3 +32,23 @@ test('transport errors cannot expose bot tokens',async()=>{
  const {Telegram}=require('../lib/wpay/telegram/transport'),token='123456:synthetic_test_token';
  const t=new Telegram({token,fetcher:async url=>{throw Error(url);}});await assert.rejects(t.call('getMe'),e=>e.message==='TELEGRAM_REQUEST_FAILED'&&!e.message.includes(token));
 });
+
+
+test('status lookup keeps previously bound device resolvable instead of number not found',async()=>{
+ const {Source}=require('../lib/wpay/telegram/source');
+ const number='919876543210';
+ const source=new Source({
+  pool:{query:async()=>({rows:[]})},
+  pairing:{devices:async()=>[
+   {id:'dev-old',linked:false,status:'active',phone_e164:number,last_seen_at:'2026-10-01T10:00:00Z'}
+  ]},
+  tenantIds:['tenant-test']
+ });
+ source.links=async includeRevoked=>{
+  assert.equal(includeRevoked,true);
+  return [{id:'link-old',owner_id:'owner',owner_name:'Owner',device_ref:'dev-old',pairing_id:'pair-old',valid_from:'2026-09-01T00:00:00Z',valid_until:'2027-09-01T00:00:00Z',revoked_at:'2026-10-02T00:00:00Z'}];
+ };
+ const d=await source.device(number);
+ assert.equal(d.phone,number);
+ assert.equal(d.status,'deleted');
+});
