@@ -40,7 +40,7 @@ test('Owner can restart a self-stopped Admin-approved UPI without fabricated pay
   core.bankRecord=async()=>bank;
   const queries=[];
   const client={query:async(sql,args)=>{queries.push([sql,args]);if(sql.includes('admin_bank_approvals'))return {rows:[{one:1}],rowCount:1};if(sql.includes('business_audit'))return {rows:[{actor_id:owner}],rowCount:1};return {rows:[],rowCount:1};}};
-  assert.equal((await core.transitionBank(client,bank.id,1,'run',owner,{ownerId:owner,reason:'Owner restart'})).status,'running');
+  assert.equal((await core.transitionBank(client,bank.id,1,'run',owner,{ownerId:owner,reason:'Owner restart'})).status,'running');assert.ok(queries.some(([sql])=>sql.includes('admin_bank_approvals')));
   client.query=async(sql)=>{if(sql.includes('admin_bank_approvals'))return {rows:[{one:1}],rowCount:1};if(sql.includes('business_audit'))return {rows:[{actor_id:randomUUID()}],rowCount:1};return {rows:[],rowCount:1};};
   await assert.rejects(core.transitionBank(client,bank.id,1,'run',owner,{ownerId:owner,reason:'Owner restart'}),{code:'CONFLICT'});
  }finally{state.canStart=prior;}
