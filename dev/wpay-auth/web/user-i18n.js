@@ -84,21 +84,21 @@
   'Masked OTP':['Masked OTP','मास्क्ड OTP','মাস্কড OTP','માસ્ક્ડ OTP','Masked OTP','Masked OTP','Masked OTP','Masked OTP','Masked OTP','Masked OTP'],
   'Captured UTRs':['Captured UTRs','कैप्चर किए UTR','ক্যাপচার করা UTR','કેપ્ચર્ડ UTR','Captured UTRs','Captured UTRs','Captured UTRs','Captured UTRs','Captured UTRs','Captured UTRs']
  };
- const index=Object.fromEntries(codes.map((c,i)=>[c,i]));
+ const index=Object.fromEntries(codes.map((c,i)=>[c,i])),textSource=new WeakMap(),attrSource=new WeakMap();
  function tr(text,lang){
   const row=rows[text];return row?row[index[lang]??0]||row[0]:text;
  }
  function translateNode(node,lang){
   if(node.nodeType===3){
-   const raw=node.nodeValue,trim=raw.trim();if(!trim)return;
-   const value=tr(trim,lang);if(value!==trim)node.nodeValue=raw.replace(trim,value);
-   return;
+   let source=textSource.get(node);if(source===undefined){source=node.nodeValue;textSource.set(node,source);}
+   const trim=String(source).trim();if(!trim)return;
+   const value=tr(trim,lang),lead=String(source).match(/^\s*/)?.[0]||'',tail=String(source).match(/\s*$/)?.[0]||'';
+   node.nodeValue=lead+value+tail;return;
   }
   if(node.nodeType!==1)return;
   if(node.matches('script,style,svg,path,defs,code,pre,[data-no-user-i18n]'))return;
-  for(const attr of ['placeholder','title','aria-label']){
-   const value=node.getAttribute(attr);if(value){const next=tr(value,lang);if(next!==value)node.setAttribute(attr,next);}
-  }
+  let attrs=attrSource.get(node);if(!attrs){attrs={};for(const attr of ['placeholder','title','aria-label'])if(node.hasAttribute(attr))attrs[attr]=node.getAttribute(attr);attrSource.set(node,attrs);}
+  for(const [attr,source]of Object.entries(attrs))node.setAttribute(attr,tr(source,lang));
   for(const child of node.childNodes)translateNode(child,lang);
  }
  function syncGuide(lang){
