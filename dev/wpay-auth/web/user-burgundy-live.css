@@ -493,3 +493,8 @@
 
 /* Prevent live User login-card flash before the initial session probe resolves. */
 body.auth-pending #auth,body.auth-pending #workspace{visibility:hidden!important}
+
+.user-burgundy #workspace #page-content .deposit-active-card.deposit-expired{display:block!important;background:var(--panel);position:relative}
+.user-burgundy #workspace #page-content .deposit-rate-only{width:min(240px,100%);padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.user-burgundy #workspace #page-content .deposit-rate-only small{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
+.user-burgundy #workspace #page-content .deposit-rate-only strong{display:block;font-size:18px;font-weight:600;color:var(--text)}
