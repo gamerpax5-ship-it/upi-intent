@@ -39,3 +39,34 @@ test('API docs describe actual wire contract and never confuse webhook secret wi
  assert.ok(docs.includes('signing secret is separate from the API key'));
  const js=fs.readFileSync('dev/wpay-auth/web/merchant-premium.js','utf8');assert.ok(js.includes("pill(r.status||(r.revoked_at?'revoked':'active'))"));
 });
+
+
+test('Merchant Developer API pages use dedicated permissions with legacy compatibility kept outside the grant',async()=>{
+ const api=require('../lib/wpay/gateway/api'),{DEFAULT_GRANTS}=require('../lib/wpay/auth/runtime/service');
+ const id='10000000-0000-4000-8000-000000000001',now=new Date();
+ const base={principal:{id,merchantId:id,type:'merchant',tenantId:'a',status:'active',permissionVersion:1},currentPermissionVersion:1,eligibility:{approvalStatus:'approved',operationsEnabled:true}};
+ const row={id,account_type:'merchant',merchant_id:id,tenant_id:'a',database_now:now,transaction_password_at:now};
+ const principal={id,security_version:1,factor_version:0};
+ const gateway={merchant:async()=>principal,createKey:async(_c,_p,body)=>({id:'k',prefix:'wpay_mk_test',secret:'secret',scopes:body.scopes}),revokeKey:async()=>({revoked:true})};
+ const c={query:async sql=>({rows:sql.includes('gateway_keys')?[]:[]})};
+ const createContext={...base,grants:['merchant.api_credentials.view','merchant.api_credentials.create']};
+ const created=await api.run(gateway,c,row,createContext,'gateway/keys/create',{label:'Read only',scopes:['orders:read']});
+ assert.deepEqual(created.scopes,['orders:read']);
+ await assert.rejects(api.run(gateway,c,row,{...base,grants:['merchant.api_credentials.view']},'gateway/keys/create',{label:'Denied',scopes:['orders:read']}),{code:'FORBIDDEN'});
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.api_credentials.create'),false);
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.webhooks.update'),false);
+ assert.equal(DEFAULT_GRANTS.merchant.includes('merchant.api_logs.view'),false);
+});
+
+test('current Merchant gateway UI exposes least-privilege keys, truthful status and complete API contract',()=>{
+ const js=fs.readFileSync('dev/wpay-auth/web/gateway.js','utf8');
+ for(const expected of [
+  "read.type='checkbox'","write.type='checkbox'","orders:read","orders:write","status!=='revoked'",
+  "Copy secret","setTimeout(close,60000)","visibilitychange",
+  "Server-to-server only","Cookie or Origin","Rate limit: 60 authenticated requests per API key per minute",
+  "Maximum active API keys: 10","HTTP 201","HTTP 200","400 INVALID_INPUT","429 RATE_LIMITED",
+  "exact raw UTF-8 body bytes","eventId for deduplication","up to eight attempts"
+ ])assert.ok(js.includes(expected),expected);
+ const navigation=fs.readFileSync('dev/wpay-auth/web/reference-navigation.js','utf8');
+ for(const destination of ['merchant.api-credentials','merchant.webhooks','merchant.api-logs'])assert.ok(navigation.includes(destination),destination);
+});
