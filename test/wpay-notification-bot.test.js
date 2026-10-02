@@ -109,9 +109,13 @@ test('only successful endpoint delivery can render Callback Sent',()=>{
 
 test('Telegram approval forms expose only four role-specific values',()=>{
  const review=require('../lib/wpay/notification-bot/account-review'),merchant={state:'editing_approve',account_type:'merchant',draft:{fixedFeeCurrency:'INR',paymentLinkTtlSeconds:'300'}};
- const parsed=review.parseReply(merchant,'1.2 | 0.8 | 6 | 107','INR');assert.equal(parsed.mode,'approve');assert.equal(parsed.draft.paymentLinkTtlSeconds,'300');assert.equal(parsed.draft.inrPerUsdt,'107');
- assert.throws(()=>review.parseReply(merchant,'1.2 | 0.8 | 6 | 300 | 107','INR'),/REVIEW_FORM_INVALID/);
+ const parsed=review.parseReply(merchant,'1.2% | 0.8% | 6 | 107','INR');assert.equal(parsed.mode,'approve');assert.equal(parsed.draft.payinFee,'1.2');assert.equal(parsed.draft.payoutFee,'0.8');assert.equal(parsed.draft.paymentLinkTtlSeconds,'300');assert.equal(parsed.draft.inrPerUsdt,'107');
+ const legacy=review.parseReply(merchant,'1.2 | 0.8 | 6 | 107','INR');assert.equal(legacy.draft.payinFee,'1.2');
+ assert.throws(()=>review.parseReply(merchant,'1.2%% | 0.8% | 6 | 107','INR'),/REVIEW_FORM_INVALID/);
+ assert.throws(()=>review.parseReply(merchant,'1.2% | 0.8% | 6 | 300 | 107','INR'),/REVIEW_FORM_INVALID/);
+ const fmt=require('../lib/wpay/notification-bot/format');assert.match(fmt.approvalPrompt({account_type:'user'}),/4% \| 3% \| 107/);
  const user={state:'editing_approve',account_type:'user',draft:{depositNetwork:'TRON-TRC20'}};
+ const exact=review.parseReply(user,'4% | 3% | 107 | TVvSJ9TubYsFucUqDCmZKHJnPRf3XGvEDA','INR');assert.equal(exact.draft.payinCommission,'4');assert.equal(exact.draft.payoutCommission,'3');assert.equal(exact.draft.inrPerUsdt,'107');assert.equal(exact.draft.depositAddress,'TVvSJ9TubYsFucUqDCmZKHJnPRf3XGvEDA');
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | invalid','INR'),/REVIEW_FORM_INVALID/);
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | nope | T111111111111111111111111111111111','INR'),/REVIEW_FORM_INVALID/);
 });
