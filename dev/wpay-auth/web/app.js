@@ -25,7 +25,7 @@ function message(key = "") {
   if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
 }
 function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
-function showLogin() { document.body.classList.remove("auth-pending"); globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); }
+function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); document.body.classList.remove("auth-pending"); }
 async function request(route,method = "GET",body,csrf) {
   let response,value;
   const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 20000);
@@ -92,7 +92,7 @@ function renderAccess() {
 async function handleStage(result) {
   if (result.stage === "authenticated") { stage = null; $("access-card").replaceChildren(); return load(); }
   stage = {kind:result.stage,codes:result.recoveryCodes,requiresIst:result.requiresIst ?? stage?.requiresIst ?? entryRole==='admin'}; if (result.stage === "enroll") stage.setup = await post("mfa/setup");
-  $("workspace").hidden = true; $("auth").hidden = false; renderAccess();
+  $("workspace").hidden = true; $("auth").hidden = false; renderAccess(); document.body.classList.remove("auth-pending");
 }
 function renderMfa(root) {
   if(stage.kind==='password-reset'){
