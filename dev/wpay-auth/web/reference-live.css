@@ -61,3 +61,6 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.setup-key,.recovery-codes{overf
 @media(max-width:600px){.reference-metrics,[data-role=merchant] .reference-metrics{grid-template-columns:1fr}.live-content form:not(.reference-dashboard form){grid-template-columns:1fr}.reference-refresh{margin-left:0}.topbar{gap:8px}.topbar #language{max-width:76px}.reference-dashboard .quick-grid{grid-template-columns:1fr 1fr}}
 #access-card .password-wrap{position:relative}#access-card .password-wrap input{padding-right:70px}#access-card .password-wrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:auto;padding:5px 9px;border:0;background:transparent;color:var(--muted);font-size:12px}
 .account-requirements{margin-bottom:18px;padding:14px 16px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2);color:var(--muted);font-size:12px;line-height:1.6}
+
+/* Prevent reference Merchant login/workspace flash before session resolution. */
+body.auth-pending #auth,body.auth-pending #workspace{visibility:hidden!important}
