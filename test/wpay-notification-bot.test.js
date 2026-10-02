@@ -119,6 +119,12 @@ test('Telegram approval forms expose only four role-specific values',()=>{
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | 107 | invalid','INR'),/REVIEW_FORM_INVALID/);
  assert.throws(()=>review.parseReply(user,'0.45 | 0.30 | nope | T111111111111111111111111111111111','INR'),/REVIEW_FORM_INVALID/);
 });
+test('Notification Bot admin context authorizes explicit User approval grants',()=>{
+ const {actorContext}=require('../lib/wpay/notification-bot/account-review'),{authorize}=require('../lib/wpay/authorization-policy');
+ const context=actorContext({id:'admin1',subject_id:'subject1',tenant_id:'tenant1',account_type:'super_admin',status:'active',permission_version:7,grant_version:7,permissions:['users.view','users.approve'],admin_scope:{tenantIds:['tenant1']},approval_status:'approved'});
+ const permit=authorize({...context,permissionId:'users.approve',context:{kind:'record',id:'user1',tenantId:'tenant1'}});
+ assert.equal(permit.allowed,true);assert.equal(permit.constraints.where.id,'user1');assert.equal(permit.constraints.where.tenantId,'tenant1');
+});
 test('non-controller command never reads mappings, account data or sends a reply',async()=>{
  const {Bot}=require('../lib/wpay/notification-bot/engine');let touched=false;
  const bot=new Bot({access:{controller:async()=>false},store:{group:async()=>{touched=true;}},tenants:async()=>{touched=true;},telegram:{text:async()=>{touched=true;}}});
