@@ -650,3 +650,6 @@ th,td{padding:10px 11px}
  .wpay-admin #workspace .command-strip{flex-wrap:wrap;gap:12px}
  .wpay-admin #workspace .command-strip>*{min-width:0;max-width:100%}
 }
+
+/* Prevent auth/session FOUC while the initial session probe resolves. */
+body.auth-pending .login-view,body.auth-pending .workspace{visibility:hidden!important}
