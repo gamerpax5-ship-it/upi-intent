@@ -51,15 +51,25 @@
   }
   if(key==='usdt-deposit')for(const row of host.querySelectorAll('.deposit-history article.business-row')){
    if(row.dataset.compactDeposit)continue;const facts=row.querySelector(':scope > .facts');if(!facts||facts.children.length<12)continue;
-   row.dataset.compactDeposit='true';const items=[...facts.children],more=el('details',undefined,'compact-disclosure deposit-order-details'),extra=el('div',undefined,'facts'),value=i=>items[i]?.querySelector('strong')?.textContent;row.depositSummary={network:value(4),address:value(6),rate:value(8),amount:value(7),state:value(3)};more.append(el('summary','Payment details / submit transfer reference'));
+   row.dataset.compactDeposit='true';const items=[...facts.children],more=el('details',undefined,'compact-disclosure deposit-order-details'),extra=el('div',undefined,'facts'),value=i=>items[i]?.querySelector('strong')?.textContent;row.depositSummary={network:value(4),address:value(6),rate:value(8),amount:value(7),state:value(3),createdAt:row.dataset.createdAt||null};more.append(el('summary','Payment details / submit transfer reference'));
    for(const [i,item]of items.entries())if(![0,2,3,7].includes(i))extra.append(item);more.append(extra);for(const node of [...row.childNodes])if(node!==facts)more.append(node);row.append(more);
   }
   if(key==='usdt-deposit'){
    const latest=host.querySelector('.deposit-history article.business-row')?.depositSummary,destination=host.querySelector('.deposit-active-card');
-   if(destination&&String(latest?.state||'').trim().toLowerCase()==='expired'){
+   const collapseExpired=()=>{
+    if(!destination||destination.classList.contains('deposit-expired'))return;
     const h=destination.getBoundingClientRect().height;if(h>0)destination.style.minHeight=Math.ceil(h)+'px';
     const rate=destination.dataset.adminRate||'—',tile=el('div',undefined,'deposit-rate-only');tile.append(el('small','Admin-set USDT rate'),el('strong','₹'+rate+' / USDT'));destination.classList.add('deposit-expired');destination.replaceChildren(tile);
-   }else host.querySelector('.deposit-amount-preview')?.updateDepositAmount?.();
+   };
+   if(destination&&String(latest?.state||'').trim().toLowerCase()==='expired')collapseExpired();
+   else{
+    host.querySelector('.deposit-amount-preview')?.updateDepositAmount?.();
+    if(destination&&String(latest?.state||'').trim().toLowerCase()==='requested'&&latest?.createdAt){
+     const expiresAt=+new Date(latest.createdAt)+10*60*1000,timer=el('div',undefined,'deposit-request-timer'),label=el('span','Request expires in'),clock=el('strong','10:00');timer.append(label,clock);destination.prepend(timer);
+     const tick=()=>{if(!timer.isConnected)return clearInterval(interval);const left=Math.max(0,expiresAt-Date.now()),seconds=Math.ceil(left/1000),mm=String(Math.floor(seconds/60)).padStart(2,'0'),ss=String(seconds%60).padStart(2,'0');clock.textContent=mm+':'+ss;if(left<=0){clearInterval(interval);collapseExpired();}};
+     const interval=setInterval(tick,1000);tick();
+    }
+   }
   }
   if(key==='payouts'&&shell&&!shell.dataset.payoutLayout){
    // Keep the original queue, filter, detail target and review nodes/listeners.
