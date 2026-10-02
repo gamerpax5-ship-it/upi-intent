@@ -41,6 +41,7 @@
    if(key==='usdt-deposit'){
     const form=shell.querySelector(':scope > form');if(form){const grid=el('div',undefined,'deposit-shell'),request=el('section',undefined,'card pad deposit-request-card'),destination=el('section',undefined,'card pad deposit-active-card');request.append(el('h2','Create deposit order'),form);for(const node of [...shell.children])if(!node.matches('details'))destination.append(node);grid.append(request,destination);shell.prepend(grid);
      const amount=form.querySelector('[name=amount]'),preview=el('p',undefined,'deposit-amount-preview'),value=(node,index)=>node?.children[index]?.querySelector('strong')?.textContent;
+     destination.dataset.adminRate=value(facts,2)||'';
      const update=()=>{const row=shell.querySelector('.deposit-history article'),latest=row?.depositSummary,matching=latest&&latest.network===value(facts,0)&&latest.address===value(facts,1)&&latest.rate===value(facts,2);preview.textContent=amount.value?amount.value+' USDT · entered amount':matching?'First listed order: '+latest.amount+' USDT · '+latest.state:'Enter an amount to create your order';};preview.updateDepositAmount=update;amount.addEventListener('input',update);update();destination.prepend(preview);
      const address=facts?.children[1]?.querySelector('strong')?.textContent;
      if(address&&root.WPayDepositQr){try{const canvas=el('canvas',undefined,'deposit-address-qr'),info=el('div',undefined,'deposit-destination-info'),visual=el('div',undefined,'deposit-qr-visual');root.WPayDepositQr.draw(canvas,address);canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Admin-assigned deposit address QR');info.append(...destination.childNodes);visual.append(canvas,el('p','Address-only QR. Check the network and enter the order amount in your wallet.','muted'));destination.append(info,visual);}catch{destination.append(el('p','QR unavailable. Copy the address above and check the network.','notice'));}}
@@ -53,7 +54,13 @@
    row.dataset.compactDeposit='true';const items=[...facts.children],more=el('details',undefined,'compact-disclosure deposit-order-details'),extra=el('div',undefined,'facts'),value=i=>items[i]?.querySelector('strong')?.textContent;row.depositSummary={network:value(4),address:value(6),rate:value(8),amount:value(7),state:value(3)};more.append(el('summary','Payment details / submit transfer reference'));
    for(const [i,item]of items.entries())if(![0,2,3,7].includes(i))extra.append(item);more.append(extra);for(const node of [...row.childNodes])if(node!==facts)more.append(node);row.append(more);
   }
-  if(key==='usdt-deposit')host.querySelector('.deposit-amount-preview')?.updateDepositAmount?.();
+  if(key==='usdt-deposit'){
+   const latest=host.querySelector('.deposit-history article.business-row')?.depositSummary,destination=host.querySelector('.deposit-active-card');
+   if(destination&&String(latest?.state||'').trim().toLowerCase()==='expired'){
+    const h=destination.getBoundingClientRect().height;if(h>0)destination.style.minHeight=Math.ceil(h)+'px';
+    const rate=destination.dataset.adminRate||'—',tile=el('div',undefined,'deposit-rate-only');tile.append(el('small','Admin-set USDT rate'),el('strong','₹'+rate+' / USDT'));destination.classList.add('deposit-expired');destination.replaceChildren(tile);
+   }else host.querySelector('.deposit-amount-preview')?.updateDepositAmount?.();
+  }
   if(key==='payouts'&&shell&&!shell.dataset.payoutLayout){
    // Keep the original queue, filter, detail target and review nodes/listeners.
    const children=[...shell.children],headings=children.filter(n=>n.tagName==='H2');
