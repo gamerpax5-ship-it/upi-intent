@@ -35,6 +35,19 @@ test("HTTPS pairing adapter preserves dates and checks current device pairing", 
   }
   assert.equal(source.events, undefined);
 });
+test("pairing adapter recovers last-known GPS for a currently authorized unpaired device", async () => {
+  const now = Date.now(), link = { device_ref: "device-test", pairing_id: "7", valid_from: new Date(now-3600000).toISOString(), valid_until: new Date(now+3600000).toISOString() };
+  const source = new PairingService({ origin: "https://pairing.example", key, fetchImpl: async url => {
+    if (url.endsWith("/devices")) return { ok:true, json:async()=>({ devices:[{ id:"device-test", status:"inactive", latest_pairing:"8", phone_e164:"+919876543210", latitude:null, longitude:null }] }) };
+    if (url.endsWith("/diagnostics")) return { ok:true, json:async()=>({ diagnostics:[{ collected_at:new Date(now-60000).toISOString(), latitude:28.6, longitude:77.2 }] }) };
+    return { ok:true, json:async()=>({ ready:true }) };
+  }});
+  const device=(await source.devices([link]))[0];
+  assert.equal(device.linked,false);
+  assert.equal(device.location_last_known,true);
+  assert.equal(device.latitude,28.6);
+  assert.equal(device.longitude,77.2);
+});
 test("pairing adapter fails closed on bad config and unavailable backend", async () => {
   assert.equal(configuredPairingService({}), null);
   assert.throws(() => configuredPairingService({ WPAY_PAIRING_SERVICE_KEY: key }));
