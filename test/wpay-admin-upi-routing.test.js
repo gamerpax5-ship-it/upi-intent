@@ -59,6 +59,15 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).assignmentActive,true);
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id}));
  });
+ await t.test('User stop disables every active Merchant route for only that UPI',async()=>{
+  await transaction(pool,c=>core.transitionBank(c,bank.id,1,'stop',ids.user,{ownerId:ids.user,reason:'Owner stopped collections'}));
+  const stoppedRoutes=(await pool.query('SELECT merchant_id,status FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY merchant_id',[bank.id])).rows;
+  assert.ok(stoppedRoutes.length>=3);assert.ok(stoppedRoutes.every(r=>r.status==='disabled'));
+  const otherBankRoute=(await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0];assert.equal(otherBankRoute.status,'active');
+  await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Test restore'});
+  await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true}));
+  await call('business/admin-upi/route',route(bank,ids.m2,{id:route2.id,enabled:true}));
+ });
  await t.test('concurrent merchant reservations cannot double-spend shared UPI limit',async()=>{
   const reserve=(merchant,key)=>transaction(pool,c=>core.reserve(c,merchant,{orderReference:key,idempotencyKey:key,amountMinor:'6000'}));
   // Use m2 twice: it has only the first UPI, with a shared 10000-paise limit.
