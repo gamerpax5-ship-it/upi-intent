@@ -35,12 +35,10 @@ test('Admin-approved UPI routes do not require a user statement, while funding a
   const reserved=await transaction(pool,c=>core.reserve(c,ids.m1,{orderReference:'admin-no-statement',idempotencyKey:'admin-no-statement',amountMinor:'100'}));assert.ok(reserved.id);
   const listing=await call('business/admin-upi',{});assert.equal(listing.routes.find(r=>r.id===route.id).readiness.eligible,true);
  });
- await t.test('assignment does not bypass balance, deposit, stopped UPI or ticket limits',async()=>{
+ await t.test('Admin-added UPI bypasses user funding/capacity but still enforces stop and ticket limits',async()=>{
   assert.ok((await decision('10001')).reasons.includes('ticket_limit'));
-  await pool.query('UPDATE wpay_auth.eligibility SET initial_deposit_satisfied=false WHERE account_id=$1',[ids.user]);assert.ok((await decision()).reasons.includes('funding_required'));
-  await pool.query('UPDATE wpay_auth.eligibility SET initial_deposit_satisfied=true WHERE account_id=$1',[ids.user]);
-  await transaction(pool,c=>ledger.post(c,{key:'test-withdraw-capacity',referenceType:'test',referenceId:'held',entries:ledger.pair(ids.user,'capacity_hold','15000')}));assert.ok((await decision()).reasons.includes('capacity_insufficient'));
-  await transaction(pool,c=>ledger.post(c,{key:'test-release-capacity',referenceType:'test',referenceId:'release',entries:ledger.pair(ids.user,'capacity_hold','15000','INR','debit')}));
+  await pool.query('UPDATE wpay_auth.eligibility SET initial_deposit_satisfied=false WHERE account_id=$1',[ids.user]);assert.equal((await decision()).eligible,true);
+  await transaction(pool,c=>ledger.post(c,{key:'test-withdraw-capacity',referenceType:'test',referenceId:'held',entries:ledger.pair(ids.user,'capacity_hold','15000')}));assert.equal((await decision()).eligible,true);
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'stop',reason:'Pause collections'});assert.ok((await decision()).reasons.includes('bank_unavailable'));
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Resume collections'});assert.equal((await decision()).eligible,true);
  });
