@@ -11,7 +11,7 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
  const proof=(order,source='normal',utr='123456789012')=>observations.set(order.id,{verified:true,final:true,synthetic:true,status:'confirmed',source,utr,evidenceId:'proof-'+order.id,economicId:'economic-'+order.id,receivedAt:new Date().toISOString()});
  let order,key,endpoint;
  await t.test('real scoped migration, one-time key and callback secrets, exact QR, claim never credits',async()=>{
-  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,18);
+  assert.equal((await owner.query('SELECT max(version) AS v FROM wpay_auth.schema_migrations')).rows[0].v,41);
   endpoint=await call('merchant','gateway/webhooks/configure',{url:gateway.testCallback});signing=endpoint.secret;
   key=await call('merchant','gateway/keys/create',{label:'Synthetic SDK',scopes:['orders:read','orders:write']});assert.match(key.secret,/^wpay_mk_/);
   const stored=(await owner.query('SELECT * FROM wpay_auth.gateway_keys WHERE id=$1',[key.id])).rows[0];assert.equal(JSON.stringify(stored).includes(key.secret),false);
@@ -23,6 +23,19 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
   assert.equal((await owner.query('SELECT count(*)::integer AS n FROM wpay_auth.business_financial_events')).rows[0].n,0);assert.equal((await gateway.verifyOrder(order.id)).status,'unavailable');
   for(let n=0;n<4;n++)await tx(c=>gateway.customer(c,order.paymentUrl.split('/').at(-1),'123456789012'));await assert.rejects(tx(c=>gateway.customer(c,order.paymentUrl.split('/').at(-1),'123456789012')),e=>e.code==='RATE_LIMITED');
   observations.set(order.id,{synthetic:true,status:'pending',verified:false});assert.equal((await gateway.verifyOrder(order.id)).evidenceStatus,'observed');observations.delete(order.id);assert.equal((await owner.query('SELECT count(*)::integer AS n FROM wpay_auth.business_financial_events')).rows[0].n,0);
+ });
+ await t.test('reusable top-up creates a fresh order each time, preserves context and requires submitted UTR',async()=>{
+  const parent=await call('merchant','gateway/payment-links/create',{reference:'wallet-topup',description:'Wallet top up'});assert.ok(parent.url.startsWith(origin+'/wpay-topup/'));
+  const publicStatus=await (await fetch(parent.url+'/status')).json();assert.equal(publicStatus.reference,'wallet-topup');
+  const create=async(requestId,amountMinor='25000',customerReference='wallet-42')=>{const response=await fetch(parent.url+'/create',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({amountMinor,customerReference,requestId})});assert.equal(response.status,201);return response.json();};
+  const requestA=randomUUID(),requestB=randomUUID(),first=await create(requestA),retry=await create(requestA),second=await create(requestB,'30000','wallet-43');
+  assert.equal(retry.id,first.id);assert.notEqual(second.id,first.id);assert.equal(first.paymentLinkId,parent.id);assert.equal(first.metadata.customerReference,'wallet-42');assert.equal(first.metadata.topupLinkId,parent.id);
+  proof(first,'normal','123456789014');const waiting=await gateway.verifyOrder(first.id);assert.equal(waiting.evidenceStatus,'awaiting_utr');assert.notEqual((await call('merchant','gateway/get',{id:first.id})).status,'successful');
+  await fetch(first.paymentUrl+'/claim',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({utr:'123456789015'})});
+  const mismatch=await gateway.verifyOrder(first.id);assert.equal(mismatch.evidenceStatus,'utr_mismatch');assert.notEqual((await call('merchant','gateway/get',{id:first.id})).status,'successful');
+  await fetch(first.paymentUrl+'/claim',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({utr:'123456789014'})});
+  assert.equal((await gateway.verifyOrder(first.id)).status,'successful');
+  const event=(await owner.query("SELECT body FROM wpay_auth.gateway_outbox WHERE order_id=$1 AND event_type='payment.success'",[first.id])).rows[0];const payload=JSON.parse(event.body);assert.equal(payload.metadata.customerReference,'wallet-42');assert.equal(payload.metadata.topupLinkId,parent.id);
  });
  await t.test('API enforces Bearer-only auth, cross Merchant scope, key revocation and suspension',async()=>{
   const response=await fetch(origin+'/wpay-api/v1/orders',{method:'POST',headers:{authorization:'Bearer '+key.secret,'content-type':'application/json','idempotency-key':'api-order-1'},body:JSON.stringify({reference:'api-order-1',amountMinor:'20000',currency:'INR'})});assert.equal(response.status,201);const apiOrder=await response.json();assert.equal(apiOrder.origin,'api');
@@ -43,7 +56,7 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
   const late=await call('merchant','gateway/create',body('late-recovery','30000'));const r=(await owner.query('SELECT reservation_id FROM wpay_auth.gateway_orders WHERE id=$1',[late.id])).rows[0];
   // Isolated fixture clock advancement; no real payments or production objects.
   await owner.query("UPDATE wpay_auth.gateway_orders SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[late.id]);await owner.query("UPDATE wpay_auth.business_reservations SET created_at=CURRENT_TIMESTAMP-interval '1 minute',expires_at=CURRENT_TIMESTAMP-interval '1 second' WHERE id=$1",[r.reservation_id]);await tx(c=>gateway.expire(c));await tx(c=>gateway.expire(c));
-  proof(late,'recovery','123456789013');await gateway.verifyOrder(late.id);await gateway.verifyOrder(late.id);
+  await tx(c=>gateway.customer(c,late.paymentUrl.split('/').at(-1),'123456789013'));proof(late,'recovery','123456789013');await gateway.verifyOrder(late.id);await gateway.verifyOrder(late.id);
   const journal=(await owner.query('SELECT j.metadata FROM wpay_auth.business_financial_events f JOIN wpay_auth.business_journals j ON j.id=f.journal_id WHERE f.reservation_id=$1',[r.reservation_id])).rows[0];assert.equal(journal.metadata.commissionMinor,'0');assert.equal((await owner.query("SELECT count(*)::integer AS n FROM wpay_auth.gateway_outbox WHERE order_id=$1 AND event_type='payment.recovered'",[late.id])).rows[0].n,1);
  });
  await t.test('second Merchant key cannot read or create under another Merchant; Employee has no default gateway permission',async()=>{
@@ -67,8 +80,8 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
   await assert.rejects(call('merchant','gateway/create',body('over-bank-limit','100000001')),e=>e.code==='NO_ROUTE');
  });
  await t.test('duplicate economic receipt cannot credit another order, trusted terminal failure and webhook lease concurrency',async()=>{
-  const duplicate=await call('merchant','gateway/create',body('duplicate-receipt'));proof(duplicate,'normal','123456789012');await assert.rejects(gateway.verifyOrder(duplicate.id),e=>e.code==='CONFLICT');assert.notEqual((await call('merchant','gateway/get',{id:duplicate.id})).status,'successful');observations.delete(duplicate.id);
-  const failed=await call('merchant','gateway/create',body('trusted-failure'));proof(failed,'normal','123456789019');observations.get(failed.id).status='failed';assert.equal((await gateway.verifyOrder(failed.id)).status,'failed');
+  const duplicate=await call('merchant','gateway/create',body('duplicate-receipt'));await tx(c=>gateway.customer(c,duplicate.paymentUrl.split('/').at(-1),'123456789012'));proof(duplicate,'normal','123456789012');await assert.rejects(gateway.verifyOrder(duplicate.id),e=>e.code==='CONFLICT');assert.notEqual((await call('merchant','gateway/get',{id:duplicate.id})).status,'successful');observations.delete(duplicate.id);
+  const failed=await call('merchant','gateway/create',body('trusted-failure'));await tx(c=>gateway.customer(c,failed.paymentUrl.split('/').at(-1),'123456789019'));proof(failed,'normal','123456789019');observations.get(failed.id).status='failed';assert.equal((await gateway.verifyOrder(failed.id)).status,'failed');
   const event=(await owner.query("SELECT id FROM wpay_auth.gateway_outbox WHERE order_id=$1 AND event_type='payment.failed'",[failed.id])).rows[0];await owner.query("UPDATE wpay_auth.gateway_outbox SET next_attempt_at=CURRENT_TIMESTAMP+interval '1 hour' WHERE id<>$1 AND state='pending'",[event.id]);
   const before=received.length;await Promise.all([gateway.dispatch(),gateway.dispatch()]);assert.equal(received.length,before+1);
   const analytics=await call('alice','onboarding/analytics');assert.ok(JSON.stringify(analytics).includes('failed'));
