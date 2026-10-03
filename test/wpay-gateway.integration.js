@@ -27,6 +27,8 @@ test('isolated Merchant gateway / credentials / accounting / webhook acceptance'
  await t.test('reusable top-up creates a fresh order each time, preserves context and requires submitted UTR',async()=>{
   const parent=await call('merchant','gateway/payment-links/create',{reference:'wallet-topup',description:'Wallet top up'});assert.ok(parent.url.startsWith(origin+'/wpay-topup/'));
   const publicStatus=await (await fetch(parent.url+'/status')).json();assert.equal(publicStatus.reference,'wallet-topup');
+  const paused=await call('merchant','gateway/payment-links/state',{id:parent.id,state:'disabled'});assert.equal(paused.status,'disabled');assert.equal((await fetch(parent.url+'/status')).status,404);
+  const enabled=await call('merchant','gateway/payment-links/state',{id:parent.id,state:'active'});assert.equal(enabled.status,'active');assert.equal((await fetch(parent.url+'/status')).status,200);
   const create=async(requestId,amountMinor='25000',customerReference='wallet-42')=>{const response=await fetch(parent.url+'/create',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({amountMinor,customerReference,requestId})});assert.equal(response.status,201);return response.json();};
   const requestA=randomUUID(),requestB=randomUUID(),first=await create(requestA),retry=await create(requestA),second=await create(requestB,'30000','wallet-43');
   assert.equal(retry.id,first.id);assert.notEqual(second.id,first.id);assert.equal(first.paymentLinkId,parent.id);assert.equal(first.metadata.customerReference,'wallet-42');assert.equal(first.metadata.topupLinkId,parent.id);assert.equal(first.metadata.paymentLinkReference,'wallet-topup');
