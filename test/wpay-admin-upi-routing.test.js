@@ -8,6 +8,11 @@ test('Admin route picker exposes only currently running approved UPI versions',(
  assert.ok(ui.includes('b.status==="running"&&b.approved_version===b.version&&(b.verified_version===b.version||!!b.admin_approved_by)'));
  assert.equal(ui.includes('["running","approved","verified","stopped"].includes(b.status)'),false);
 });
+test('Admin UPI UI never offers Start for a User-stopped UPI',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
+ assert.ok(ui.includes('g.status==="stopped"&&!g.frozen&&b.stopped_by==="admin"'));
+ assert.equal(ui.includes('g.status==="stopped"?"Start":"Stop"'),false);
+});
 test('Admin UPI endpoints reject customer/employee roles before querying',async()=>{
  for(const account_type of ['user','merchant','employee'])await assert.rejects(adminUpi.run({}, {query(){throw Error('unexpected query');}}, {account_type}, {}, 'business/admin-upi',{}),e=>e.code==='FORBIDDEN');
 });
@@ -59,14 +64,18 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).assignmentActive,true);
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id}));
  });
- await t.test('User stop disables every active Merchant route for only that UPI',async()=>{
+ await t.test('User stop blocks Admin restart; owner restart restores UPI while Merchant bindings remain Admin-controlled',async()=>{
   await transaction(pool,c=>core.transitionBank(c,bank.id,1,'stop',ids.user,{ownerId:ids.user,reason:'Owner stopped collections'}));
   const stoppedRoutes=(await pool.query('SELECT merchant_id,status FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY merchant_id',[bank.id])).rows;
   assert.ok(stoppedRoutes.length>=3);assert.ok(stoppedRoutes.every(r=>r.status==='disabled'));
   const otherBankRoute=(await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0];assert.equal(otherBankRoute.status,'active');
-  await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Test restore'});
+  const listing=await call('business/admin-upi',{search:'admin.collection'});assert.equal(listing.banks[0].stopped_by,'user');
+  await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Admin must not override owner stop'}),e=>e.code==='CONFLICT');
+  await transaction(pool,c=>core.transitionBank(c,bank.id,1,'run',ids.user,{ownerId:ids.user,reason:'Owner restarted collections'}));
+  assert.ok((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1',[bank.id])).rows.every(r=>r.status==='disabled'));
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true}));
   await call('business/admin-upi/route',route(bank,ids.m2,{id:route2.id,enabled:true}));
+  assert.equal((await transaction(pool,c=>core.candidates(c,ids.m1))).find(r=>r.bankId===bank.id).assignmentActive,true);
  });
  await t.test('concurrent merchant reservations cannot double-spend shared UPI limit',async()=>{
   const reserve=(merchant,key)=>transaction(pool,c=>core.reserve(c,merchant,{orderReference:key,idempotencyKey:key,amountMinor:'6000'}));
@@ -75,8 +84,9 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   const m1=await transaction(pool,c=>core.candidates(c,ids.m1));assert.equal(m1.find(r=>r.bankId===bank.id).bankRemainingMinor,'4000');assert.equal(m1[0].availableMinor,'9000');
   const chosen=await reserve(ids.m1,'fallback-bank');const record=(await pool.query('SELECT bank_id FROM wpay_auth.business_reservations WHERE id=$1',[chosen.id])).rows[0];assert.equal(record.bank_id,bank2.id);assert.equal((await transaction(pool,c=>ledger.summary(c,ids.user))).available,'3000');
  });
- await t.test('global stop applies to every merchant, and identity edit invalidates Admin approval',async()=>{
+ await t.test('Admin stop can be restarted by Admin, and identity edit invalidates Admin approval',async()=>{
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'stop',reason:'Maintenance requested'});for(const m of [ids.m1,ids.m2])assert.equal((await transaction(pool,c=>core.candidates(c,m))).find(r=>r.bankId===bank.id).bankStatus,'stopped');
+  const stoppedListing=await call('business/admin-upi',{search:'admin.collection'});assert.equal(stoppedListing.banks[0].stopped_by,'admin');
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:false}));
   await assert.rejects(call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true})),e=>e.code==='CONFLICT');
   await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Maintenance completed'});
