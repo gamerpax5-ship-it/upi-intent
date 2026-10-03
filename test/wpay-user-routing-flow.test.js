@@ -18,6 +18,13 @@ test('User Analytics shows an explicit routing status column',async()=>{
  assert.ok(all(container).some(n=>n.tag==='th'&&n.textContent==='Status'));
 });
 
+test('User Analytics route pills override generic button sizing and stay compact',()=>{
+ const css=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8');
+ assert.ok(css.includes('button.upi-analytics-route-button{'));
+ for(const rule of ['min-width:58px!important','height:30px!important','min-height:30px!important','padding:0 12px!important','border-radius:999px!important'])assert.ok(css.includes(rule),rule);
+ assert.ok(css.includes('background:#dcfce7!important'));
+ assert.ok(css.includes('background:#fee2e2!important'));
+});
 test('User Analytics route pills use solid green Start and solid red Stop colors',()=>{
  const css=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8');
  assert.ok(css.includes('.upi-analytics-route-button.route-start{color:#fff;background:#16a34a;border:1px solid #22c55e}'));
