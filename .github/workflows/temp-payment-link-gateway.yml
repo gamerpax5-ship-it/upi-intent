@@ -1,0 +1,32 @@
+name: Temporary payment link gateway verification
+on:
+  push:
+    branches: [verify/payment-link-gateway]
+permissions:
+  contents: read
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: gateway-verify
+          POSTGRES_DB: postgres
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm ci --prefix lib/wpay/auth/runtime/dependencies --registry=https://registry.npmjs.org
+      - run: node scripts/check-protected-legacy.js
+      - run: npm run check
+      - name: Real PostgreSQL gateway integration
+        run: node scripts/verify-payment-link-gateway-temp.js
