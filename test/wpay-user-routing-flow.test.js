@@ -18,6 +18,11 @@ test('User Analytics shows an explicit routing status column',async()=>{
  assert.ok(all(container).some(n=>n.tag==='th'&&n.textContent==='Status'));
 });
 
+test('User Analytics route pills use solid green Start and solid red Stop colors',()=>{
+ const css=fs.readFileSync('dev/wpay-auth/web/user-burgundy-live.css','utf8');
+ assert.ok(css.includes('.upi-analytics-route-button.route-start{color:#fff;background:#16a34a;border:1px solid #22c55e}'));
+ assert.ok(css.includes('.upi-analytics-route-button.route-stop{color:#fff;background:#dc2626;border:1px solid #ef4444}'));
+});
 test('User Analytics can stop and restart an owned Admin-added route and hides controls without update permission',async()=>{
  const ctx={};vm.runInNewContext(fs.readFileSync('dev/wpay-auth/web/onboarding.js','utf8'),ctx);const container=el('main'),calls=[],bank={id:randomUUID(),version:1,upi_id:'admin@test',adminManaged:true,status:'running',routingStatus:'Running',canStop:true,canStart:false,total:0,successful:0,failed:0,pending:0,expired:0,cancelled:0,successful_volume_minor:'0',successRate:null};let canUpdate=true;
  const render=()=>ctx.WPayOnboardingPage.render({destination:'user.onboarding-upi-analytics',locale:'en',el,container,title:el('h1'),action:f=>f(),request:async()=>({canUpdate,banks:[bank]}),post:async(route,b)=>{calls.push([route,b]);if(b.action==='stop'){bank.canStop=false;bank.canStart=true;bank.status='stopped';bank.routingStatus='Stopped by you';}if(b.action==='run'){bank.canStop=true;bank.canStart=false;bank.status='running';bank.routingStatus='Running';}}});
