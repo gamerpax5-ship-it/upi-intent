@@ -80,6 +80,7 @@
     ['Assignments & routing',can('routing.view')?'v5.routing':null,'routing'],
     ['User assignments',can('assignments.view')?'v5.assignments':null,'routing'],
     ['Transactions',can('transactions.view')?'v5.transactions':null,'transactions'],
+    ['Pending UTR',byDest('operations.pending-utrs')?'operations.pending-utrs':null,'utr'],
     ['Pay-in disputes',can('payin_dispute.view')?'v5.payin-disputes':null,'dispute'],
     ['Statements & reconciliation',can('statement_reconciliation.view')?'v5.statements':null,'statements']
    ]],
