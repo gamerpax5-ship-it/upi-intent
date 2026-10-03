@@ -93,6 +93,17 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).bankAdminApproved,false);
   await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:2,action:'start',reason:'Stale approval denied'}),e=>e.code==='CONFLICT');
  });
+ await t.test('Admin can start a verified User-added UPI but cannot bypass its verification',async()=>{
+  const userDetails={...details,upiId:'user.verified@bank',accountNumber:'123456780099'};
+  const userBank=await transaction(pool,c=>core.saveBank(c,ids.user,{details:userDetails},ids.user));
+  await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='stopped',approved_version=version,verified_version=version WHERE id=$1",[userBank.id]);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.admin_bank_approvals WHERE bank_id=$1',[userBank.id])).rows[0].n,0);
+  await call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'start',reason:'Verified User UPI force start'});
+  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_bank_accounts WHERE id=$1',[userBank.id])).rows[0].status,'running');
+  await call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'stop',reason:'Admin stop verified User UPI'});
+  await pool.query('UPDATE wpay_auth.business_bank_accounts SET verified_version=NULL WHERE id=$1',[userBank.id]);
+  await assert.rejects(call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'start',reason:'Verification must remain required'}),e=>e.code==='CONFLICT');
+ });
  await t.test('permission removal blocks mutations and owner scope blocks reads',async()=>{
   await assert.rejects(call('business/admin-upi/create',{...create,requestId:randomUUID()},{...context,grants:['bank_upi.view']}),e=>e.code==='FORBIDDEN');
   const listing=await call('business/admin-upi',{}, {...context,adminScope:{tenantIds:['tenant-b'],platform:true}});assert.equal(listing.banks.length,0);
