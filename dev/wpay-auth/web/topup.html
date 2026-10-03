@@ -1,1 +1,56 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WPay top-up</title><link rel="stylesheet" href="/wpay-auth/styles.css"><script src="/wpay-auth/topup.js" defer></script></head><body><header><span class="brand">WPay</span></header><main><section class="card"><h1>Top up / Pay</h1><p id="notice">Enter the amount you want to pay.</p><dl id="facts" class="facts"></dl><form id="topup"><label>Customer / wallet reference<input name="customerReference" maxlength="200" required autocomplete="off" placeholder="Your account or wallet ID"></label><label>Amount (INR)<input name="amount" inputmode="decimal" required autocomplete="off" placeholder="500.00"></label><button type="submit">Continue to payment</button></form><p>Each payment creates a new order. After paying, submitting the 12-digit UTR is mandatory before WPay can verify the payment.</p><p id="status" role="status"></p></section></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b25">
+<title>WPAY Secure Top Up</title>
+<link rel="stylesheet" href="/wpay-auth/topup.css">
+<script src="/wpay-auth/topup.js" defer></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="hero" aria-label="WPay secure checkout">
+    <div class="brand"><div class="logo" aria-hidden="true"><i></i><i></i><i></i></div><div><strong>WPAY</strong><small>UPI PAYMENTS</small></div></div>
+    <div class="hero-copy">
+      <h1>Payments<br>Made <span>Simple</span></h1>
+      <p>Fast &nbsp; • &nbsp; Secure &nbsp; • &nbsp; Reliable</p>
+      <div class="perks">
+        <div class="perk"><div class="perkIcon">⚡</div><div><b>Instant Payments</b><span>Create a fresh secure order in seconds</span></div></div>
+        <div class="perk"><div class="perkIcon">✓</div><div><b>Secure & Trusted</b><span>Every payment gets its own Order ID</span></div></div>
+        <div class="perk"><div class="perkIcon">UPI</div><div><b>UPI Checkout</b><span>Continue to the full WPay payment screen</span></div></div>
+      </div>
+    </div>
+    <div class="powered">Powered by <b>WPAY</b> &nbsp; • &nbsp; Secure &nbsp; • &nbsp; Instant</div>
+  </aside>
+
+  <main>
+    <section class="checkout" id="topupCard">
+      <div class="top"><div><b>Secure top up</b><small>Reusable payment link</small></div><span class="status-pill" id="linkStatus">Loading…</span></div>
+      <div class="body">
+        <div class="merchant">
+          <div class="mi"><div class="avatar">W</div><div><b id="linkTitle">WPAY Payment</b><small id="linkReference">Loading payment link…</small></div></div>
+        </div>
+
+        <div class="step">
+          <div class="st"><span class="num">1</span>Enter amount</div>
+          <p class="lead" id="linkDescription">Enter the amount you want to pay.</p>
+          <form id="topup" novalidate>
+            <label class="amount-label" for="amount">Amount (INR)</label>
+            <div class="amount-box"><span>₹</span><input id="amount" name="amount" inputmode="decimal" required autocomplete="off" placeholder="500.00" aria-describedby="amountHint"></div>
+            <small class="hint" id="amountHint">You will review the exact amount on the next secure checkout screen.</small>
+            <button class="continue" type="submit">Continue to payment →</button>
+          </form>
+        </div>
+
+        <div class="step safe-step">
+          <div class="st"><span class="num">2</span>Pay & verify</div>
+          <div class="notice">A fresh Order ID is created for every payment. After paying, submit the 12-digit UTR on the checkout page. WPay marks the payment successful only after verification.</div>
+        </div>
+        <div class="message" id="status" role="status"></div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
