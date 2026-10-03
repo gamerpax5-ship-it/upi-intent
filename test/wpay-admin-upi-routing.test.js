@@ -8,9 +8,10 @@ test('Admin route picker exposes only currently running approved UPI versions',(
  assert.ok(ui.includes('b.status==="running"&&b.approved_version===b.version&&(b.verified_version===b.version||!!b.admin_approved_by)'));
  assert.equal(ui.includes('["running","approved","verified","stopped"].includes(b.status)'),false);
 });
-test('Admin UPI UI offers Start for any stopped Admin-managed or verified UPI',()=>{
+test('Admin UPI UI offers Stop only when running and Start for eligible non-running UPI',()=>{
  const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
- assert.ok(ui.includes('g.status==="stopped"&&!g.frozen&&g.approved_version===g.version&&(!!b.admin_approved_by||g.verified_version===g.version)'));
+ assert.ok(ui.includes('g.status==="running"&&!g.frozen'));
+ assert.ok(ui.includes('["stopped","verified","enabled","approved"].includes(g.status)&&!g.frozen&&g.approved_version===g.version&&(!!b.admin_approved_by||g.verified_version===g.version)'));
 });
 test('Admin UPI endpoints reject customer/employee roles before querying',async()=>{
  for(const account_type of ['user','merchant','employee'])await assert.rejects(adminUpi.run({}, {query(){throw Error('unexpected query');}}, {account_type}, {}, 'business/admin-upi',{}),e=>e.code==='FORBIDDEN');
