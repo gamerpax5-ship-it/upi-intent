@@ -36,7 +36,7 @@ test('Admin read pages execute against real isolated PostgreSQL',async t=>{
   await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='running' WHERE id=$1",[bankId]);
   directory=await service.authenticated(login.sessionToken,'panel/directory',0,{type:'merchant',search:'Route Merchant'});
   assert.equal(directory.rows[0].routeCount,1,'running bank-specific UPI route counts once');
-  await pool.query("UPDATE wpay_auth.business_assignments SET status='disabled' WHERE id=$1",[bankRouteId]);
+  await pool.query("UPDATE wpay_auth.business_assignments SET status='disabled',disabled_at=CURRENT_TIMESTAMP WHERE id=$1",[bankRouteId]);
   directory=await service.authenticated(login.sessionToken,'panel/directory',0,{type:'merchant',search:'Route Merchant'});
   assert.equal(directory.rows[0].routeCount,0,'disabled bank-specific route must not count');
  });
