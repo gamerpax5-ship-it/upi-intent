@@ -71,8 +71,11 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   const otherBankRoute=(await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0];assert.equal(otherBankRoute.status,'active');
   const listing=await call('business/admin-upi',{search:'admin.collection'});assert.equal(listing.banks[0].stopped_by,'user');
   await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Admin must not override owner stop'}),e=>e.code==='CONFLICT');
+  await pool.query("UPDATE wpay_auth.business_assignments SET status='active',disabled_at=NULL WHERE id=$1",[route1.id]);
+  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE id=$1',[route1.id])).rows[0].status,'active','legacy stale binding fixture');
   await transaction(pool,c=>core.transitionBank(c,bank.id,1,'run',ids.user,{ownerId:ids.user,reason:'Owner restarted collections'}));
-  assert.ok((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1',[bank.id])).rows.every(r=>r.status==='disabled'));
+  assert.ok((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1',[bank.id])).rows.every(r=>r.status==='disabled'),'owner restart repairs stale pre-fix active bindings');
+  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0].status,'active','unrelated UPI route stays active');
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true}));
   await call('business/admin-upi/route',route(bank,ids.m2,{id:route2.id,enabled:true}));
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m1))).find(r=>r.bankId===bank.id).assignmentActive,true);
