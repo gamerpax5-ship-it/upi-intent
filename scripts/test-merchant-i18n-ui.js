@@ -13,7 +13,7 @@ const fixtures={
  'business/summary':{gross:'120000',fees:'1200',payoutFees:'600',held:'100',available:'100000'},
  'business/ledger/search':{entries:[],nextOffset:null},'panel/fees':{rows:[],nextOffset:null},
  'payout/merchant-usdt':{creationDisabled:false,available:'100000',maxUsdtMinor:'10000000',rate:'100',rateVersion:1,network:'TRON-TRC20',requests:[]},
- 'gateway/keys':{keys:[]},'gateway/webhooks':{endpoint:null,events:[]},'gateway/logs':{rows:[]},
+ 'gateway/payment-links':{links:[]},'gateway/keys':{keys:[]},'gateway/webhooks':{endpoint:null,events:[]},'gateway/logs':{rows:[]},
  'panel/notifications':{rows:[],preferences:{in_app_notifications:true},nextOffset:null},
  'panel/support':{rows:[],canWrite:true,nextOffset:null},security:{enabled:false,sessions:[]},
  'panel/profile':{canEdit:true},'gateway/get':order,'panel/preferences':{ok:true},logout:{ok:true}
