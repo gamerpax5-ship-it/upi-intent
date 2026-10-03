@@ -18,7 +18,7 @@ test('Admin overview preserves a server authorization denial and does not render
 test('workspace badge distinguishes staff status from customer approval status',async()=>{
  const source=fs.readFileSync(path.join(web,'app.js'),'utf8');const loadSource=source.slice(source.indexOf('async function load('),source.indexOf('async function changeLocale('));
  for(const [accountType,approvalStatus,status,expected] of [['super_admin','pending','active','active'],['admin','pending','suspended','suspended'],['employee','approved','active','active'],['user','pending','active','pending'],['merchant','approved','active','approved']]){
-  const nodes=new Map(),context={destination:null,explicitLocale:null,navigator:{language:'en'},L:{choose:()=> 'en',supported:['en','ru','zh-CN']},applyLocale(){},tr:key=>key,profile(){},request:async route=>route==='me'?{accountType,approvalStatus,status}:{groups:[]},$:id=>{if(!nodes.has(id))nodes.set(id,element('div'));return nodes.get(id);}};
+  const nodes=new Map(),context={destination:null,explicitLocale:null,navigator:{language:'en'},document:{body:{classList:{remove(){}}}},L:{choose:()=> 'en',supported:['en','ru','zh-CN']},applyLocale(){},tr:key=>key,profile(){},request:async route=>route==='me'?{accountType,approvalStatus,status}:{groups:[]},$:id=>{if(!nodes.has(id))nodes.set(id,element('div'));return nodes.get(id);}};
   vm.runInNewContext(loadSource,context);await context.load();assert.equal(nodes.get('approval-badge').textContent,expected);
  }
 });
