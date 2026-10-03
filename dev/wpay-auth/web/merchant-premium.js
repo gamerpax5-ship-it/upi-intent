@@ -62,8 +62,9 @@ async function dashboard(){const settled=await Promise.allSettled([cached('gatew
 async function analytics(){const days=[1,7,30][$('#analyticsWindow').selectedIndex],a=await post('gateway/analytics',{days});state.analytics=a;$('#analyticsTotals').innerHTML=facts({'Successful orders':a.channels.reduce((n,c)=>n+Number(c.successful),0),'Successful volume':money(a.channels.reduce((n,c)=>n+BigInt(c.volume),0n)),'Period':t('{days} days · IST',{days})});const totals=a.channels.reduce((t,c)=>{for(const k of ['successful','pending','failed','expired'])t[k]+=c[k];return t;},{successful:0,pending:0,failed:0,expired:0});const denominator=totals.successful+totals.failed;metrics('analytics',[denominator?(totals.successful/denominator*100).toFixed(1)+'%':'—',totals.pending,totals.failed,totals.expired],['Successful / successful + failed','Awaiting confirmation','Failed payments','Expired payment links']);uiText('#page-analytics .metrics .metric:last-child .metric-top','Expired');chart('analyticsChart',a.days);rows('channelRows',a.channels,c=>cells([ui(c.origin),c.total,c.successful,c.pending,c.failed,money(c.volume),c.successful+c.failed?(c.successful/(c.successful+c.failed)*100).toFixed(1)+'%':'—']));}
 const historyVersions={};
 async function orderHistory(page,offset=state.offsets[page]||0){const version=historyVersions[page]=(historyVersions[page]||0)+1;state.offsets[page]=offset;const d=await post('gateway/search',{search:page==='orders'?$('#orderSearch').value.trim():'',status:'',offset});if(historyVersions[page]!==version)return;if(page==='links')rows('linkRows',d.orders,r=>cells([esc(r.reference)+'<small class="muted"> · '+ui(r.origin)+'</small>',money(r.amountMinor),date(r.createdAt),date(r.expiresAt),pill(r.status),button('Open / QR','order',r.id)]));else rows('orderRows',d.orders,r=>cells([button(r.id,'order',r.id,'',true),esc(r.reference),money(r.amountMinor),ui(r.origin),pill(r.status),ui(human(r.evidenceStatus)),pill(r.callbackStatus)]));pager(page==='links'?'linkRows':'orderRows',offset,d.hasMore,n=>orderHistory(page,n));}
-async function linkPage(){await Promise.all([orderHistory('links'),cached('gateway/summary').then(g=>text('#adminLinkTtlText',g.linkTtlSeconds+' seconds'))]);}
+async function linkPage(){const [,links]=await Promise.all([orderHistory('links'),request('gateway/payment-links'),cached('gateway/summary').then(g=>text('#adminLinkTtlText',g.linkTtlSeconds+' seconds'))]);const host=$('#linkRows');for(const r of [...(links.links||[])].reverse())host.insertAdjacentHTML('afterbegin',cells([esc(r.reference)+'<small class="muted"> · reusable</small>',ui('Customer enters'),date(r.createdAt),'Reusable',pill(r.status),button('Open / Copy','reusable-link',r.id)]));}
 function linkDetails(r){let url;try{url=new URL(r.paymentUrl);if(url.origin!==location.origin||!url.pathname.startsWith('/wpay-pay/'))throw Error();}catch{throw Error('The gateway did not return a valid payment link.');}return facts({Reference:r.reference,Amount:money(r.amountMinor),Status:human(r.status),Created:date(r.createdAt),Expires:date(r.expiresAt),Origin:r.origin,Webhook:human(r.callbackStatus)})+'<p class="link-url">'+esc(url.href)+'</p>'+(r.paymentQr?.startsWith('data:image/png;base64,')?'<img class="live-qr" alt="Payment link QR" src="'+esc(r.paymentQr)+'">':'')+'<div class="actions" style="margin-top:14px"><a class="btn primary" href="'+esc(url.href)+'" target="_blank" rel="noopener noreferrer"><span data-i18n="Open checkout">Open checkout</span></a>'+button('Copy link','copy-link',url.href)+'</div>';}
+function reusableLinkDetails(r){let url;try{url=new URL(r.url);if(url.origin!==location.origin||!url.pathname.startsWith('/wpay-topup/'))throw Error();}catch{throw Error('The gateway did not return a valid reusable link.');}return facts({Reference:r.reference,Type:'Reusable · customer enters amount',Status:human(r.status),Created:date(r.createdAt)})+'<p class="link-url">'+esc(url.href)+'</p><div class="notice">Every customer submission creates a fresh order ID. The customer must submit the 12-digit UTR on that order before verification can succeed.</div><div class="actions" style="margin-top:14px"><a class="btn primary" href="'+esc(url.href)+'" target="_blank" rel="noopener noreferrer">Open reusable link</a>'+button('Copy link','copy-link',url.href)+'</div>';}
 async function orderDetail(id){const r=await post('gateway/get',{id});modal('Payment link',r.reference,linkDetails(r));}
 async function ledger(page='ledger',offset=state.offsets[page]||0){state.offsets[page]=offset;const filter=$('#txFilter').value;const d=await post('business/ledger/search',{ownerId:null,reference:'',type:page==='transactions'?({Fee:'merchant_platform_fee',Payout:'merchant_payout_principal',Order:'merchant_gross'}[filter]||''):'',offset});rows(page==='ledger'?'ledgerRows':'txRows',d.entries,r=>page==='ledger'?cells([date(r.created_at),esc(r.reference_id),ui(human(r.ledger_type)),balanceDirection(r)==='debit'?money(r.amount_minor,r.currency):'—',balanceDirection(r)==='credit'?money(r.amount_minor,r.currency):'—',r.payout_status?pill(r.payout_status):ui('Posted')]):cells([date(r.created_at),ui(human(r.ledger_type)),esc(r.reference_id),balanceDirection(r)==='debit'?money(r.amount_minor,r.currency):'—',balanceDirection(r)==='credit'?money(r.amount_minor,r.currency):'—',esc(r.currency),r.payout_status?pill(r.payout_status):ui('Posted')]));pager(page==='ledger'?'ledgerRows':'txRows',offset,d.nextOffset!==null,n=>ledger(page,n));if(page==='ledger'){const [b,p]=await Promise.all([cached('business/summary'),cached('payout/summary')]);metrics('ledger',[money(b.gross),money((BigInt(b.fees)+BigInt(b.payoutFees)).toString()),money(b.held),money(p.available)]);$('#payoutBalanceSummary').innerHTML=facts({'Pending payout amount + fees':money(p.reserved),'Completed payout principal':money(p.principal),'Payout fees charged':money(p.fees),'Pending USDT withdrawals (INR)':money(p.merchantUsdt?.reserved),'Completed USDT withdrawals (INR)':money(p.merchantUsdt?.principal),'Awaiting Admin':p.counts?.pending_admin||0,'Awaiting Merchant review':p.counts?.submitted||0});}}
 async function payouts(offset=state.offsets.payouts||0){state.offsets.payouts=offset;const [s,d]=await Promise.all([cached('payout/summary'),post('payout/search',{offset,limit:25})]);text('#payoutAvailableBalance',money(s.available));text('#bulkAvailableBalance',money(s.available));rows('payoutRows',d.orders,r=>cells([button(r.id,'payout',r.id,'',true),button('View beneficiary','payout',r.id),money(r.amountMinor),esc(r.reference),pill(r.status),date(r.createdAt)]));pager('payoutRows',offset,d.hasMore,n=>payouts(n),25);}
@@ -88,7 +89,7 @@ let offset=0,all=[],more=true;while(more){const d=kind==='orders'?await post('ga
 const loaders={dashboard,analytics,links:linkPage,orders:()=>orderHistory('orders'),transactions:()=>ledger('transactions'),payouts,'payout-review':reviewPage,api:keys,webhooks,logs,docs:async()=>{},fees,ledger,holds,settlement,reports:async()=>{},notifications,support,security,profile};
 const actions={
  'usdt-detail':async id=>{const r=await post('payout/merchant-usdt/get',{id});modal('USDT withdrawal',r.id,facts({Amount:money(r.inrMinor),USDT:money(r.usdtMinor,'USDT'),Rate:r.rate,Network:r.network,Address:r.destination?.address,Status:human(r.state),Created:date(r.createdAt),Completed:date(r.completedAt)}));},
- 'order':orderDetail,'payout':id=>payoutDetail(id),'review':id=>payoutDetail(id,true),
+ 'order':orderDetail,'reusable-link':async id=>{const d=await request('gateway/payment-links'),r=(d.links||[]).find(x=>x.id===id);if(!r)throw Error('Payment link not found.');modal('Reusable payment link',r.reference,reusableLinkDetails(r));},'payout':id=>payoutDetail(id),'review':id=>payoutDetail(id,true),
  'copy-link':async url=>{await navigator.clipboard.writeText(url);toast('Payment link copied.');},
  'recovery':()=>authStage({stage:'recover'}),'back-login':showLogin,
  'review-prev':()=>reviewPage(Math.max(0,(state.offsets.review||0)-25)), 'review-next':()=>reviewPage((state.offsets.review||0)+25),
@@ -118,7 +119,9 @@ let searchTimer;$('#orderSearch').addEventListener('input',()=>{clearTimeout(sea
 $('#analyticsWindow').onchange=()=>run(null,analytics);$('#analyticsCsv').onclick=()=>run($('#analyticsCsv'),async()=>{if(!state.analytics)await analytics();download('wpay-analytics.csv',csv(state.analytics.channels));});
 $('#txFilter').onchange=()=>run(null,()=>ledger('transactions',0));
 $('#openCreateLink').onclick=()=>{$('#linkRef').focus();$('#linkForm').scrollIntoView({behavior:'smooth',block:'center'});};
-bindForm('linkForm',async()=>{const body={reference:$('#linkRef').value.trim(),amountMinor:minor($('#linkAmount').value),currency:'INR',description:$('#linkDescription').value.trim()};try{const r=await idempotent('gateway/create',body),detail=await post('gateway/get',{id:r.id});$('#linkPreview').innerHTML=linkDetails(detail);await orderHistory('links',0);toast('Payment link created.');}catch(e){if(e.code==='NO_ROUTE'){const d=await post('gateway/route-status',{amountMinor:body.amountMinor});throw Error(errors.NO_ROUTE+' '+d.reasons.map(human).join(', '));}throw e;}});
+function syncLinkAmountMode(){const reusable=$('#amountType').value==='open';$('#fixedAmountField').hidden=reusable;$('#linkAmount').disabled=reusable;$('#linkAmount').required=!reusable;}
+$('#amountType').onchange=syncLinkAmountMode;syncLinkAmountMode();
+bindForm('linkForm',async()=>{const reusable=$('#amountType').value==='open',base={reference:$('#linkRef').value.trim(),description:$('#linkDescription').value.trim()};if(reusable){const r=await mutate('gateway/payment-links/create',base);$('#linkPreview').innerHTML=reusableLinkDetails(r);await linkPage();toast('Reusable payment link created.');return;}const body={...base,amountMinor:minor($('#linkAmount').value),currency:'INR'};try{const r=await idempotent('gateway/create',body),detail=await post('gateway/get',{id:r.id});$('#linkPreview').innerHTML=linkDetails(detail);await linkPage();toast('Payment link created.');}catch(e){if(e.code==='NO_ROUTE'){const d=await post('gateway/route-status',{amountMinor:body.amountMinor});throw Error(errors.NO_ROUTE+' '+d.reasons.map(human).join(', '));}throw e;}});
 $('#payoutTabs').onclick=e=>{const n=e.target.closest('[data-payout-tab]');if(!n)return;$$('[data-payout-tab]').forEach(b=>b.classList.toggle('active',b===n));const bulk=n.dataset.payoutTab==='bulk';$('#singlePayoutPanel').classList.toggle('hidden',bulk);$('#bulkPayoutPanel').classList.toggle('hidden',!bulk);};
 function payoutMode(){const upi=$('#poMode').value==='upi';for(const id of ['poBank','poAccount','poIfsc','poUpi']){const n=$('#'+id),show=id==='poUpi'?upi:!upi;n.closest('.field').hidden=!show;n.required=show;n.disabled=!show;}}
 $('#poMode').onchange=payoutMode;payoutMode();
@@ -2461,6 +2464,38 @@ globalThis.WPayMerchantI18n = (() => {
   "gateway webhook rotated": [
     "Обновлён секрет вебхука",
     "已轮换 Webhook 密钥"
+  ],
+  "Reusable · customer enters amount": [
+    "Многоразовая · сумму вводит клиент",
+    "可重复使用 · 客户输入金额"
+  ],
+  "Customer enters": [
+    "Вводит клиент",
+    "客户输入"
+  ],
+  "Order expiry": [
+    "Срок действия заказа",
+    "订单有效期"
+  ],
+  "Reusable payment link": [
+    "Многоразовая платёжная ссылка",
+    "可重复使用的支付链接"
+  ],
+  "Open reusable link": [
+    "Открыть многоразовую ссылку",
+    "打开可重复使用链接"
+  ],
+  "Reusable payment link created.": [
+    "Многоразовая платёжная ссылка создана.",
+    "已创建可重复使用的支付链接。"
+  ],
+  "Payment link not found.": [
+    "Платёжная ссылка не найдена.",
+    "未找到支付链接。"
+  ],
+  "Every customer submission creates a fresh order ID. The customer must submit the 12-digit UTR on that order before verification can succeed.": [
+    "Каждая отправка клиента создаёт новый ID заказа. До успешной проверки клиент обязан отправить 12-значный UTR для этого заказа.",
+    "客户每次提交都会创建新的订单 ID。验证成功前，客户必须为该订单提交 12 位 UTR。"
   ]
 };
   const supported = ['en','ru','zh-CN'];
