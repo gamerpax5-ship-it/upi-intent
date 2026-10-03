@@ -76,9 +76,16 @@ test('pending threshold counts distinct aged UTR/order claims, not callbacks or 
  assert.equal(decide({bank,device:online,pendingClaims:[rows[0],rows[0],rows[0]],now,settings}).stop,false);
  assert.equal(decide({bank,device:online,pendingClaims:rows.map(x=>({...x,createdAt:new Date(now).toISOString()})),now,settings}).stop,false);
 });
+test('Admin-managed UPI warns on APK outage without using APK as a stop or restart gate',()=>{
+ const adminBank={...bank,adminManaged:true},offline={sourceConnected:true,status:'offline',lastSeenAt:new Date(now-settings.offlineStopMs-1).toISOString()};
+ const running=decide({bank:adminBank,device:offline,pendingClaims:[],now,settings});
+ assert.equal(running.stop,false);assert.equal(running.offlineReminder,true);
+ const stopped={...adminBank,status:'stopped',reason:'notification:admin'},stop={bankVersion:1,bankUpdatedAt:'v1',reason:'notification:admin',reasons:['pending_utr']};
+ assert.equal(decide({bank:stopped,device:offline,pendingClaims:[],stop,now,settings}).restart,true);
+});
 test('auto-resume never overrides Admin edits or independent restrictions',()=>{
  const stopped={...bank,status:'stopped',reason:'notification:1'},stop={bankVersion:1,bankUpdatedAt:'v1',reason:'notification:1',reasons:['device_offline']},online={sourceConnected:true,status:'online',lastSeenAt:new Date(now).toISOString()};
- const input={bank:stopped,stop,device:online,now,settings};assert.equal(decide(input).restart,true);
+ const input={bank:stopped,stop,device:online,now,settings};assert.equal(decide(input).restart,true);assert.equal(decide(input).ownsStop,true);
  for(const patch of [{frozen:true},{deactivated:true},{version:2},{reason:'admin stop'},{updatedAt:'v2'},{approvedVersion:null}])assert.equal(decide({...input,bank:{...stopped,...patch}}).restart,false);
  assert.equal(decide({...input,stop:{...stop,reasons:['pending_utr']},pendingClaims:[{orderId:'new',utrDigest:'x',createdAt:new Date(now).toISOString()}]}).restart,false);
 });

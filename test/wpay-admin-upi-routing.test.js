@@ -8,10 +8,10 @@ test('Admin route picker exposes only currently running approved UPI versions',(
  assert.ok(ui.includes('b.status==="running"&&b.approved_version===b.version&&(b.verified_version===b.version||!!b.admin_approved_by)'));
  assert.equal(ui.includes('["running","approved","verified","stopped"].includes(b.status)'),false);
 });
-test('Admin UPI UI never offers Start for a User-stopped UPI',()=>{
+test('Admin UPI UI offers Stop only when running and Start for eligible non-running UPI',()=>{
  const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-v5-pages.js'),'utf8');
- assert.ok(ui.includes('g.status==="stopped"&&!g.frozen&&b.stopped_by==="admin"'));
- assert.equal(ui.includes('g.status==="stopped"?"Start":"Stop"'),false);
+ assert.ok(ui.includes('g.status==="running"&&!g.frozen'));
+ assert.ok(ui.includes('["stopped","verified","enabled","approved"].includes(g.status)&&!g.frozen&&g.approved_version===g.version&&(!!b.admin_approved_by||g.verified_version===g.version)'));
 });
 test('Admin UPI endpoints reject customer/employee roles before querying',async()=>{
  for(const account_type of ['user','merchant','employee'])await assert.rejects(adminUpi.run({}, {query(){throw Error('unexpected query');}}, {account_type}, {}, 'business/admin-upi',{}),e=>e.code==='FORBIDDEN');
@@ -64,20 +64,15 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).assignmentActive,true);
   await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id}));
  });
- await t.test('User stop blocks Admin restart; owner restart restores UPI while Merchant bindings remain Admin-controlled',async()=>{
+ await t.test('Stop/start preserves Merchant routes and Admin can force-start a stopped Admin UPI',async()=>{
+  const beforeRoutes=(await pool.query('SELECT id,merchant_id,status,priority,min_minor,max_minor FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY id',[bank.id])).rows;
   await transaction(pool,c=>core.transitionBank(c,bank.id,1,'stop',ids.user,{ownerId:ids.user,reason:'Owner stopped collections'}));
-  const stoppedRoutes=(await pool.query('SELECT merchant_id,status FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY merchant_id',[bank.id])).rows;
-  assert.ok(stoppedRoutes.length>=3);assert.ok(stoppedRoutes.every(r=>r.status==='disabled'));
-  const otherBankRoute=(await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0];assert.equal(otherBankRoute.status,'active');
+  const stoppedRoutes=(await pool.query('SELECT id,merchant_id,status,priority,min_minor,max_minor FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY id',[bank.id])).rows;
+  assert.deepEqual(stoppedRoutes,beforeRoutes,'bank status stops routing without mutating Merchant bindings');
   const listing=await call('business/admin-upi',{search:'admin.collection'});assert.equal(listing.banks[0].stopped_by,'user');
-  await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Admin must not override owner stop'}),e=>e.code==='CONFLICT');
-  await pool.query("UPDATE wpay_auth.business_assignments SET status='active',disabled_at=NULL WHERE id=$1",[route1.id]);
-  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE id=$1',[route1.id])).rows[0].status,'active','legacy stale binding fixture');
-  await transaction(pool,c=>core.transitionBank(c,bank.id,1,'run',ids.user,{ownerId:ids.user,reason:'Owner restarted collections'}));
-  assert.ok((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1',[bank.id])).rows.every(r=>r.status==='disabled'),'owner restart repairs stale pre-fix active bindings');
-  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_assignments WHERE bank_id=$1 AND merchant_id=$2',[bank2.id,ids.m1])).rows[0].status,'active','unrelated UPI route stays active');
-  await call('business/admin-upi/route',route(bank,ids.m1,{id:route1.id,enabled:true}));
-  await call('business/admin-upi/route',route(bank,ids.m2,{id:route2.id,enabled:true}));
+  await call('business/admin-upi/state',{bankId:bank.id,version:1,action:'start',reason:'Admin force start'});
+  const restartedRoutes=(await pool.query('SELECT id,merchant_id,status,priority,min_minor,max_minor FROM wpay_auth.business_assignments WHERE bank_id=$1 ORDER BY id',[bank.id])).rows;
+  assert.deepEqual(restartedRoutes,beforeRoutes,'Admin restart preserves exact route configuration');
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m1))).find(r=>r.bankId===bank.id).assignmentActive,true);
  });
  await t.test('concurrent merchant reservations cannot double-spend shared UPI limit',async()=>{
@@ -97,6 +92,17 @@ test('Admin many-to-many UPI routes keep owner capacity and bank limits shared',
   await transaction(pool,c=>core.saveBank(c,ids.user,{bankId:bank.id,version:1,details:{...details,upiId:'updated@bank'}}));
   assert.equal((await transaction(pool,c=>core.candidates(c,ids.m2))).find(r=>r.bankId===bank.id).bankAdminApproved,false);
   await assert.rejects(call('business/admin-upi/state',{bankId:bank.id,version:2,action:'start',reason:'Stale approval denied'}),e=>e.code==='CONFLICT');
+ });
+ await t.test('Admin can start a verified User-added UPI but cannot bypass its verification',async()=>{
+  const userDetails={...details,upiId:'user.verified@bank',accountNumber:'123456780099'};
+  const userBank=await transaction(pool,c=>core.saveBank(c,ids.user,{details:userDetails},ids.user));
+  await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='stopped',approved_version=version,verified_version=version WHERE id=$1",[userBank.id]);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.admin_bank_approvals WHERE bank_id=$1',[userBank.id])).rows[0].n,0);
+  await call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'start',reason:'Verified User UPI force start'});
+  assert.equal((await pool.query('SELECT status FROM wpay_auth.business_bank_accounts WHERE id=$1',[userBank.id])).rows[0].status,'running');
+  await call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'stop',reason:'Admin stop verified User UPI'});
+  await pool.query('UPDATE wpay_auth.business_bank_accounts SET verified_version=NULL WHERE id=$1',[userBank.id]);
+  await assert.rejects(call('business/admin-upi/state',{bankId:userBank.id,version:userBank.version,action:'start',reason:'Verification must remain required'}),e=>e.code==='CONFLICT');
  });
  await t.test('permission removal blocks mutations and owner scope blocks reads',async()=>{
   await assert.rejects(call('business/admin-upi/create',{...create,requestId:randomUUID()},{...context,grants:['bank_upi.view']}),e=>e.code==='FORBIDDEN');

@@ -40,8 +40,8 @@ test('Admin-managed real collections can reserve without collateral and still ac
   const c=(await candidates())[0];assert.equal(c.funded,false);assert.equal(c.availableMinor,'0');assert.equal(c.deviceEligible,false);assert.equal((await decision()).eligible,true);
   assert.equal((await ledger.summary(pool,ids.m1)).gross,'0');
   assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
-  // Legacy/default configuration remains collateral-backed.
-  const legacy=(await transaction(pool,c=>new BusinessCore({adminManagedCollections:false}).candidates(c,ids.m1)))[0];assert.ok(eligibility(legacy,'100',legacy.databaseNow).reasons.includes('funding_required'));
+  // Admin approval provenance alone defines an Admin-managed UPI; no separate tenant flag is required.
+  const legacy=(await transaction(pool,c=>new BusinessCore({adminManagedCollections:false}).candidates(c,ids.m1)))[0];assert.equal(eligibility(legacy,'100',legacy.databaseNow).eligible,true);
  });
  await t.test('verified payment records owner exposure and credits once, without inventing a deposit',async()=>{
   const r=(await pool.query("SELECT * FROM wpay_auth.business_reservations WHERE order_reference='admin-no-statement'")).rows[0];
