@@ -497,6 +497,45 @@
 }
 
 /* Prevent live User login-card flash before the initial session probe resolves. */
+
+/* UPI Analytics route controls: keep compact status-pill proportions above generic button rules. */
+.user-burgundy #workspace #page-content button.upi-analytics-route-button{
+  width:auto!important;
+  min-width:58px!important;
+  height:30px!important;
+  min-height:30px!important;
+  padding:0 12px!important;
+  margin:0!important;
+  border-radius:999px!important;
+  font-size:12px!important;
+  font-weight:700!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  box-shadow:none!important;
+}
+.user-burgundy #workspace #page-content button.upi-analytics-route-button.route-start{
+  color:#dffbe8!important;
+  background:#166534!important;
+  border:1px solid #22c55e!important;
+}
+.user-burgundy #workspace #page-content button.upi-analytics-route-button.route-stop{
+  color:#fee2e2!important;
+  background:#991b1b!important;
+  border:1px solid #ef4444!important;
+}
+.light .user-burgundy #workspace #page-content button.upi-analytics-route-button.route-start,
+.user-burgundy.light #workspace #page-content button.upi-analytics-route-button.route-start{
+  color:#166534!important;
+  background:#dcfce7!important;
+  border-color:#22c55e!important;
+}
+.light .user-burgundy #workspace #page-content button.upi-analytics-route-button.route-stop,
+.user-burgundy.light #workspace #page-content button.upi-analytics-route-button.route-stop{
+  color:#991b1b!important;
+  background:#fee2e2!important;
+  border-color:#ef4444!important;
+}
+
 body.auth-pending #auth,body.auth-pending #workspace{visibility:hidden!important}
 
 .user-burgundy #workspace #page-content .deposit-active-card.deposit-expired{display:block!important;background:var(--panel);position:relative}
