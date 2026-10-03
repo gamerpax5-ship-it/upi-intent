@@ -23,6 +23,8 @@ function message(key = "") {
   $("message").textContent = key ? tr(key) : "";
   const dialog = $("approval-dialog");
   if (dialog.open) { let status = dialog.querySelector('[role="status"]'); if (!status) { status = el("p",undefined,"notice"); status.setAttribute("role","status"); dialog.append(status); } status.textContent = key ? tr(key) : ""; }
+  const adminDialogs=document.querySelectorAll("dialog.admin-v5-dialog[open]"),adminDialog=adminDialogs[adminDialogs.length-1];
+  if(adminDialog){let status=adminDialog.querySelector('[data-action-status="true"]');if(!status){status=el("p",undefined,"notice warn");status.setAttribute("role","status");status.dataset.actionStatus="true";(adminDialog.querySelector(".modal-body")||adminDialog).append(status);}status.textContent=key?tr(key):"";status.hidden=!key;}
 }
 function applyLocale() { document.documentElement.lang = locale; $("language").value = locale; $("language").setAttribute("aria-label",tr("language")); document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = tr(node.dataset.i18n); }); }
 function showLogin() { globalThis.WPayReferenceUi?.lock(); account = null; stage = null; destination = undefined; load.session = null; post.csrf = null; pendingNavigation = null; $("auth").hidden = false; $("workspace").hidden = true; $("navigation").replaceChildren(); $("page-content").replaceChildren(); renderAccess(); document.body.classList.remove("auth-pending"); }

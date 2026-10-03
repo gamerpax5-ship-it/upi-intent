@@ -145,6 +145,12 @@ test('Admin Overview uses exact V5 SVG icons instead of placeholder dots',()=>{
  assert.ok(ui.includes("ico.innerHTML=icon(iconName)"));
  assert.ok(ui.includes("ico.innerHTML=icon(iconName);body.append"));
 });
+test('Admin V5 modal actions surface action errors inside the open dialog',()=>{
+ const fs=require('node:fs'),app=fs.readFileSync(require.resolve('../dev/wpay-auth/web/app.js'),'utf8');
+ assert.ok(app.includes('dialog.admin-v5-dialog[open]'));
+ assert.ok(app.includes('data-action-status="true"'));
+ assert.ok(app.includes('adminDialog.querySelector(".modal-body")||adminDialog'));
+});
 test('Admin Dashboard keeps exact V5 Overview structure with live read-only health data',()=>{
  const fs=require('node:fs'),ui=fs.readFileSync(require.resolve('../dev/wpay-auth/web/admin-ui.js'),'utf8'),backend=fs.readFileSync(require.resolve('../lib/wpay/panels/admin-overview.js'),'utf8');
  for(const marker of ['OPERATIONS COMMAND CENTER','WPay platform at a glance','primary-kpis','secondary-kpis','Collection & payout trend','Last 14 days · INR','Deep analytics','Action center','Recent financial activity','Operational health','UPI shared limit used','Active devices','Parking open orders','UTR review','USDT rate','Unread notifications'])assert.ok(ui.includes(marker),marker);
