@@ -14,6 +14,9 @@ test('Statement Bot captures only UPI credit rows with valid 12-digit UTRs',()=>
  assert.equal(s.otherCreditCount,1);
  assert.equal(s.totalUpiCreditMinor,'60000');
  assert.equal(s.totalOtherCreditMinor,'40000');
+ assert.equal(s.upiDebitCount,1);
+ assert.equal(s.totalUpiDebitMinor,'5000');
+ assert.equal(s.otherDebitCount,0);
  assert.equal(s.upiCreditWithoutUtrCount,1);
  assert.deepEqual(s.creditUtrs,[{date:'01/10/2026',utr:'123456789012',amountMinor:'10000'}]);
 });
@@ -29,12 +32,14 @@ test('Repeated Statement Bot files stay processable and are deduped at UTR captu
 test('Statement Bot summary separates accepted UPI credit from other credit',()=>{
  const format=require('../lib/wpay/statement-bot/format');
  const text=format.summary({selected_upi:'test@upi'},{
-  upiCreditCount:2,totalUpiCreditMinor:'30000',otherCreditCount:1,totalOtherCreditMinor:'50000',upiCreditWithoutUtrCount:1,
+  upiCreditCount:2,totalUpiCreditMinor:'30000',upiDebitCount:1,totalUpiDebitMinor:'4000',otherCreditCount:1,totalOtherCreditMinor:'50000',otherDebitCount:3,totalOtherDebitMinor:'5000',upiCreditWithoutUtrCount:1,
   debitCount:4,totalDebitMinor:'9000',creditUtrCount:1,newUtrCount:1,duplicateUtrCount:0,
   callbackDelivered:0,callbackAlreadyDelivered:0,callbackQueued:0,callbackPending:0,callbackExhausted:0
  });
  assert.match(text,/UPI credit transactions: 2/);
+ assert.match(text,/UPI debit transactions: 1/);
  assert.match(text,/Other credit transactions \(not captured\): 1/);
+ assert.match(text,/Other debit transactions: 3/);
  assert.match(text,/UPI credits without valid 12-digit UTR: 1/);
  assert.match(text,/New UPI UTRs sent to Admin: 1/);
 });
