@@ -17,10 +17,10 @@ test('Admin read pages execute against real isolated PostgreSQL',async t=>{
  ['panel/reports',{}],['panel/settings',{}],['business/banks',{}],['business/assignments',{}],['business/routing',{}],['business/holds',{}],['panel/devices',{}],['panel/webhooks',{}],['panel/credentials',{}],['panel/api-logs',{}],['panel/support',{}],['panel/notifications',{}]
  ])await t.test(operation,async()=>{const result=await service.authenticated(login.sessionToken,operation,0,body);assert.ok(result);});
  await t.test('Merchant Active routes counts only running bank-specific eligible UPI bindings',async()=>{
-  const adminId=(await pool.query("SELECT id FROM wpay_auth.accounts WHERE email='admin@example.invalid'")).rows[0].id;
+  const adminRow=(await pool.query("SELECT id,tenant_id FROM wpay_auth.accounts WHERE email='admin@example.invalid'")).rows[0],adminId=adminRow.id,tenantId=adminRow.tenant_id;
   const userId=randomUUID(),merchantId=randomUUID(),bankId=randomUUID(),genericId=randomUUID(),bankRouteId=randomUUID();
   for(const [id,type,name,email] of [[userId,'user','Route User','route-user@example.invalid'],[merchantId,'merchant','Route Merchant','route-merchant@example.invalid']]){
-   await pool.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,user_id,merchant_id) VALUES($1,$2,'default',$3,$4,$5,'active',$6,$7)",[id,randomUUID(),name,email,type,type==='user'?id:null,type==='merchant'?id:null]);
+   await pool.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,user_id,merchant_id) VALUES($1,$2,$3,$4,$5,$6,'active',$7,$8)",[id,randomUUID(),tenantId,name,email,type,type==='user'?id:null,type==='merchant'?id:null]);
    await pool.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status,initial_deposit_satisfied) VALUES($1,'approved',true)",[id]);
   }
   await pool.query("INSERT INTO wpay_auth.business_bank_accounts(id,owner_id,version,status,approved_version,verified_version) VALUES($1,$2,1,'stopped',1,1)",[bankId,userId]);
