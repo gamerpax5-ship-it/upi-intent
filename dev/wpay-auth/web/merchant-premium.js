@@ -62,7 +62,7 @@ async function dashboard(){const settled=await Promise.allSettled([cached('gatew
 async function analytics(){const days=[1,7,30][$('#analyticsWindow').selectedIndex],a=await post('gateway/analytics',{days});state.analytics=a;$('#analyticsTotals').innerHTML=facts({'Successful orders':a.channels.reduce((n,c)=>n+Number(c.successful),0),'Successful volume':money(a.channels.reduce((n,c)=>n+BigInt(c.volume),0n)),'Period':t('{days} days · IST',{days})});const totals=a.channels.reduce((t,c)=>{for(const k of ['successful','pending','failed','expired'])t[k]+=c[k];return t;},{successful:0,pending:0,failed:0,expired:0});const denominator=totals.successful+totals.failed;metrics('analytics',[denominator?(totals.successful/denominator*100).toFixed(1)+'%':'—',totals.pending,totals.failed,totals.expired],['Successful / successful + failed','Awaiting confirmation','Failed payments','Expired payment links']);uiText('#page-analytics .metrics .metric:last-child .metric-top','Expired');chart('analyticsChart',a.days);rows('channelRows',a.channels,c=>cells([ui(c.origin),c.total,c.successful,c.pending,c.failed,money(c.volume),c.successful+c.failed?(c.successful/(c.successful+c.failed)*100).toFixed(1)+'%':'—']));}
 const historyVersions={};
 async function orderHistory(page,offset=state.offsets[page]||0){const version=historyVersions[page]=(historyVersions[page]||0)+1;state.offsets[page]=offset;const d=await post('gateway/search',{search:page==='orders'?$('#orderSearch').value.trim():'',status:'',offset});if(historyVersions[page]!==version)return;if(page==='links')rows('linkRows',d.orders,r=>cells([esc(r.reference)+'<small class="muted"> · '+ui(r.origin)+'</small>',money(r.amountMinor),date(r.createdAt),date(r.expiresAt),pill(r.status),button('Open / QR','order',r.id)]));else rows('orderRows',d.orders,r=>cells([button(r.id,'order',r.id,'',true),esc(r.reference),money(r.amountMinor),ui(r.origin),pill(r.status),ui(human(r.evidenceStatus)),pill(r.callbackStatus)]));pager(page==='links'?'linkRows':'orderRows',offset,d.hasMore,n=>orderHistory(page,n));}
-async function linkPage(){const [,links]=await Promise.all([orderHistory('links'),request('gateway/payment-links'),cached('gateway/summary').then(g=>text('#adminLinkTtlText',g.linkTtlSeconds+' seconds'))]);const host=$('#linkRows');for(const r of [...(links.links||[])].reverse())host.insertAdjacentHTML('afterbegin',cells([esc(r.reference)+'<small class="muted"> · reusable</small>','Customer enters',date(r.createdAt),'Reusable',pill(r.status),button('Open / Copy','reusable-link',r.id)]));}
+async function linkPage(){const [,links]=await Promise.all([orderHistory('links'),request('gateway/payment-links'),cached('gateway/summary').then(g=>text('#adminLinkTtlText',g.linkTtlSeconds+' seconds'))]);const host=$('#linkRows');for(const r of [...(links.links||[])].reverse())host.insertAdjacentHTML('afterbegin',cells([esc(r.reference)+'<small class="muted"> · reusable</small>',ui('Customer enters'),date(r.createdAt),'Reusable',pill(r.status),button('Open / Copy','reusable-link',r.id)]));}
 function linkDetails(r){let url;try{url=new URL(r.paymentUrl);if(url.origin!==location.origin||!url.pathname.startsWith('/wpay-pay/'))throw Error();}catch{throw Error('The gateway did not return a valid payment link.');}return facts({Reference:r.reference,Amount:money(r.amountMinor),Status:human(r.status),Created:date(r.createdAt),Expires:date(r.expiresAt),Origin:r.origin,Webhook:human(r.callbackStatus)})+'<p class="link-url">'+esc(url.href)+'</p>'+(r.paymentQr?.startsWith('data:image/png;base64,')?'<img class="live-qr" alt="Payment link QR" src="'+esc(r.paymentQr)+'">':'')+'<div class="actions" style="margin-top:14px"><a class="btn primary" href="'+esc(url.href)+'" target="_blank" rel="noopener noreferrer"><span data-i18n="Open checkout">Open checkout</span></a>'+button('Copy link','copy-link',url.href)+'</div>';}
 function reusableLinkDetails(r){let url;try{url=new URL(r.url);if(url.origin!==location.origin||!url.pathname.startsWith('/wpay-topup/'))throw Error();}catch{throw Error('The gateway did not return a valid reusable link.');}return facts({Reference:r.reference,Type:'Reusable · customer enters amount',Status:human(r.status),Created:date(r.createdAt)})+'<p class="link-url">'+esc(url.href)+'</p><div class="notice">Every customer submission creates a fresh order ID. The customer must submit the 12-digit UTR on that order before verification can succeed.</div><div class="actions" style="margin-top:14px"><a class="btn primary" href="'+esc(url.href)+'" target="_blank" rel="noopener noreferrer">Open reusable link</a>'+button('Copy link','copy-link',url.href)+'</div>';}
 async function orderDetail(id){const r=await post('gateway/get',{id});modal('Payment link',r.reference,linkDetails(r));}
@@ -2464,6 +2464,38 @@ globalThis.WPayMerchantI18n = (() => {
   "gateway webhook rotated": [
     "Обновлён секрет вебхука",
     "已轮换 Webhook 密钥"
+  ],
+  "Reusable · customer enters amount": [
+    "Многоразовая · сумму вводит клиент",
+    "可重复使用 · 客户输入金额"
+  ],
+  "Customer enters": [
+    "Вводит клиент",
+    "客户输入"
+  ],
+  "Order expiry": [
+    "Срок действия заказа",
+    "订单有效期"
+  ],
+  "Reusable payment link": [
+    "Многоразовая платёжная ссылка",
+    "可重复使用的支付链接"
+  ],
+  "Open reusable link": [
+    "Открыть многоразовую ссылку",
+    "打开可重复使用链接"
+  ],
+  "Reusable payment link created.": [
+    "Многоразовая платёжная ссылка создана.",
+    "已创建可重复使用的支付链接。"
+  ],
+  "Payment link not found.": [
+    "Платёжная ссылка не найдена.",
+    "未找到支付链接。"
+  ],
+  "Every customer submission creates a fresh order ID. The customer must submit the 12-digit UTR on that order before verification can succeed.": [
+    "Каждая отправка клиента создаёт новый ID заказа. До успешной проверки клиент обязан отправить 12-значный UTR для этого заказа.",
+    "客户每次提交都会创建新的订单 ID。验证成功前，客户必须为该订单提交 12 位 UTR。"
   ]
 };
   const supported = ['en','ru','zh-CN'];
