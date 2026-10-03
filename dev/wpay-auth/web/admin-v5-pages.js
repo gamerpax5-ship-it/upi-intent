@@ -175,7 +175,7 @@
       actions.append(button(el,"Details",()=>details(b,g)));
       if(["submitted","review"].includes(g.status)){if(generic.actions.includes("approve"))actions.append(button(el,"Approve",()=>review(g,"approve"),"primary"));if(generic.actions.includes("reject"))actions.append(button(el,"Reject",()=>review(g,"reject"),"danger"));}
       if(g.frozen&&generic.actions.includes("release"))actions.append(button(el,"Release freeze",()=>review(g,"release_freeze")));else if(!g.frozen&&generic.actions.includes("freeze"))actions.append(button(el,"Freeze",()=>review(g,"freeze"),"danger"));
-      if(g.status==="stopped"&&!g.frozen&&b.stopped_by==="admin")actions.append(button(el,"Start",()=>stateChange(b,"start")));
+      if(g.status==="stopped"&&!g.frozen&&g.approved_version===g.version&&(!!b.admin_approved_by||g.verified_version===g.version))actions.append(button(el,"Start",()=>stateChange(b,"start")));
       else if(["running","approved","verified"].includes(g.status)&&!g.frozen)actions.append(button(el,"Stop",()=>stateChange(b,"stop")));
       const approval=b.admin_approved_by?"Admin approved":g.verified_version===g.version?"Payment verified":"Verification pending";
       return [(b.details?.upiId||b.id)+" · "+(b.owner_name||b.owner_id)+" · "+(b.details?.bankName||"—"),approval,money(usedNow)+" / "+money(limit)+" · "+money(left)+" remaining",g.statement?.status||"no statement",g.frozen?"frozen":g.status,routes,actions];
