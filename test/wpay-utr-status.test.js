@@ -37,9 +37,10 @@ test('claim expiry, admin verification isolation and trusted recovery on real Po
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.gateway_outbox')).rows[0].n,2);
  const now=new Date(),row={id:ids.admin,account_type:'super_admin',auth_method:'password',password_at:now,created_at:now,mfa_at:null,database_now:now,status:'active',approval_status:'approved',security_version:1,session_security_version:1,factor_version:0,session_factor_version:0},body={orderId:noClaim.id,utr:'123456789013',reason:'Review submitted receipt'};
- assert.equal((await tx(c=>queue(c,row,context,body,crypto))).queued,true);
- await tx(c=>gateway.expire(c));
- assert.equal((await gateway.get(pool,ids.m1,noClaim.id)).status,'failed');
+ await assert.rejects(tx(c=>queue(c,row,context,body,crypto)),{code:'CONFLICT'});
+ assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.gateway_claims WHERE order_id=$1',[noClaim.id])).rows[0].n,0);
+ const submitted=await create('admin-review-existing-claim');await tx(c=>gateway.customer(c,submitted.paymentUrl.split('/').at(-1),'123456789013'));
+ assert.equal((await tx(c=>queue(c,row,context,{...body,orderId:submitted.id},crypto))).queued,true);
  await assert.rejects(tx(c=>queue(c,{...row,account_type:'merchant'},context,body,crypto)),{code:'FORBIDDEN'});
  await assert.rejects(tx(c=>queue(c,row,{...context,adminScope:{tenantIds:['other']}},body,crypto)),{code:'FORBIDDEN'});
  await assert.rejects(tx(c=>queue(c,row,{...context,grants:['utr_center.view']},body,crypto)),{code:'FORBIDDEN'});
@@ -47,7 +48,7 @@ test('claim expiry, admin verification isolation and trusted recovery on real Po
  await assert.rejects(tx(c=>queue(c,{...row,password_at:new Date(0)},context,body,crypto)),{code:'RECENT_PASSWORD_REQUIRED'});
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,0);
  gateway.verifier=async s=>({...s,status:'confirmed',verified:true,final:true,synthetic:true,source:'recovery',utr:s.claims[0],evidenceId:'receipt-'+s.orderId,economicId:'bank-'+s.orderId,receivedAt:new Date().toISOString()});
- assert.equal((await gateway.verifyOrder(noClaim.id)).status,'successful');await gateway.verifyOrder(noClaim.id);
+ assert.equal((await gateway.verifyOrder(submitted.id)).status,'successful');await gateway.verifyOrder(submitted.id);
  assert.equal((await pool.query('SELECT count(*)::int n FROM wpay_auth.business_financial_events')).rows[0].n,1);
- assert.equal((await gateway.get(pool,ids.m1,noClaim.id)).status,'successful');
+ assert.equal((await gateway.get(pool,ids.m1,submitted.id)).status,'successful');
 });
