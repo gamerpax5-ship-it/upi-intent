@@ -16,4 +16,23 @@ test('Admin read pages execute against real isolated PostgreSQL',async t=>{
  ['panel/admin-overview',{days:30}],['panel/directory',{type:'user'}],['panel/directory',{type:'merchant'}],
  ['panel/reports',{}],['panel/settings',{}],['business/banks',{}],['business/assignments',{}],['business/routing',{}],['business/holds',{}],['panel/devices',{}],['panel/webhooks',{}],['panel/credentials',{}],['panel/api-logs',{}],['panel/support',{}],['panel/notifications',{}]
  ])await t.test(operation,async()=>{const result=await service.authenticated(login.sessionToken,operation,0,body);assert.ok(result);});
+ await t.test('Merchant Active routes counts only running bank-specific eligible UPI bindings',async()=>{
+  const adminId=(await pool.query("SELECT id FROM wpay_auth.accounts WHERE email='admin@example.invalid'")).rows[0].id;
+  const userId=randomUUID(),merchantId=randomUUID(),bankId=randomUUID(),genericId=randomUUID(),bankRouteId=randomUUID();
+  for(const [id,type,name,email] of [[userId,'user','Route User','route-user@example.invalid'],[merchantId,'merchant','Route Merchant','route-merchant@example.invalid']]){
+   await pool.query("INSERT INTO wpay_auth.accounts(id,subject_id,tenant_id,name,email,account_type,status,user_id,merchant_id) VALUES($1,$2,'default',$3,$4,$5,'active',$6,$7)",[id,randomUUID(),name,email,type,type==='user'?id:null,type==='merchant'?id:null]);
+   await pool.query("INSERT INTO wpay_auth.eligibility(account_id,approval_status,initial_deposit_satisfied) VALUES($1,'approved',true)",[id]);
+  }
+  await pool.query("INSERT INTO wpay_auth.business_bank_accounts(id,owner_id,version,status,approved_version,verified_version) VALUES($1,$2,1,'stopped',1,1)",[bankId,userId]);
+  await pool.query("INSERT INTO wpay_auth.business_bank_versions(bank_id,version,details,limit_minor,actor_id) VALUES($1,1,$2,'100000',$3)",[bankId,{upiId:'route@test',holderName:'Route User',bankName:'Test',accountNumber:'1234567890',ifsc:'TEST0000001',mobile:'+919000000000',providerName:'',notes:'',accountType:'business',bankLimitMinor:'100000'},adminId]);
+  await pool.query("INSERT INTO wpay_auth.business_assignments(id,merchant_id,user_id,bank_id,status,priority,weight,min_minor,max_minor,created_by) VALUES($1,$2,$3,NULL,'active',10,1,'100','10000',$4),($5,$2,$3,$6,'active',10,1,'100','10000',$4)",[genericId,merchantId,userId,adminId,bankRouteId,bankId]);
+  let directory=await service.authenticated(login.sessionToken,'panel/directory',0,{type:'merchant',search:'Route Merchant'});
+  assert.equal(directory.rows[0].routeCount,0,'generic assignment and stopped UPI must not count as active routes');
+  await pool.query("UPDATE wpay_auth.business_bank_accounts SET status='running' WHERE id=$1",[bankId]);
+  directory=await service.authenticated(login.sessionToken,'panel/directory',0,{type:'merchant',search:'Route Merchant'});
+  assert.equal(directory.rows[0].routeCount,1,'running bank-specific UPI route counts once');
+  await pool.query("UPDATE wpay_auth.business_assignments SET status='disabled' WHERE id=$1",[bankRouteId]);
+  directory=await service.authenticated(login.sessionToken,'panel/directory',0,{type:'merchant',search:'Route Merchant'});
+  assert.equal(directory.rows[0].routeCount,0,'disabled bank-specific route must not count');
+ });
 });
